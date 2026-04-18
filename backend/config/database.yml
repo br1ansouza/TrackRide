@@ -1,31 +1,24 @@
 default: &default
-  adapter: postgresql
+  adapter: postgis
   encoding: unicode
   max_connections: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  username: <%= ENV.fetch("POSTGRES_USER", "trackride") %>
+  password: <%= ENV.fetch("POSTGRES_PASSWORD", "") %>
+  host: <%= ENV.fetch("POSTGRES_HOST", "localhost") %>
+  port: <%= ENV.fetch("POSTGRES_PORT", 5432) %>
 
 development:
   <<: *default
   database: trackride_development
-  username: trackride
-  password: trackride_dev
-  host: localhost
-  port: 5432
 
 test:
   <<: *default
   database: trackride_test
-  username: trackride
-  password: trackride_dev
-  host: localhost
-  port: 5432
 
 production:
   primary: &primary_production
     <<: *default
     database: trackride_production
-    username: <%= ENV["POSTGRES_USER"] %>
-    password: <%= ENV["POSTGRES_PASSWORD"] %>
-    host: <%= ENV["POSTGRES_HOST"] %>
   cache:
     <<: *primary_production
     database: trackride_production_cache
