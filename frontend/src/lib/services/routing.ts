@@ -2,18 +2,17 @@ export type LatLng = [number, number];
 
 export async function geocode(query: string): Promise<LatLng | null> {
 	if (!query.trim()) return null;
-	const encoded = encodeURIComponent(query);
-	const response = await fetch(
-		`https://nominatim.openstreetmap.org/search?format=json&q=${encoded}&limit=1`
-	);
+	const response = await fetch(`/api/geocode?q=${encodeURIComponent(query)}`);
 	const data = await response.json();
-	if (data.length === 0) return null;
-	return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+	const feature = data.features?.[0];
+	if (!feature) return null;
+	const [lon, lat] = feature.geometry.coordinates;
+	return [lat, lon];
 }
 
 export async function fetchRoute(origin: LatLng, destination: LatLng): Promise<LatLng[]> {
 	const response = await fetch(
-		`https://router.project-osrm.org/route/v1/driving/${origin[1]},${origin[0]};${destination[1]},${destination[0]}?overview=full&geometries=geojson`
+		`/api/route?origin=${origin[1]},${origin[0]}&destination=${destination[1]},${destination[0]}`
 	);
 	const data = await response.json();
 	if (data.code !== 'Ok' || !data.routes.length) return [];

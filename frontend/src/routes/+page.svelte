@@ -1,18 +1,16 @@
 <script lang="ts">
 	import Map from '$lib/components/Map.svelte';
+	import SearchInput from '$lib/components/SearchInput.svelte';
+	import type { LatLng } from '$lib/services/routing';
 
-	let originInput = $state('');
-	let destinationInput = $state('');
-	let origin = $state('');
-	let destination = $state('');
+	let originCoords = $state<LatLng | null>(null);
+	let destCoords = $state<LatLng | null>(null);
+	let mapRef: ReturnType<typeof Map>;
 
 	function handleSearch() {
-		origin = originInput;
-		destination = destinationInput;
-	}
-
-	function handleKeydown(event: KeyboardEvent) {
-		if (event.key === 'Enter') handleSearch();
+		if (originCoords && destCoords) {
+			mapRef.drawRoute(originCoords, destCoords);
+		}
 	}
 </script>
 
@@ -20,19 +18,14 @@
 	<header class="flex items-center gap-4 bg-surface-900 p-4">
 		<h1 class="text-xl font-bold text-white">TrackRide</h1>
 		<div class="flex flex-1 items-center gap-2">
-			<input
-				type="text"
+			<SearchInput
 				placeholder="Origem"
-				bind:value={originInput}
-				onkeydown={handleKeydown}
-				class="input flex-1 rounded-md bg-surface-800 px-3 py-2 text-sm text-white placeholder-surface-400"
+				showMyLocation
+				onselect={(_, coords) => (originCoords = coords)}
 			/>
-			<input
-				type="text"
+			<SearchInput
 				placeholder="Destino"
-				bind:value={destinationInput}
-				onkeydown={handleKeydown}
-				class="input flex-1 rounded-md bg-surface-800 px-3 py-2 text-sm text-white placeholder-surface-400"
+				onselect={(_, coords) => (destCoords = coords)}
 			/>
 			<button onclick={handleSearch} class="btn preset-filled-primary-500 rounded-md px-4 py-2 text-sm">
 				Buscar rota
@@ -40,6 +33,6 @@
 		</div>
 	</header>
 	<main class="min-h-0 flex-1">
-		<Map {origin} {destination} />
+		<Map bind:this={mapRef} />
 	</main>
 </div>
