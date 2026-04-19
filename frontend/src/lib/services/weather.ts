@@ -8,6 +8,7 @@ export interface WeatherPoint {
 	windSpeed: number;
 	description: string;
 	icon: string;
+	locationName: string;
 }
 
 const MIN_SPACING_KM = 60;
@@ -60,7 +61,8 @@ async function fetchWeatherAt(coords: LatLng): Promise<WeatherPoint | null> {
 		humidity: data.main.humidity,
 		windSpeed: data.wind.speed,
 		description: w.description,
-		icon: w.icon
+		icon: w.icon,
+		locationName: data.name ?? ''
 	};
 }
 
