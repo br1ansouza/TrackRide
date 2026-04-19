@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { MapPin } from 'lucide-svelte';
 	import type { LatLng } from '$lib/services/routing';
+	import { toaster } from '$lib/stores/toaster';
 
 	export type SearchResult = {
 		label: string;
@@ -28,8 +29,12 @@
 		clearTimeout(debounceTimer);
 		if (query.length < 5) {
 			results = [];
+			open = false;
+			loading = false;
 			return;
 		}
+		loading = true;
+		open = true;
 		debounceTimer = setTimeout(() => search(query), 400);
 	}
 
@@ -58,7 +63,16 @@
 				results = [];
 				onselect('Minha localização', [pos.coords.latitude, pos.coords.longitude]);
 			},
-			() => {}
+			(err) => {
+				const messages: Record<number, string> = {
+					1: 'Permissão de localização negada.',
+					2: 'Não foi possível obter sua localização.',
+					3: 'Tempo esgotado ao buscar localização.'
+				};
+				toaster.error({ title: 'Erro de localização', description: messages[err.code] ?? 'Erro ao buscar localização.' });
+				open = false;
+			},
+			{ enableHighAccuracy: true, timeout: 10000 }
 		);
 	}
 
