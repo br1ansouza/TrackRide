@@ -10,7 +10,7 @@ export interface WeatherPoint {
 	icon: string;
 }
 
-const MIN_SPACING_KM = 30;
+const MIN_SPACING_KM = 60;
 
 function haversineKm(a: LatLng, b: LatLng): number {
 	const toRad = (d: number) => (d * Math.PI) / 180;
@@ -36,7 +36,10 @@ export function sampleRoutePoints(route: LatLng[], spacingKm = MIN_SPACING_KM): 
 	}
 
 	const last = route[route.length - 1];
-	if (points.length === 1 || haversineKm(points[points.length - 1], last) > 1) {
+	const distToLast = haversineKm(points[points.length - 1], last);
+	if (distToLast < spacingKm * 0.5 && points.length > 1) {
+		points[points.length - 1] = last;
+	} else {
 		points.push(last);
 	}
 
