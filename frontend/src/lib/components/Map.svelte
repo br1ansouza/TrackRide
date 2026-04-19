@@ -3,12 +3,15 @@
 	import type L from 'leaflet';
 	import { cssVar } from '$lib/utils/color';
 	import { fetchRoute, type LatLng } from '$lib/services/routing';
+	import type { WeatherPoint } from '$lib/services/weather';
+	import { toaster } from '$lib/stores/toaster';
 
 	let mapContainer: HTMLDivElement;
 	let map = $state<L.Map | null>(null);
 	let routeLayer = $state<L.Polyline | null>(null);
 	let originMarker = $state<L.Marker | null>(null);
 	let destinationMarker = $state<L.Marker | null>(null);
+	let weatherMarkers = $state<L.Marker[]>([]);
 
 	let leaflet: typeof L;
 
@@ -41,7 +44,10 @@
 						.addTo(map!)
 						.bindPopup('Você está aqui');
 				},
-				() => {}
+				() => {
+					toaster.warning({ title: 'Localização indisponível', description: 'Não foi possível detectar sua posição.' });
+				},
+				{ enableHighAccuracy: true, timeout: 10000 }
 			);
 		})();
 
@@ -57,10 +63,12 @@
 		originMarker = null;
 		destinationMarker?.remove();
 		destinationMarker = null;
+		weatherMarkers.forEach((m) => m.remove());
+		weatherMarkers = [];
 	}
 
-	export async function drawRoute(originCoords: LatLng, destCoords: LatLng) {
-		if (!map || !leaflet) return;
+	export async function drawRoute(originCoords: LatLng, destCoords: LatLng): Promise<LatLng[]> {
+		if (!map || !leaflet) return [];
 
 		clearRoute();
 
@@ -68,13 +76,30 @@
 		destinationMarker = leaflet.marker(destCoords).addTo(map).bindPopup('Destino');
 
 		const routeCoords = await fetchRoute(originCoords, destCoords);
-		if (routeCoords.length === 0) return;
+		if (routeCoords.length === 0) return [];
 
 		routeLayer = leaflet
 			.polyline(routeCoords, { color: cssVar('--color-ride-route-500'), weight: 5, opacity: 0.8 })
 			.addTo(map);
 
 		map.fitBounds(routeLayer.getBounds(), { padding: [40, 40] });
+		return routeCoords;
+	}
+
+	export function showWeatherMarkers(points: WeatherPoint[]) {
+		if (!map || !leaflet) return;
+		weatherMarkers.forEach((m) => m.remove());
+		weatherMarkers = points.map((p) => {
+			const icon = leaflet.divIcon({
+				className: '',
+				html: `<div style="display:flex;align-items:center;gap:2px;background:rgba(0,0,0,0.7);border-radius:6px;padding:2px 6px;white-space:nowrap;">
+					<img src="https://openweathermap.org/img/wn/${p.icon}.png" width="24" height="24" alt="${p.description}"/>
+					<span style="color:white;font-size:12px;font-weight:600;">${p.temp}°</span>
+				</div>`,
+				iconAnchor: [40, 16]
+			});
+			return leaflet.marker(p.coords, { icon, interactive: false }).addTo(map!);
+		});
 	}
 </script>
 

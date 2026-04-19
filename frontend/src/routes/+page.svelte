@@ -1,15 +1,36 @@
 <script lang="ts">
 	import Map from '$lib/components/Map.svelte';
+	import RouteWeather from '$lib/components/RouteWeather.svelte';
 	import SearchInput from '$lib/components/SearchInput.svelte';
 	import type { LatLng } from '$lib/services/routing';
+	import { fetchRouteWeather, type WeatherPoint } from '$lib/services/weather';
+	import { toaster } from '$lib/stores/toaster';
 
 	let originCoords = $state<LatLng | null>(null);
 	let destCoords = $state<LatLng | null>(null);
 	let mapRef: ReturnType<typeof Map>;
+	let weatherPoints = $state<WeatherPoint[]>([]);
+	let weatherLoading = $state(false);
 
-	function handleSearch() {
-		if (originCoords && destCoords) {
-			mapRef.drawRoute(originCoords, destCoords);
+	async function handleSearch() {
+		if (!originCoords || !destCoords) return;
+
+		weatherPoints = [];
+		const routeCoords = await mapRef.drawRoute(originCoords, destCoords);
+		if (routeCoords.length === 0) return;
+
+		weatherLoading = true;
+		try {
+			weatherPoints = await fetchRouteWeather(routeCoords);
+			if (weatherPoints.length === 0) {
+				toaster.warning({ title: 'Clima indisponível', description: 'Não foi possível obter dados de clima para esta rota.' });
+			} else {
+				mapRef.showWeatherMarkers(weatherPoints);
+			}
+		} catch {
+			toaster.error({ title: 'Erro ao buscar clima', description: 'Falha na comunicação com o serviço de clima. Tente novamente.' });
+		} finally {
+			weatherLoading = false;
 		}
 	}
 </script>
@@ -32,7 +53,8 @@
 			</button>
 		</div>
 	</header>
-	<main class="min-h-0 flex-1">
+	<main class="flex min-h-0 flex-1">
 		<Map bind:this={mapRef} />
+		<RouteWeather points={weatherPoints} loading={weatherLoading} />
 	</main>
 </div>
