@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Droplets, Wind, Thermometer } from 'lucide-svelte';
+	import { Droplets, Wind, Thermometer, ChevronDown } from 'lucide-svelte';
 	import type { WeatherPoint } from '$lib/services/weather';
 
 	interface Props {
@@ -10,7 +10,7 @@
 	let { points, loading }: Props = $props();
 </script>
 
-<aside class="flex w-80 flex-col gap-3 overflow-y-auto bg-surface-800 p-4">
+<aside class="flex w-80 flex-col gap-1 overflow-y-auto bg-surface-800 p-4">
 	<h2 class="text-lg font-semibold text-white">Clima na rota</h2>
 
 	{#if loading}
@@ -19,6 +19,11 @@
 		<p class="text-sm text-surface-400">Trace uma rota para ver o clima.</p>
 	{:else}
 		{#each points as point, i}
+			{#if i > 0}
+				<div class="flex justify-center py-1 text-surface-500">
+					<ChevronDown size={16} />
+				</div>
+			{/if}
 			<div class="flex items-center gap-3 rounded-lg bg-surface-700 p-3">
 				<img
 					src="https://openweathermap.org/img/wn/{point.icon}@2x.png"
