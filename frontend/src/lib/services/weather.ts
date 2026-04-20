@@ -1,4 +1,4 @@
-import type { LatLng } from './routing';
+import type { LatLng, RouteData } from './routing';
 
 export interface WeatherPoint {
 	coords: LatLng;
@@ -9,65 +9,85 @@ export interface WeatherPoint {
 	description: string;
 	icon: string;
 	locationName: string;
+	distanceKm: number;
+	estimatedMinutes: number;
 }
 
 const MIN_SPACING_KM = 60;
 
-function haversineKm(a: LatLng, b: LatLng): number {
-	const toRad = (d: number) => (d * Math.PI) / 180;
-	const dLat = toRad(b[0] - a[0]);
-	const dLon = toRad(b[1] - a[1]);
-	const h =
-		Math.sin(dLat / 2) ** 2 +
-		Math.cos(toRad(a[0])) * Math.cos(toRad(b[0])) * Math.sin(dLon / 2) ** 2;
-	return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
-}
+export function sampleRoutePoints(
+	routeData: RouteData,
+	spacingKm = MIN_SPACING_KM
+): { coords: LatLng; distanceKm: number; estimatedMinutes: number }[] {
+	const { coords, segmentDistances, segmentDurations } = routeData;
+	if (coords.length === 0) return [];
 
-export function sampleRoutePoints(route: LatLng[], spacingKm = MIN_SPACING_KM): LatLng[] {
-	if (route.length === 0) return [];
-	const points: LatLng[] = [route[0]];
-	let accumulated = 0;
+	const points: { coords: LatLng; distanceKm: number; estimatedMinutes: number }[] = [
+		{ coords: coords[0], distanceKm: 0, estimatedMinutes: 0 }
+	];
 
-	for (let i = 1; i < route.length; i++) {
-		accumulated += haversineKm(route[i - 1], route[i]);
-		if (accumulated >= spacingKm) {
-			points.push(route[i]);
-			accumulated = 0;
+	let accDistSinceLastPoint = 0;
+	let totalDist = 0;
+	let totalTime = 0;
+
+	for (let i = 0; i < segmentDistances.length; i++) {
+		const segDist = segmentDistances[i];
+		const segTime = segmentDurations[i];
+		accDistSinceLastPoint += segDist;
+		totalDist += segDist;
+		totalTime += segTime;
+
+		if (accDistSinceLastPoint >= spacingKm * 1000) {
+			points.push({
+				coords: coords[i + 1],
+				distanceKm: totalDist / 1000,
+				estimatedMinutes: totalTime / 60
+			});
+			accDistSinceLastPoint = 0;
 		}
 	}
 
-	const last = route[route.length - 1];
-	const distToLast = haversineKm(points[points.length - 1], last);
-	if (distToLast < spacingKm * 0.5 && points.length > 1) {
-		points[points.length - 1] = last;
-	} else {
-		points.push(last);
+	const last = coords[coords.length - 1];
+	const totalDistKm = (routeData.totalDistance) / 1000;
+	const totalTimeMin = (routeData.totalDuration) / 60;
+	const lastPoint = points[points.length - 1];
+
+	if (lastPoint.coords[0] !== last[0] || lastPoint.coords[1] !== last[1]) {
+		if (accDistSinceLastPoint < spacingKm * 500 && points.length > 1) {
+			points[points.length - 1] = { coords: last, distanceKm: totalDistKm, estimatedMinutes: totalTimeMin };
+		} else {
+			points.push({ coords: last, distanceKm: totalDistKm, estimatedMinutes: totalTimeMin });
+		}
 	}
 
 	return points;
 }
 
-async function fetchWeatherAt(coords: LatLng): Promise<WeatherPoint | null> {
-	const response = await fetch(`/api/weather?lat=${coords[0]}&lon=${coords[1]}`);
+async function fetchWeatherAt(
+	point: { coords: LatLng; distanceKm: number; estimatedMinutes: number }
+): Promise<WeatherPoint | null> {
+	const response = await fetch(`/api/weather?lat=${point.coords[0]}&lon=${point.coords[1]}`);
 	if (!response.ok) return null;
 	const data = await response.json();
 	const w = data.weather?.[0];
 	if (!w) return null;
 
 	return {
-		coords,
+		coords: point.coords,
 		temp: Math.round(data.main.temp),
 		feelsLike: Math.round(data.main.feels_like),
 		humidity: data.main.humidity,
 		windSpeed: data.wind.speed,
 		description: w.description,
-		icon: w.icon,
-		locationName: data.name ?? ''
+		icon: w.icon.replace('n', 'd'),
+		locationName: data.name ?? '',
+		distanceKm: Math.round(point.distanceKm),
+		estimatedMinutes: Math.round(point.estimatedMinutes)
 	};
 }
 
-export async function fetchRouteWeather(route: LatLng[]): Promise<WeatherPoint[]> {
-	const points = sampleRoutePoints(route);
+export async function fetchRouteWeather(routeData: RouteData): Promise<WeatherPoint[]> {
+	const points = sampleRoutePoints(routeData);
 	const results = await Promise.all(points.map(fetchWeatherAt));
 	return results.filter((r): r is WeatherPoint => r !== null);
 }

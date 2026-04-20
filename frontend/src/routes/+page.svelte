@@ -16,12 +16,12 @@
 		if (!originCoords || !destCoords) return;
 
 		weatherPoints = [];
-		const routeCoords = await mapRef.drawRoute(originCoords, destCoords);
-		if (routeCoords.length === 0) return;
+		const routeData = await mapRef.drawRoute(originCoords, destCoords);
+		if (!routeData) return;
 
 		weatherLoading = true;
 		try {
-			weatherPoints = await fetchRouteWeather(routeCoords);
+			weatherPoints = await fetchRouteWeather(routeData);
 			if (weatherPoints.length === 0) {
 				toaster.warning({ title: 'Clima indisponível', description: 'Não foi possível obter dados de clima para esta rota.' });
 			} else {
