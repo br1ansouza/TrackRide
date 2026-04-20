@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Droplets, Wind, Thermometer, ChevronDown } from 'lucide-svelte';
+	import { Droplets, Wind, Thermometer, ChevronDown, Clock, Route, ChevronsDownUp, ChevronsUpDown } from 'lucide-svelte';
 	import type { WeatherPoint } from '$lib/services/weather';
 
 	interface Props {
@@ -11,6 +11,18 @@
 
 	let collapsed = $state<Set<number>>(new Set());
 
+	let allCollapsed = $derived(
+		points.length > 2 && collapsed.size === points.filter((_, i) => isIntermediate(i)).length
+	);
+
+	function toggleAll() {
+		if (allCollapsed) {
+			collapsed = new Set();
+		} else {
+			collapsed = new Set(points.map((_, i) => i).filter((i) => isIntermediate(i)));
+		}
+	}
+
 	function toggleCollapse(index: number) {
 		const next = new Set(collapsed);
 		if (next.has(index)) next.delete(index);
@@ -21,10 +33,28 @@
 	function isIntermediate(index: number): boolean {
 		return index > 0 && index < points.length - 1;
 	}
+
+	function formatTime(minutes: number): string {
+		if (minutes < 60) return `${minutes} min`;
+		const h = Math.floor(minutes / 60);
+		const m = minutes % 60;
+		return m > 0 ? `${h}h ${m}min` : `${h}h`;
+	}
 </script>
 
 <aside class="flex w-80 flex-col gap-1 overflow-y-auto bg-surface-800 p-4">
-	<h2 class="text-lg font-semibold text-white">Clima na rota</h2>
+	<div class="flex items-center justify-between">
+		<h2 class="text-lg font-semibold text-white">Clima na rota</h2>
+		{#if points.length > 2}
+			<button type="button" onclick={toggleAll} class="text-surface-400 hover:text-surface-200" title={allCollapsed ? 'Expandir todos' : 'Colapsar todos'}>
+				{#if allCollapsed}
+					<ChevronsUpDown size={18} />
+				{:else}
+					<ChevronsDownUp size={18} />
+				{/if}
+			</button>
+		{/if}
+	</div>
 
 	{#if loading}
 		<p class="text-sm text-surface-400">Carregando clima…</p>
@@ -68,6 +98,16 @@
 					<p class="pl-1 text-xs text-surface-400">
 						{i === 0 ? 'Origem' : i === points.length - 1 ? 'Destino' : `Ponto ${i}`}{point.locationName ? ` — ${point.locationName}` : ''}
 					</p>
+					{#if point.distanceKm > 0}
+						<div class="flex gap-3 pl-1 text-xs text-surface-300">
+							<span class="flex items-center gap-1">
+								<Route size={12} /> {point.distanceKm} km
+							</span>
+							<span class="flex items-center gap-1">
+								<Clock size={12} /> {formatTime(point.estimatedMinutes)}
+							</span>
+						</div>
+					{/if}
 					<div class="flex items-center gap-3">
 						<img
 							src="https://openweathermap.org/img/wn/{point.icon}@2x.png"
