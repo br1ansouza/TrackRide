@@ -66,21 +66,31 @@ export function sampleRoutePoints(
 async function fetchWeatherAt(
 	point: { coords: LatLng; distanceKm: number; estimatedMinutes: number }
 ): Promise<WeatherPoint | null> {
-	const response = await fetch(`/api/weather?lat=${point.coords[0]}&lon=${point.coords[1]}`);
+	const arrivalTime = Math.floor(Date.now() / 1000) + point.estimatedMinutes * 60;
+
+	const response = await fetch(`/api/forecast?lat=${point.coords[0]}&lon=${point.coords[1]}`);
 	if (!response.ok) return null;
 	const data = await response.json();
-	const w = data.weather?.[0];
+
+	const forecasts = data.list as { dt: number; main: { temp: number; feels_like: number; humidity: number }; wind: { speed: number }; weather: { description: string; icon: string }[] }[];
+	if (!forecasts?.length) return null;
+
+	const closest = forecasts.reduce((prev, curr) =>
+		Math.abs(curr.dt - arrivalTime) < Math.abs(prev.dt - arrivalTime) ? curr : prev
+	);
+
+	const w = closest.weather?.[0];
 	if (!w) return null;
 
 	return {
 		coords: point.coords,
-		temp: Math.round(data.main.temp),
-		feelsLike: Math.round(data.main.feels_like),
-		humidity: data.main.humidity,
-		windSpeed: data.wind.speed,
+		temp: Math.round(closest.main.temp),
+		feelsLike: Math.round(closest.main.feels_like),
+		humidity: closest.main.humidity,
+		windSpeed: closest.wind.speed,
 		description: w.description,
 		icon: w.icon.replace('n', 'd'),
-		locationName: data.name ?? '',
+		locationName: data.city?.name ?? '',
 		distanceKm: Math.round(point.distanceKm),
 		estimatedMinutes: Math.round(point.estimatedMinutes)
 	};
