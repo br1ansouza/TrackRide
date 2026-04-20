@@ -1,0 +1,49 @@
+@theme {
+	/* ── Rota ── (base: primary) */
+	--color-ride-route-50: var(--color-primary-50); /* #d4e6ff */
+	--color-ride-route-100: var(--color-primary-100); /* #a7cefe */
+	--color-ride-route-300: var(--color-primary-300); /* #57a1f9 */
+	--color-ride-route-500: var(--color-primary-500); /* #0770ef */
+	--color-ride-route-700: var(--color-primary-700); /* #0052b4 */
+	--color-ride-route-900: var(--color-primary-900); /* #09366f */
+
+	/* ── Clima ── (base: tertiary) */
+	--color-ride-weather-50: var(--color-tertiary-50); /* #ffcffc */
+	--color-ride-weather-100: var(--color-tertiary-100); /* #ffa5e2 */
+	--color-ride-weather-300: var(--color-tertiary-300); /* #ff4eb0 */
+	--color-ride-weather-500: var(--color-tertiary-500); /* #ff0881 */
+	--color-ride-weather-700: var(--color-tertiary-700); /* #c90068 */
+	--color-ride-weather-900: var(--color-tertiary-900); /* #910950 */
+
+	/* ── Alerta ── (base: warning) */
+	--color-ride-alert-50: var(--color-warning-50); /* #fff0cc */
+	--color-ride-alert-100: var(--color-warning-100); /* #fce5bb */
+	--color-ride-alert-300: var(--color-warning-300); /* #fad18a */
+	--color-ride-alert-500: var(--color-warning-500); /* #f7b74e */
+	--color-ride-alert-700: var(--color-warning-700); /* #d38d37 */
+	--color-ride-alert-900: var(--color-warning-900); /* #b26417 */
+
+	/* ── Perigo ── (base: error) */
+	--color-ride-danger-50: var(--color-error-50); /* #f7d4d6 */
+	--color-ride-danger-100: var(--color-error-100); /* #f2b6b5 */
+	--color-ride-danger-300: var(--color-error-300); /* #f47b74 */
+	--color-ride-danger-500: var(--color-error-500); /* #f53f33 */
+	--color-ride-danger-700: var(--color-error-700); /* #cc2921 */
+	--color-ride-danger-900: var(--color-error-900); /* #a5100c */
+
+	/* ── Sucesso ── (base: success) */
+	--color-ride-safe-50: var(--color-success-50); /* #a7ffec */
+	--color-ride-safe-100: var(--color-success-100); /* #96fbe5 */
+	--color-ride-safe-300: var(--color-success-300); /* #70eed3 */
+	--color-ride-safe-500: var(--color-success-500); /* #56e3c2 */
+	--color-ride-safe-700: var(--color-success-700); /* #319a84 */
+	--color-ride-safe-900: var(--color-success-900); /* #1b5249 */
+
+	/* ── Localização ── (base: secondary) */
+	--color-ride-location-50: var(--color-secondary-50); /* #d9cdf1 */
+	--color-ride-location-100: var(--color-secondary-100); /* #c6adea */
+	--color-ride-location-300: var(--color-secondary-300); /* #a06adb */
+	--color-ride-location-500: var(--color-secondary-500); /* #7926cb */
+	--color-ride-location-700: var(--color-secondary-700); /* #5e23a4 */
+	--color-ride-location-900: var(--color-secondary-900); /* #401c7c */
+}
