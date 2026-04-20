@@ -40,6 +40,12 @@
 		const m = minutes % 60;
 		return m > 0 ? `${h}h ${m}min` : `${h}h`;
 	}
+
+	function formatArrival(minutes: number): string {
+		if (minutes === 0) return 'Agora';
+		const arrival = new Date(Date.now() + minutes * 60000);
+		return `~${arrival.getHours().toString().padStart(2, '0')}:${arrival.getMinutes().toString().padStart(2, '0')}`;
+	}
 </script>
 
 <aside class="flex w-80 flex-col gap-1 overflow-y-auto bg-surface-800 p-4">
@@ -96,7 +102,7 @@
 			{:else}
 				<div class="flex flex-col gap-2 rounded-lg bg-surface-700 p-3">
 					<p class="pl-1 text-xs text-surface-400">
-						{i === 0 ? 'Origem' : i === points.length - 1 ? 'Destino' : `Ponto ${i}`}{point.locationName ? ` — ${point.locationName}` : ''}
+						{formatArrival(point.estimatedMinutes)}{point.locationName ? ` — ${point.locationName}` : ''}
 					</p>
 					{#if point.distanceKm > 0}
 						<div class="flex gap-3 pl-1 text-xs text-surface-300">
@@ -121,7 +127,7 @@
 					</div>
 					<div class="flex gap-4 text-xs text-surface-400">
 						<span class="flex items-center gap-1">
-							<Thermometer size={12} /> Sensação {point.feelsLike}°C
+							<Thermometer size={12} /> {point.feelsLike}°C
 						</span>
 						<span class="flex items-center gap-1">
 							<Droplets size={12} /> {point.humidity}%
