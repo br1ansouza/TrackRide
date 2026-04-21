@@ -13,7 +13,7 @@ export interface WeatherPoint {
 	estimatedMinutes: number;
 }
 
-const MIN_SPACING_KM = 60;
+const MIN_SPACING_KM = 90;
 
 export function sampleRoutePoints(
 	routeData: RouteData,
