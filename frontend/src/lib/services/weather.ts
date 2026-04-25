@@ -11,6 +11,8 @@ export interface WeatherPoint {
 	locationName: string;
 	distanceKm: number;
 	estimatedMinutes: number;
+	visibility: number;
+	rain: number;
 }
 
 const MIN_SPACING_KM = 90;
@@ -48,8 +50,8 @@ export function sampleRoutePoints(
 	}
 
 	const last = coords[coords.length - 1];
-	const totalDistKm = (routeData.totalDistance) / 1000;
-	const totalTimeMin = (routeData.totalDuration) / 60;
+	const totalDistKm = routeData.totalDistance / 1000;
+	const totalTimeMin = routeData.totalDuration / 60;
 	const lastPoint = points[points.length - 1];
 
 	if (lastPoint.coords[0] !== last[0] || lastPoint.coords[1] !== last[1]) {
@@ -72,7 +74,15 @@ async function fetchWeatherAt(
 	if (!response.ok) return null;
 	const data = await response.json();
 
-	const forecasts = data.list as { dt: number; main: { temp: number; feels_like: number; humidity: number }; wind: { speed: number }; weather: { description: string; icon: string }[] }[];
+	const forecasts = data.list as {
+		dt: number;
+		main: { temp: number; feels_like: number; humidity: number };
+		wind: { speed: number };
+		weather: { description: string; icon: string }[];
+		visibility?: number;
+		rain?: { '3h'?: number };
+		snow?: { '3h'?: number };
+	}[];
 	if (!forecasts?.length) return null;
 
 	const closest = forecasts.reduce((prev, curr) =>
@@ -92,12 +102,24 @@ async function fetchWeatherAt(
 		icon: w.icon.replace('n', 'd'),
 		locationName: data.city?.name ?? '',
 		distanceKm: Math.round(point.distanceKm),
-		estimatedMinutes: Math.round(point.estimatedMinutes)
+		estimatedMinutes: Math.round(point.estimatedMinutes),
+		visibility: closest.visibility ?? 10000,
+		rain: (closest.rain?.['3h'] ?? 0) + (closest.snow?.['3h'] ?? 0)
 	};
 }
 
-export async function fetchRouteWeather(routeData: RouteData): Promise<WeatherPoint[]> {
+export async function fetchRouteWeather(
+	routeData: RouteData,
+	labels?: { origin: string; destination: string }
+): Promise<WeatherPoint[]> {
 	const points = sampleRoutePoints(routeData);
 	const results = await Promise.all(points.map(fetchWeatherAt));
-	return results.filter((r): r is WeatherPoint => r !== null);
+	const filtered = results.filter((r): r is WeatherPoint => r !== null);
+
+	if (labels && filtered.length > 0) {
+		filtered[0].locationName = labels.origin;
+		filtered[filtered.length - 1].locationName = labels.destination;
+	}
+
+	return filtered;
 }
