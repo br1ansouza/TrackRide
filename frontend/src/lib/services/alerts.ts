@@ -1,13 +1,15 @@
 import type { WeatherPoint } from './weather';
 
 export type AlertSeverity = 'warning' | 'danger';
-export type AlertType = 'rain' | 'wind' | 'visibility';
+export type AlertType = 'rain' | 'wind' | 'visibility' | 'night';
 
 export interface RouteAlert {
 	type: AlertType;
 	severity: AlertSeverity;
 	message: string;
 	points: WeatherPoint[];
+	exposureKm: number;
+	exposureMinutes: number;
 }
 
 export const THRESHOLDS = {
@@ -46,6 +48,10 @@ const MESSAGES: Record<AlertType, Record<AlertSeverity, { short: string; long: s
 	visibility: {
 		warning: { short: 'Visibilidade reduzida', long: 'Visibilidade reduzida em trechos da rota' },
 		danger: { short: 'Visibilidade muito baixa', long: 'Visibilidade muito baixa em trechos da rota' }
+	},
+	night: {
+		warning: { short: 'Trecho noturno', long: 'Trechos noturnos na rota' },
+		danger: { short: 'Trecho noturno', long: 'Trechos noturnos na rota' }
 	}
 };
 
@@ -53,6 +59,12 @@ export interface PointAlert {
 	type: AlertType;
 	severity: AlertSeverity;
 	message: string;
+}
+
+export function classifyNight(estimatedMinutes: number): AlertSeverity | null {
+	const arrival = new Date(Date.now() + estimatedMinutes * 60000);
+	const hour = arrival.getHours();
+	return (hour >= 19 || hour < 6) ? 'warning' : null;
 }
 
 export function classifyPoint(point: WeatherPoint): PointAlert[] {
@@ -63,37 +75,53 @@ export function classifyPoint(point: WeatherPoint): PointAlert[] {
 	if (wind) result.push({ type: 'wind', severity: wind, message: MESSAGES.wind[wind].short });
 	const vis = classifyVisibility(point.visibility);
 	if (vis) result.push({ type: 'visibility', severity: vis, message: MESSAGES.visibility[vis].short });
+	const night = classifyNight(point.estimatedMinutes);
+	if (night) result.push({ type: 'night', severity: night, message: MESSAGES.night[night].short });
 	return result;
 }
 
+function formatExposure(km: number, minutes: number): string {
+	if (minutes < 60) return `~${km} km (~${minutes} min)`;
+	const h = Math.floor(minutes / 60);
+	const m = minutes % 60;
+	const time = m > 0 ? `${h}h ${m}min` : `${h}h`;
+	return `~${km} km (~${time})`;
+}
+
 export function analyzeRoute(points: WeatherPoint[]): RouteAlert[] {
-	const groups: Record<AlertType, { warning: WeatherPoint[]; danger: WeatherPoint[] }> = {
-		rain: { warning: [], danger: [] },
-		wind: { warning: [], danger: [] },
-		visibility: { warning: [], danger: [] }
+	const classifiers: Record<AlertType, (p: WeatherPoint) => AlertSeverity | null> = {
+		rain: (p) => classifyRain(p.rain),
+		wind: (p) => classifyWind(p.windSpeed),
+		visibility: (p) => classifyVisibility(p.visibility),
+		night: (p) => classifyNight(p.estimatedMinutes)
 	};
 
-	for (const point of points) {
-		const rainSev = classifyRain(point.rain);
-		if (rainSev) groups.rain[rainSev].push(point);
-
-		const windSev = classifyWind(point.windSpeed);
-		if (windSev) groups.wind[windSev].push(point);
-
-		const visSev = classifyVisibility(point.visibility);
-		if (visSev) groups.visibility[visSev].push(point);
-	}
-
 	const alerts: RouteAlert[] = [];
-	const types: AlertType[] = ['rain', 'wind', 'visibility'];
+	const types: AlertType[] = ['rain', 'wind', 'visibility', 'night'];
 
 	for (const type of types) {
-		const group = groups[type];
-		const severity: AlertSeverity = group.danger.length > 0 ? 'danger' : 'warning';
-		const allPoints = [...group.danger, ...group.warning];
-		if (allPoints.length > 0) {
-			alerts.push({ type, severity, message: MESSAGES[type][severity].long, points: allPoints });
+		const affected = points.filter((p) => classifiers[type](p) !== null);
+		if (affected.length === 0) continue;
+
+		const hasDanger = affected.some((p) => classifiers[type](p) === 'danger');
+		const severity: AlertSeverity = hasDanger ? 'danger' : 'warning';
+
+		const firstKm = Math.min(...affected.map((p) => p.distanceKm));
+		const lastKm = Math.max(...affected.map((p) => p.distanceKm));
+		const firstMin = Math.min(...affected.map((p) => p.estimatedMinutes));
+		const lastMin = Math.max(...affected.map((p) => p.estimatedMinutes));
+		const exposureKm = Math.round(lastKm - firstKm);
+		const exposureMinutes = Math.round(lastMin - firstMin);
+
+		const base = MESSAGES[type][severity].long;
+		let message: string;
+		if (exposureKm > 0) {
+			message = `${base} por ${formatExposure(exposureKm, exposureMinutes)}`;
+		} else {
+			message = `${base} (${affected.length} ${affected.length === 1 ? 'ponto' : 'pontos'})`;
 		}
+
+		alerts.push({ type, severity, message, points: affected, exposureKm, exposureMinutes });
 	}
 
 	return alerts;

@@ -22,7 +22,7 @@
 			<circle
 				cx="32" cy="32" r={RADIUS}
 				fill="none"
-				stroke="var(--color-surface-600)"
+				stroke="var(--color-surface-700)"
 				stroke-width="5"
 				stroke-dasharray="{CIRCUMFERENCE} {CIRCUMFERENCE}"
 				stroke-dashoffset={CIRCUMFERENCE / 2}
@@ -57,11 +57,11 @@
 			<div class="flex gap-2">
 				{#each alerts as alert}
 					{@const Icon = ALERT_ICONS[alert.type]}
-					<Tooltip positioning={{ placement: 'top' }} openDelay={200} closeDelay={0}>
+					<Tooltip positioning={{ placement: 'top', strategy: 'fixed' }} openDelay={200} closeDelay={0}>
 						<Tooltip.Trigger>
 							<Icon size={14} color={alertColor(alert.severity)} />
 						</Tooltip.Trigger>
-						<Tooltip.Positioner>
+						<Tooltip.Positioner class="z-[1100]" style="z-index: 1100;">
 							<Tooltip.Content class="rounded bg-surface-900 px-2 py-1 text-xs text-white shadow-lg">
 								{alert.message}
 							</Tooltip.Content>

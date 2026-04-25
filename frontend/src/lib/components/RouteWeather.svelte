@@ -113,11 +113,11 @@
 						<div class="flex gap-1">
 							{#each pointAlerts as pa}
 								{@const Icon = ALERT_ICONS[pa.type]}
-								<Tooltip positioning={{ placement: 'top' }} openDelay={200} closeDelay={0}>
+								<Tooltip positioning={{ placement: 'top', strategy: 'fixed' }} openDelay={200} closeDelay={0}>
 									<Tooltip.Trigger>
 										<Icon size={14} color={alertColor(pa.severity)} />
 									</Tooltip.Trigger>
-									<Tooltip.Positioner>
+									<Tooltip.Positioner class="z-[1100]" style="z-index: 1100;">
 										<Tooltip.Content class="rounded bg-surface-900 px-2 py-1 text-xs text-white shadow-lg">
 											{pa.message}
 										</Tooltip.Content>
@@ -137,11 +137,11 @@
 							<div class="flex gap-1">
 								{#each pointAlerts as pa}
 									{@const Icon = ALERT_ICONS[pa.type]}
-									<Tooltip positioning={{ placement: 'top' }} openDelay={200} closeDelay={0}>
+									<Tooltip positioning={{ placement: 'top', strategy: 'fixed' }} openDelay={200} closeDelay={0}>
 										<Tooltip.Trigger>
 											<Icon size={14} color={alertColor(pa.severity)} />
 										</Tooltip.Trigger>
-										<Tooltip.Positioner>
+										<Tooltip.Positioner class="z-[1100]" style="z-index: 1100;">
 											<Tooltip.Content class="rounded bg-surface-900 px-2 py-1 text-xs text-white shadow-lg">
 												{pa.message}
 											</Tooltip.Content>

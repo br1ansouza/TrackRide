@@ -1,4 +1,4 @@
-import { THRESHOLDS } from './alerts';
+import { THRESHOLDS, classifyNight } from './alerts';
 import type { WeatherPoint } from './weather';
 
 export interface RouteScore {
@@ -7,7 +7,7 @@ export interface RouteScore {
 	color: 'safe' | 'alert' | 'danger';
 }
 
-function pointPenalty(point: WeatherPoint): number {
+function weatherPenalty(point: WeatherPoint): number {
 	let penalty = 0;
 
 	if (point.rain >= THRESHOLDS.rain.danger) penalty += 40;
@@ -22,6 +22,10 @@ function pointPenalty(point: WeatherPoint): number {
 	return Math.min(penalty, 100);
 }
 
+function nightPenalty(point: WeatherPoint): number {
+	return classifyNight(point.estimatedMinutes) !== null ? 15 : 0;
+}
+
 function scoreLabel(value: number): { label: string; color: RouteScore['color'] } {
 	if (value >= 75) return { label: 'Boa para rodar', color: 'safe' };
 	if (value >= 50) return { label: 'Atenção em trechos', color: 'alert' };
@@ -31,8 +35,16 @@ function scoreLabel(value: number): { label: string; color: RouteScore['color'] 
 export function calculateRouteScore(points: WeatherPoint[]): RouteScore {
 	if (points.length === 0) return { value: 100, label: 'Sem dados', color: 'safe' };
 
-	const avgPenalty = points.reduce((sum, p) => sum + pointPenalty(p), 0) / points.length;
-	const value = Math.round(Math.max(0, 100 - avgPenalty));
+	const weatherPenalties = points.map(weatherPenalty);
+	const nightPenalties = points.map(nightPenalty);
+
+	const avgWeather = weatherPenalties.reduce((sum, p) => sum + p, 0) / points.length;
+	const worstWeather = Math.max(...weatherPenalties);
+	const weatherAffectedRatio = weatherPenalties.filter((p) => p > 0).length / points.length;
+	const avgNight = nightPenalties.reduce((sum, p) => sum + p, 0) / points.length;
+
+	const combined = avgWeather * 0.4 + worstWeather * 0.4 + weatherAffectedRatio * 100 * 0.2 + avgNight;
+	const value = Math.round(Math.max(0, 100 - combined));
 	const { label, color } = scoreLabel(value);
 
 	return { value, label, color };

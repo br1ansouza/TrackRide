@@ -34,6 +34,7 @@
 				toaster.warning({ title: 'Clima indisponível', description: 'Não foi possível obter dados de clima para esta rota.' });
 			} else {
 				mapRef.showWeatherMarkers(weatherPoints);
+				mapRef.showRouteConditions(routeData.coords, weatherPoints);
 				alerts = analyzeRoute(weatherPoints);
 				score = calculateRouteScore(weatherPoints);
 			}
