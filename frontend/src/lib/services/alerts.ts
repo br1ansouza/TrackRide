@@ -10,7 +10,7 @@ export interface RouteAlert {
 	points: WeatherPoint[];
 }
 
-const THRESHOLDS = {
+export const THRESHOLDS = {
 	rain: { warning: 2.5, danger: 7.5 },
 	wind: { warning: 10, danger: 17 },
 	visibility: { warning: 5000, danger: 1000 }
@@ -34,25 +34,19 @@ function classifyVisibility(visibility: number): AlertSeverity | null {
 	return null;
 }
 
-const MESSAGES: Record<AlertType, Record<AlertSeverity, string>> = {
+const MESSAGES: Record<AlertType, Record<AlertSeverity, { short: string; long: string }>> = {
 	rain: {
-		warning: 'Chuva moderada em trechos da rota',
-		danger: 'Chuva forte em trechos da rota'
+		warning: { short: 'Chuva moderada', long: 'Chuva moderada em trechos da rota' },
+		danger: { short: 'Chuva forte', long: 'Chuva forte em trechos da rota' }
 	},
 	wind: {
-		warning: 'Vento forte em trechos da rota',
-		danger: 'Vento muito forte em trechos da rota'
+		warning: { short: 'Vento forte', long: 'Vento forte em trechos da rota' },
+		danger: { short: 'Vento muito forte', long: 'Vento muito forte em trechos da rota' }
 	},
 	visibility: {
-		warning: 'Visibilidade reduzida em trechos da rota',
-		danger: 'Visibilidade muito baixa em trechos da rota'
+		warning: { short: 'Visibilidade reduzida', long: 'Visibilidade reduzida em trechos da rota' },
+		danger: { short: 'Visibilidade muito baixa', long: 'Visibilidade muito baixa em trechos da rota' }
 	}
-};
-
-const POINT_MESSAGES: Record<AlertType, Record<AlertSeverity, string>> = {
-	rain: { warning: 'Chuva moderada', danger: 'Chuva forte' },
-	wind: { warning: 'Vento forte', danger: 'Vento muito forte' },
-	visibility: { warning: 'Visibilidade reduzida', danger: 'Visibilidade muito baixa' }
 };
 
 export interface PointAlert {
@@ -64,11 +58,11 @@ export interface PointAlert {
 export function classifyPoint(point: WeatherPoint): PointAlert[] {
 	const result: PointAlert[] = [];
 	const rain = classifyRain(point.rain);
-	if (rain) result.push({ type: 'rain', severity: rain, message: POINT_MESSAGES.rain[rain] });
+	if (rain) result.push({ type: 'rain', severity: rain, message: MESSAGES.rain[rain].short });
 	const wind = classifyWind(point.windSpeed);
-	if (wind) result.push({ type: 'wind', severity: wind, message: POINT_MESSAGES.wind[wind] });
+	if (wind) result.push({ type: 'wind', severity: wind, message: MESSAGES.wind[wind].short });
 	const vis = classifyVisibility(point.visibility);
-	if (vis) result.push({ type: 'visibility', severity: vis, message: POINT_MESSAGES.visibility[vis] });
+	if (vis) result.push({ type: 'visibility', severity: vis, message: MESSAGES.visibility[vis].short });
 	return result;
 }
 
@@ -98,7 +92,7 @@ export function analyzeRoute(points: WeatherPoint[]): RouteAlert[] {
 		const severity: AlertSeverity = group.danger.length > 0 ? 'danger' : 'warning';
 		const allPoints = [...group.danger, ...group.warning];
 		if (allPoints.length > 0) {
-			alerts.push({ type, severity, message: MESSAGES[type][severity], points: allPoints });
+			alerts.push({ type, severity, message: MESSAGES[type][severity].long, points: allPoints });
 		}
 	}
 

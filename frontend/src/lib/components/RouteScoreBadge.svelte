@@ -1,9 +1,8 @@
 <script lang="ts">
-	import { CloudRain, Wind, Eye } from 'lucide-svelte';
 	import { Tooltip } from '@skeletonlabs/skeleton-svelte';
-	import type { RouteAlert, AlertType } from '$lib/services/alerts';
+	import type { RouteAlert } from '$lib/services/alerts';
 	import type { RouteScore } from '$lib/services/routeScore';
-	import { cssVar } from '$lib/utils/color';
+	import { ALERT_ICONS, alertColor } from '$lib/utils/alertIcons';
 
 	interface Props {
 		score: RouteScore;
@@ -12,19 +11,9 @@
 
 	let { score, alerts }: Props = $props();
 
-	const ICONS: Record<AlertType, typeof CloudRain> = {
-		rain: CloudRain,
-		wind: Wind,
-		visibility: Eye
-	};
-
 	const RADIUS = 28;
 	const CIRCUMFERENCE = Math.PI * RADIUS;
 	let offset = $derived(CIRCUMFERENCE - (score.value / 100) * CIRCUMFERENCE);
-
-	function alertColor(severity: 'warning' | 'danger'): string {
-		return cssVar(severity === 'danger' ? '--color-ride-danger-300' : '--color-ride-alert-300');
-	}
 </script>
 
 <div class="flex items-center gap-3 py-1">
@@ -67,7 +56,7 @@
 		{#if alerts.length > 0}
 			<div class="flex gap-2">
 				{#each alerts as alert}
-					{@const Icon = ICONS[alert.type]}
+					{@const Icon = ALERT_ICONS[alert.type]}
 					<Tooltip positioning={{ placement: 'top' }} openDelay={200} closeDelay={0}>
 						<Tooltip.Trigger>
 							<Icon size={14} color={alertColor(alert.severity)} />

@@ -1,3 +1,4 @@
+import { THRESHOLDS } from './alerts';
 import type { WeatherPoint } from './weather';
 
 export interface RouteScore {
@@ -9,14 +10,14 @@ export interface RouteScore {
 function pointPenalty(point: WeatherPoint): number {
 	let penalty = 0;
 
-	if (point.rain >= 7.5) penalty += 40;
-	else if (point.rain >= 2.5) penalty += 20;
+	if (point.rain >= THRESHOLDS.rain.danger) penalty += 40;
+	else if (point.rain >= THRESHOLDS.rain.warning) penalty += 20;
 
-	if (point.windSpeed >= 17) penalty += 30;
-	else if (point.windSpeed >= 10) penalty += 15;
+	if (point.windSpeed >= THRESHOLDS.wind.danger) penalty += 30;
+	else if (point.windSpeed >= THRESHOLDS.wind.warning) penalty += 15;
 
-	if (point.visibility <= 1000) penalty += 30;
-	else if (point.visibility <= 5000) penalty += 15;
+	if (point.visibility <= THRESHOLDS.visibility.danger) penalty += 30;
+	else if (point.visibility <= THRESHOLDS.visibility.warning) penalty += 15;
 
 	return Math.min(penalty, 100);
 }

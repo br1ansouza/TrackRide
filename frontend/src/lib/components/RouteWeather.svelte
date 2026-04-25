@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { Droplets, Wind, Thermometer, ChevronDown, Clock, Route, ChevronsDownUp, ChevronsUpDown, CloudRain, Eye } from 'lucide-svelte';
+	import { Droplets, Wind, Thermometer, ChevronDown, Clock, Route, ChevronsDownUp, ChevronsUpDown } from 'lucide-svelte';
 	import { Tooltip } from '@skeletonlabs/skeleton-svelte';
 	import RouteScoreBadge from '$lib/components/RouteScoreBadge.svelte';
-	import { classifyPoint, type AlertType, type RouteAlert } from '$lib/services/alerts';
+	import { classifyPoint, type RouteAlert } from '$lib/services/alerts';
 	import type { RouteScore } from '$lib/services/routeScore';
 	import type { WeatherPoint } from '$lib/services/weather';
-	import { cssVar } from '$lib/utils/color';
+	import { ALERT_ICONS, alertColor } from '$lib/utils/alertIcons';
 
 	interface Props {
 		points: WeatherPoint[];
@@ -21,17 +21,6 @@
 	let allCollapsed = $derived(
 		points.length > 2 && collapsed.size === points.filter((_, i) => isIntermediate(i)).length
 	);
-
-	const ALERT_ICONS: Record<AlertType, typeof CloudRain> = {
-		rain: CloudRain,
-		wind: Wind,
-		visibility: Eye
-	};
-
-	function alertColor(severity: 'warning' | 'danger'): string {
-		const token = severity === 'danger' ? '--color-ride-danger-300' : '--color-ride-alert-300';
-		return cssVar(token);
-	}
 
 	function toggleAll() {
 		if (allCollapsed) {
