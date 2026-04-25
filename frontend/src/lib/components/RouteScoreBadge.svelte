@@ -14,6 +14,12 @@
 	const RADIUS = 28;
 	const CIRCUMFERENCE = Math.PI * RADIUS;
 	let offset = $derived(CIRCUMFERENCE - (score.value / 100) * CIRCUMFERENCE);
+	const COLOR_MAP: Record<RouteScore['color'], string> = {
+		safe: 'var(--color-success-500)',
+		alert: 'var(--color-warning-500)',
+		danger: 'var(--color-error-500)'
+	};
+	let strokeColor = $derived(COLOR_MAP[score.color]);
 </script>
 
 <div class="flex items-center gap-3 py-1">
@@ -22,21 +28,21 @@
 			<circle
 				cx="32" cy="32" r={RADIUS}
 				fill="none"
-				stroke="var(--color-surface-700)"
 				stroke-width="5"
 				stroke-dasharray="{CIRCUMFERENCE} {CIRCUMFERENCE}"
 				stroke-dashoffset={CIRCUMFERENCE / 2}
 				stroke-linecap="round"
+				style:stroke="var(--color-surface-700)"
 			/>
 			<circle
 				cx="32" cy="32" r={RADIUS}
 				fill="none"
-				stroke="var(--color-ride-{score.color}-500)"
 				stroke-width="5"
 				stroke-dasharray="{CIRCUMFERENCE} {CIRCUMFERENCE}"
 				stroke-dashoffset={offset + CIRCUMFERENCE / 2}
 				stroke-linecap="round"
 				class="transition-all duration-500"
+				style:stroke={strokeColor}
 			/>
 		</svg>
 		<span
