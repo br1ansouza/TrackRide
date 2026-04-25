@@ -27,8 +27,8 @@ function nightPenalty(point: WeatherPoint): number {
 }
 
 function scoreLabel(value: number): { label: string; color: RouteScore['color'] } {
-	if (value >= 75) return { label: 'Boa para rodar', color: 'safe' };
-	if (value >= 50) return { label: 'Atenção em trechos', color: 'alert' };
+	if (value >= 80) return { label: 'Boa para rodar', color: 'safe' };
+	if (value >= 55) return { label: 'Atenção em trechos', color: 'alert' };
 	return { label: 'Condições adversas', color: 'danger' };
 }
 
@@ -40,11 +40,20 @@ export function calculateRouteScore(points: WeatherPoint[]): RouteScore {
 
 	const avgWeather = weatherPenalties.reduce((sum, p) => sum + p, 0) / points.length;
 	const worstWeather = Math.max(...weatherPenalties);
-	const weatherAffectedRatio = weatherPenalties.filter((p) => p > 0).length / points.length;
+	const affectedCount = weatherPenalties.filter((p) => p > 0).length;
+	const affectedRatio = affectedCount / points.length;
 	const avgNight = nightPenalties.reduce((sum, p) => sum + p, 0) / points.length;
 
-	const combined = avgWeather * 0.4 + worstWeather * 0.4 + weatherAffectedRatio * 100 * 0.2 + avgNight;
-	const value = Math.round(Math.max(0, 100 - combined));
+	const scaledAffected = Math.min(affectedCount * 4, 40);
+
+	const combined =
+		avgWeather * 0.3 +
+		worstWeather * 0.3 +
+		affectedRatio * 100 * 0.15 +
+		scaledAffected +
+		avgNight;
+
+	const value = Math.round(Math.max(0, Math.min(100, 100 - combined)));
 	const { label, color } = scoreLabel(value);
 
 	return { value, label, color };
