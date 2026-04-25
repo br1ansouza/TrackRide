@@ -6,7 +6,7 @@ export const GET: RequestHandler = async ({ url }) => {
 	if (!origin || !destination) return new Response(JSON.stringify({}), { status: 400 });
 
 	const response = await fetch(
-		`https://router.project-osrm.org/route/v1/driving/${origin};${destination}?overview=full&geometries=geojson`
+		`https://router.project-osrm.org/route/v1/driving/${origin};${destination}?overview=full&geometries=geojson&annotations=duration,distance`
 	);
 
 	return new Response(await response.text(), {

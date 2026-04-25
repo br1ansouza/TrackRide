@@ -2,13 +2,15 @@
 	import { onMount } from 'svelte';
 	import type L from 'leaflet';
 	import { cssVar } from '$lib/utils/color';
-	import { fetchRoute, type LatLng } from '$lib/services/routing';
+	import { fetchRoute, type LatLng, type RouteData } from '$lib/services/routing';
 	import type { WeatherPoint } from '$lib/services/weather';
+	import { classifyPoint } from '$lib/services/alerts';
 	import { toaster } from '$lib/stores/toaster';
 
 	let mapContainer: HTMLDivElement;
 	let map = $state<L.Map | null>(null);
 	let routeLayer = $state<L.Polyline | null>(null);
+	let conditionLayers = $state<L.Polyline[]>([]);
 	let originMarker = $state<L.CircleMarker | null>(null);
 	let destinationMarker = $state<L.CircleMarker | null>(null);
 	let weatherMarkers = $state<L.Marker[]>([]);
@@ -60,6 +62,8 @@
 		map?.off('zoomend', updateWeatherVisibility);
 		routeLayer?.remove();
 		routeLayer = null;
+		conditionLayers.forEach((l) => l.remove());
+		conditionLayers = [];
 		originMarker?.remove();
 		originMarker = null;
 		destinationMarker?.remove();
@@ -68,8 +72,8 @@
 		weatherMarkers = [];
 	}
 
-	export async function drawRoute(originCoords: LatLng, destCoords: LatLng): Promise<LatLng[]> {
-		if (!map || !leaflet) return [];
+	export async function drawRoute(originCoords: LatLng, destCoords: LatLng): Promise<RouteData | null> {
+		if (!map || !leaflet) return null;
 
 		clearRoute();
 
@@ -92,15 +96,15 @@
 			.addTo(map)
 			.bindPopup('Destino');
 
-		const routeCoords = await fetchRoute(originCoords, destCoords);
-		if (routeCoords.length === 0) return [];
+		const routeData = await fetchRoute(originCoords, destCoords);
+		if (!routeData) return null;
 
 		routeLayer = leaflet
-			.polyline(routeCoords, { color: cssVar('--color-ride-route-500'), weight: 5, opacity: 0.8 })
+			.polyline(routeData.coords, { color: cssVar('--color-ride-route-500'), weight: 5, opacity: 0.8 })
 			.addTo(map);
 
 		map.fitBounds(routeLayer.getBounds(), { padding: [40, 40] });
-		return routeCoords;
+		return routeData;
 	}
 
 	function updateWeatherVisibility() {
@@ -125,6 +129,51 @@
 				marker.remove();
 			}
 		});
+	}
+
+	function closestRouteIndex(routeCoords: LatLng[], target: LatLng): number {
+		let bestIdx = 0;
+		let bestDist = Infinity;
+		for (let i = 0; i < routeCoords.length; i++) {
+			const dlat = routeCoords[i][0] - target[0];
+			const dlon = routeCoords[i][1] - target[1];
+			const dist = dlat * dlat + dlon * dlon;
+			if (dist < bestDist) {
+				bestDist = dist;
+				bestIdx = i;
+			}
+		}
+		return bestIdx;
+	}
+
+	export function showRouteConditions(routeCoords: LatLng[], points: WeatherPoint[]) {
+		if (!map || !leaflet || points.length < 2) return;
+		conditionLayers.forEach((l) => l.remove());
+		conditionLayers = [];
+
+		const indices = points.map((p) => closestRouteIndex(routeCoords, p.coords));
+
+		for (let i = 0; i < points.length - 1; i++) {
+			const alerts = classifyPoint(points[i]);
+			if (alerts.length === 0) continue;
+
+			const segment = routeCoords.slice(indices[i], indices[i + 1] + 1);
+			if (segment.length < 2) continue;
+
+			const weatherAlerts = alerts.filter((a) => a.type !== 'night');
+			const isNight = alerts.some((a) => a.type === 'night');
+
+			if (weatherAlerts.length > 0) {
+				const hasDanger = weatherAlerts.some((a) => a.severity === 'danger');
+				const color = cssVar(hasDanger ? '--color-ride-danger-300' : '--color-ride-alert-300');
+				const layer = leaflet.polyline(segment, { color, weight: 6, opacity: 0.9 }).addTo(map);
+				conditionLayers.push(layer);
+			} else if (isNight) {
+				const color = cssVar('--color-ride-route-800');
+				const layer = leaflet.polyline(segment, { color, weight: 6, opacity: 0.4 }).addTo(map);
+				conditionLayers.push(layer);
+			}
+		}
 	}
 
 	export function showWeatherMarkers(points: WeatherPoint[]) {
