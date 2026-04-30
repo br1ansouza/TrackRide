@@ -1,0 +1,32 @@
+pt-BR:
+  activerecord:
+    models:
+      user: Usuário
+      route: Rota
+    attributes:
+      user:
+        name: Nome
+        email: Email
+        password: Senha
+        password_confirmation: Confirmação de senha
+        riding_preference: Preferência de pilotagem
+      route:
+        name: Nome
+        origin_name: Origem
+        destination_name: Destino
+        origin_coords: Coordenadas de origem
+        destination_coords: Coordenadas de destino
+    errors:
+      models:
+        user:
+          attributes:
+            email:
+              taken: já está em uso
+            password:
+              too_short: é muito curta (mínimo %{count} caracteres)
+  errors:
+    messages:
+      blank: não pode ficar em branco
+      taken: já está em uso
+      too_short: é muito curto (mínimo %{count} caracteres)
+      invalid: não é válido
