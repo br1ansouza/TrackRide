@@ -10,7 +10,7 @@
 	import RouteHistory from '$lib/components/RouteHistory.svelte';
 	import { analyzeRoute, type RouteAlert } from '$lib/services/alerts';
 	import type { LatLng } from '$lib/services/routing';
-	import { calculateRouteScore, type RouteScore } from '$lib/services/routeScore';
+	import { calculateRouteScore, type RouteScore, type RidingPreference } from '$lib/services/routeScore';
 	import { fetchRouteWeather, type WeatherPoint } from '$lib/services/weather';
 	import { toaster } from '$lib/stores/toaster';
 	import { useMobile } from '$lib/stores/mobile.svelte';
@@ -66,7 +66,7 @@
 				mapRef.showWeatherMarkers(weatherPoints);
 				mapRef.showRouteConditions(routeData.coords, weatherPoints);
 				alerts = analyzeRoute(weatherPoints);
-				score = calculateRouteScore(weatherPoints);
+				score = calculateRouteScore(weatherPoints, (auth.user?.riding_preference ?? 'mixed') as RidingPreference);
 				if (mobile.isMobile) mobile.setTab('weather');
 			}
 		} catch {
