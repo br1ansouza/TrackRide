@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { MapPin } from 'lucide-svelte';
 	import type { LatLng } from '$lib/services/routing';
+	import { getCurrentPosition, getLastPosition } from '$lib/services/geolocation';
 	import { toaster } from '$lib/stores/toaster';
 
 	export type SearchResult = {
@@ -12,10 +13,11 @@
 	type Props = {
 		placeholder: string;
 		showMyLocation?: boolean;
+		large?: boolean;
 		onselect: (label: string, coords: LatLng) => void;
 	};
 
-	let { placeholder, showMyLocation = false, onselect }: Props = $props();
+	let { placeholder, showMyLocation = false, large = false, onselect }: Props = $props();
 
 	let query = $state('');
 	let results = $state<SearchResult[]>([]);
@@ -54,26 +56,29 @@
 		onselect(result.label, [result.lat, result.lon]);
 	}
 
-	function selectMyLocation() {
-		navigator.geolocation.getCurrentPosition(
-			(pos) => {
+	async function selectMyLocation() {
+		const cached = getLastPosition();
+		if (cached) {
+			query = 'Minha localização';
+			isMyLocation = true;
+			open = false;
+			results = [];
+			onselect('Minha localização', cached);
+			return;
+		}
+		await getCurrentPosition({
+			onPosition(coords) {
 				query = 'Minha localização';
 				isMyLocation = true;
 				open = false;
 				results = [];
-				onselect('Minha localização', [pos.coords.latitude, pos.coords.longitude]);
+				onselect('Minha localização', coords);
 			},
-			(err) => {
-				const messages: Record<number, string> = {
-					1: 'Permissão de localização negada.',
-					2: 'Não foi possível obter sua localização.',
-					3: 'Tempo esgotado ao buscar localização.'
-				};
-				toaster.error({ title: 'Erro de localização', description: messages[err.code] ?? 'Erro ao buscar localização.' });
+			onError(message) {
+				toaster.error({ title: 'Erro de localização', description: message });
 				open = false;
-			},
-			{ enableHighAccuracy: true, timeout: 10000 }
-		);
+			}
+		});
 	}
 
 	function handleFocus() {
@@ -99,7 +104,7 @@
 			oninput={handleInput}
 			onfocus={handleFocus}
 			onblur={handleBlur}
-			class="input w-full rounded-md bg-surface-800 py-2 pr-3 text-sm text-white placeholder-surface-400 {isMyLocation ? 'pl-8' : 'pl-3'}"
+			class="input w-full rounded-md bg-surface-800 text-white placeholder-surface-400 {isMyLocation ? 'pl-8' : 'pl-3'} {large ? 'py-3 pr-3 text-base' : 'py-2 pr-3 text-sm'}"
 		/>
 	</div>
 	{#if open}
