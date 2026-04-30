@@ -1,6 +1,6 @@
 import { onMount } from 'svelte';
 
-export type MobileTab = 'map' | 'weather';
+export type MobileTab = 'map' | 'weather' | 'profile';
 
 let isMobile = $state(false);
 let activeTab = $state<MobileTab>('map');
