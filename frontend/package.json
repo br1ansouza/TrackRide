@@ -9,12 +9,15 @@
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"cap:sync": "npm run build && npx cap sync android && find android/app/src/main/assets/public -name '*.gz' -delete",
+		"cap:build": "npm run cap:sync && cd android && ./gradlew assembleDebug"
 	},
 	"devDependencies": {
+		"@capacitor/cli": "^6.2.0",
 		"@skeletonlabs/skeleton": "^4.15.2",
 		"@skeletonlabs/skeleton-svelte": "^4.15.2",
-		"@sveltejs/adapter-auto": "^7.0.1",
+		"@sveltejs/adapter-node": "^5.2.12",
 		"@sveltejs/kit": "^2.57.0",
 		"@sveltejs/vite-plugin-svelte": "^7.0.0",
 		"@tailwindcss/vite": "^4.2.2",
@@ -29,6 +32,9 @@
 		"vite": "^8.0.7"
 	},
 	"dependencies": {
+		"@capacitor/android": "^6.2.0",
+		"@capacitor/core": "^6.2.0",
+		"@capacitor/geolocation": "^6.0.1",
 		"@tanstack/svelte-query": "^6.1.16",
 		"leaflet": "^1.9.4",
 		"lucide-svelte": "^1.0.1",

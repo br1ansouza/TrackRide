@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Toast } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '$lib/stores/toaster';
-	import favicon from '$lib/assets/favicon.svg';
+	import favicon from '$lib/assets/favicon.png';
 	import '../app.css';
 
 	let { children } = $props();

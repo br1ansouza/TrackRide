@@ -6,6 +6,9 @@
 	import type { WeatherPoint } from '$lib/services/weather';
 	import { classifyPoint } from '$lib/services/alerts';
 	import { toaster } from '$lib/stores/toaster';
+	import { watchPosition, clearWatch, getLastPosition } from '$lib/services/geolocation';
+
+	let { controlsVisible = true }: { controlsVisible?: boolean } = $props();
 
 	let mapContainer: HTMLDivElement;
 	let map = $state<L.Map | null>(null);
@@ -14,6 +17,9 @@
 	let originMarker = $state<L.CircleMarker | null>(null);
 	let destinationMarker = $state<L.CircleMarker | null>(null);
 	let weatherMarkers = $state<L.Marker[]>([]);
+	let locationMarker = $state<L.CircleMarker | null>(null);
+	let hasInitialPosition = false;
+	let gpsLoading = $state(true);
 
 	let leaflet: typeof L;
 
@@ -22,7 +28,10 @@
 			leaflet = (await import('leaflet')).default;
 			await import('leaflet/dist/leaflet.css');
 
-			map = leaflet.map(mapContainer).setView([-14.235, -51.9253], 6);
+			map = leaflet.map(mapContainer).setView(
+				getLastPosition() ?? [-14.235, -51.9253],
+				getLastPosition() ? 13 : 6
+			);
 
 			leaflet
 				.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -32,28 +41,37 @@
 
 			setTimeout(() => map?.invalidateSize(), 0);
 
-			navigator.geolocation.getCurrentPosition(
-				(pos) => {
-					const coords: LatLng = [pos.coords.latitude, pos.coords.longitude];
-					map?.setView(coords, 13);
-					leaflet
-						.circleMarker(coords, {
-							radius: 8,
-							color: cssVar('--color-ride-location-700'),
-							fillColor: cssVar('--color-ride-location-500'),
-							fillOpacity: 0.9
-						})
-						.addTo(map!)
-						.bindPopup('Você está aqui');
+			await watchPosition({
+				onPosition(coords) {
+					if (!map || !leaflet) return;
+					gpsLoading = false;
+					if (locationMarker) {
+						locationMarker.setLatLng(coords);
+					} else {
+						locationMarker = leaflet
+							.circleMarker(coords, {
+								radius: 8,
+								color: cssVar('--color-ride-location-700'),
+								fillColor: cssVar('--color-ride-location-500'),
+								fillOpacity: 0.9
+							})
+							.addTo(map)
+							.bindPopup('Você está aqui');
+					}
+					if (!hasInitialPosition) {
+						map.setView(coords, 13);
+						hasInitialPosition = true;
+					}
 				},
-				() => {
-					toaster.warning({ title: 'Localização indisponível', description: 'Não foi possível detectar sua posição.' });
-				},
-				{ enableHighAccuracy: true, timeout: 10000 }
-			);
+				onError(message) {
+					gpsLoading = false;
+					toaster.warning({ title: 'Localização indisponível', description: message });
+				}
+			});
 		})();
 
 		return () => {
+			clearWatch();
 			map?.remove();
 		};
 	});
@@ -197,11 +215,26 @@
 	}
 </script>
 
-<div bind:this={mapContainer} class="h-full w-full rounded-lg" style="min-height: 100%;"></div>
+<div class="relative h-full w-full">
+	<div bind:this={mapContainer} class="h-full w-full rounded-lg" class:hide-controls={!controlsVisible} style="min-height: 100%;"></div>
+
+	{#if gpsLoading}
+		<div class="absolute inset-x-0 top-4 z-[600] flex justify-center">
+			<div class="flex items-center gap-2 rounded-full bg-surface-900/90 px-4 py-2 shadow-lg backdrop-blur-sm">
+				<div class="h-4 w-4 animate-spin rounded-full border-2 border-surface-400 border-t-primary-400"></div>
+				<span class="text-sm text-surface-300">Localizando…</span>
+			</div>
+		</div>
+	{/if}
+</div>
 
 <style>
 	:global(.leaflet-div-icon-weather) {
 		background: none !important;
 		border: none !important;
+	}
+	.hide-controls :global(.leaflet-control-zoom),
+	.hide-controls :global(.leaflet-control-attribution) {
+		display: none;
 	}
 </style>

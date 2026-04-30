@@ -1,0 +1,27 @@
+{
+	"name": "TrackRide",
+	"short_name": "TrackRide",
+	"description": "Planeje rotas de moto com análise de clima por trecho",
+	"start_url": "/",
+	"display": "standalone",
+	"background_color": "#101019",
+	"theme_color": "#0770ef",
+	"icons": [
+		{
+			"src": "/icon-192.png",
+			"sizes": "192x192",
+			"type": "image/png"
+		},
+		{
+			"src": "/icon-512.png",
+			"sizes": "512x512",
+			"type": "image/png"
+		},
+		{
+			"src": "/icon-512.png",
+			"sizes": "512x512",
+			"type": "image/png",
+			"purpose": "maskable"
+		}
+	]
+}
