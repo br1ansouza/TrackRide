@@ -65,6 +65,15 @@
 			<Map bind:this={mapRef} controlsVisible={mobile.activeTab === 'map'} />
 		</div>
 
+		{#if weatherLoading && mobile.activeTab === 'map'}
+			<div class="absolute inset-x-0 top-4 z-[600] flex justify-center">
+				<div class="flex items-center gap-2 rounded-full bg-surface-900/90 px-4 py-2 shadow-lg backdrop-blur-sm">
+					<div class="h-4 w-4 animate-spin rounded-full border-2 border-surface-400 border-t-primary-400"></div>
+					<span class="text-sm text-surface-300">Buscando clima…</span>
+				</div>
+			</div>
+		{/if}
+
 		{#if mobile.activeTab === 'weather'}
 			<div class="absolute inset-0 bottom-[52px] z-[500] overflow-y-auto bg-surface-800">
 				<RouteWeather points={weatherPoints} loading={weatherLoading} {alerts} {score} mobile />
