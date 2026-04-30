@@ -59,48 +59,8 @@
 	}
 </script>
 
-{#if mobile.isMobile}
-	<div class="relative h-dvh w-full">
-		<div class="absolute inset-0 bottom-[52px]">
-			<Map bind:this={mapRef} controlsVisible={mobile.activeTab === 'map'} />
-		</div>
-
-		{#if weatherLoading && mobile.activeTab === 'map'}
-			<div class="absolute inset-x-0 top-4 z-[600] flex justify-center">
-				<div class="flex items-center gap-2 rounded-full bg-surface-900/90 px-4 py-2 shadow-lg backdrop-blur-sm">
-					<div class="h-4 w-4 animate-spin rounded-full border-2 border-surface-400 border-t-primary-400"></div>
-					<span class="text-sm text-surface-300">Buscando clima…</span>
-				</div>
-			</div>
-		{/if}
-
-		{#if mobile.activeTab === 'weather'}
-			<div class="absolute inset-0 bottom-[52px] z-[500] overflow-y-auto bg-surface-800">
-				<RouteWeather points={weatherPoints} loading={weatherLoading} {alerts} {score} mobile />
-			</div>
-		{/if}
-
-		{#if mobile.searchOpen}
-			<MobileSearch
-				{canSearch}
-				loading={weatherLoading}
-				onOriginSelect={(label, coords) => { originLabel = label; originCoords = coords; }}
-				onDestSelect={(label, coords) => { destLabel = label; destCoords = coords; }}
-				onSearch={handleSearch}
-				onClose={() => mobile.toggleSearch()}
-			/>
-		{/if}
-
-		<BottomNav
-			activeTab={mobile.activeTab}
-			searchOpen={mobile.searchOpen}
-			onTabChange={(tab) => mobile.setTab(tab)}
-			onSearchToggle={() => mobile.toggleSearch()}
-			hasWeather={weatherPoints.length > 0}
-		/>
-	</div>
-{:else}
-	<div class="flex h-screen flex-col">
+<div class="flex h-dvh flex-col {mobile.isMobile ? '' : 'h-screen'}">
+	{#if !mobile.isMobile}
 		<header class="flex items-center gap-4 bg-surface-900 p-4">
 			<h1 class="text-xl font-bold text-white">TrackRide</h1>
 			<div class="flex flex-1 items-center gap-2">
@@ -118,9 +78,51 @@
 				</button>
 			</div>
 		</header>
-		<main class="flex min-h-0 flex-1">
-			<Map bind:this={mapRef} />
+	{/if}
+
+	<div class="relative flex min-h-0 flex-1 {mobile.isMobile ? '' : ''}">
+		<div class="{mobile.isMobile ? 'absolute inset-0 bottom-[52px]' : 'flex-1'}">
+			<Map bind:this={mapRef} controlsVisible={!mobile.isMobile || mobile.activeTab === 'map'} />
+		</div>
+
+		{#if !mobile.isMobile}
 			<RouteWeather points={weatherPoints} loading={weatherLoading} {alerts} {score} />
-		</main>
+		{/if}
+
+		{#if mobile.isMobile}
+			{#if weatherLoading && mobile.activeTab === 'map'}
+				<div class="absolute inset-x-0 top-4 z-[600] flex justify-center">
+					<div class="flex items-center gap-2 rounded-full bg-surface-900/90 px-4 py-2 shadow-lg backdrop-blur-sm">
+						<div class="h-4 w-4 animate-spin rounded-full border-2 border-surface-400 border-t-primary-400"></div>
+						<span class="text-sm text-surface-300">Buscando clima…</span>
+					</div>
+				</div>
+			{/if}
+
+			{#if mobile.activeTab === 'weather'}
+				<div class="absolute inset-0 bottom-[52px] z-[500] overflow-y-auto bg-surface-800">
+					<RouteWeather points={weatherPoints} loading={weatherLoading} {alerts} {score} mobile />
+				</div>
+			{/if}
+
+			{#if mobile.searchOpen}
+				<MobileSearch
+					{canSearch}
+					loading={weatherLoading}
+					onOriginSelect={(label, coords) => { originLabel = label; originCoords = coords; }}
+					onDestSelect={(label, coords) => { destLabel = label; destCoords = coords; }}
+					onSearch={handleSearch}
+					onClose={() => mobile.toggleSearch()}
+				/>
+			{/if}
+
+			<BottomNav
+				activeTab={mobile.activeTab}
+				searchOpen={mobile.searchOpen}
+				onTabChange={(tab) => mobile.setTab(tab)}
+				onSearchToggle={() => mobile.toggleSearch()}
+				hasWeather={weatherPoints.length > 0}
+			/>
+		{/if}
 	</div>
-{/if}
+</div>

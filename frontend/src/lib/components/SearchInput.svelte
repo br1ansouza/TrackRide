@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { MapPin } from 'lucide-svelte';
 	import type { LatLng } from '$lib/services/routing';
+	import { getCurrentPosition, getLastPosition } from '$lib/services/geolocation';
 	import { toaster } from '$lib/stores/toaster';
 
 	export type SearchResult = {
@@ -55,26 +56,29 @@
 		onselect(result.label, [result.lat, result.lon]);
 	}
 
-	function selectMyLocation() {
-		navigator.geolocation.getCurrentPosition(
-			(pos) => {
+	async function selectMyLocation() {
+		const cached = getLastPosition();
+		if (cached) {
+			query = 'Minha localização';
+			isMyLocation = true;
+			open = false;
+			results = [];
+			onselect('Minha localização', cached);
+			return;
+		}
+		await getCurrentPosition({
+			onPosition(coords) {
 				query = 'Minha localização';
 				isMyLocation = true;
 				open = false;
 				results = [];
-				onselect('Minha localização', [pos.coords.latitude, pos.coords.longitude]);
+				onselect('Minha localização', coords);
 			},
-			(err) => {
-				const messages: Record<number, string> = {
-					1: 'Permissão de localização negada.',
-					2: 'Não foi possível obter sua localização.',
-					3: 'Tempo esgotado ao buscar localização.'
-				};
-				toaster.error({ title: 'Erro de localização', description: messages[err.code] ?? 'Erro ao buscar localização.' });
+			onError(message) {
+				toaster.error({ title: 'Erro de localização', description: message });
 				open = false;
-			},
-			{ enableHighAccuracy: true, timeout: 10000 }
-		);
+			}
+		});
 	}
 
 	function handleFocus() {

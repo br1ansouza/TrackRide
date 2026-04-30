@@ -10,7 +10,7 @@
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-		"cap:sync": "npm run build && npx cap sync android",
+		"cap:sync": "npm run build && npx cap sync android && find android/app/src/main/assets/public -name '*.gz' -delete",
 		"cap:build": "npm run cap:sync && cd android && ./gradlew assembleDebug"
 	},
 	"devDependencies": {

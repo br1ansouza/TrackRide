@@ -13,7 +13,7 @@
 	<body data-sveltekit-preload-data="hover">
 		<div style="display: contents">%sveltekit.body%</div>
 		<script>
-			if ('serviceWorker' in navigator && !window.__VITE_HMR_RUNTIME__) {
+			if ('serviceWorker' in navigator && !window.__VITE_HMR_RUNTIME__ && !window.Capacitor) {
 				navigator.serviceWorker.register('/sw.js');
 			}
 		</script>
