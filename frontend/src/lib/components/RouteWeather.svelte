@@ -12,9 +12,10 @@
 		loading: boolean;
 		alerts: RouteAlert[];
 		score: RouteScore | null;
+		mobile?: boolean;
 	}
 
-	let { points, loading, alerts, score }: Props = $props();
+	let { points, loading, alerts, score, mobile = false }: Props = $props();
 
 	let collapsed = $state<Set<number>>(new Set());
 
@@ -55,7 +56,27 @@
 	}
 </script>
 
-<aside class="flex w-80 flex-col gap-1 overflow-y-auto bg-surface-800 p-4">
+{#snippet alertBadges(pointAlerts: import('$lib/services/alerts').PointAlert[])}
+	{#if pointAlerts.length > 0}
+		<div class="flex gap-1">
+			{#each pointAlerts as pa}
+				{@const Icon = ALERT_ICONS[pa.type]}
+				<Tooltip positioning={{ placement: 'top', strategy: 'fixed' }} openDelay={200} closeDelay={0}>
+					<Tooltip.Trigger>
+						<Icon size={14} color={alertColor(pa.severity)} />
+					</Tooltip.Trigger>
+					<Tooltip.Positioner class="z-[1100]" style="z-index: 1100;">
+						<Tooltip.Content class="rounded bg-surface-900 px-2 py-1 text-xs text-white shadow-lg">
+							{pa.message}
+						</Tooltip.Content>
+					</Tooltip.Positioner>
+				</Tooltip>
+			{/each}
+		</div>
+	{/if}
+{/snippet}
+
+<aside class="flex flex-col gap-1 overflow-y-auto p-4 {mobile ? 'w-full pb-20' : 'w-80 bg-surface-800'}">
 	<div class="flex items-center justify-between">
 		<h2 class="text-lg font-semibold text-white">Clima na rota</h2>
 		{#if points.length > 2}
@@ -109,23 +130,7 @@
 							<span class="text-xs text-surface-400">{point.locationName}</span>
 						{/if}
 					</div>
-					{#if pointAlerts.length > 0}
-						<div class="flex gap-1">
-							{#each pointAlerts as pa}
-								{@const Icon = ALERT_ICONS[pa.type]}
-								<Tooltip positioning={{ placement: 'top', strategy: 'fixed' }} openDelay={200} closeDelay={0}>
-									<Tooltip.Trigger>
-										<Icon size={14} color={alertColor(pa.severity)} />
-									</Tooltip.Trigger>
-									<Tooltip.Positioner class="z-[1100]" style="z-index: 1100;">
-										<Tooltip.Content class="rounded bg-surface-900 px-2 py-1 text-xs text-white shadow-lg">
-											{pa.message}
-										</Tooltip.Content>
-									</Tooltip.Positioner>
-								</Tooltip>
-							{/each}
-						</div>
-					{/if}
+					{@render alertBadges(pointAlerts)}
 				</button>
 			{:else}
 				<div class="flex flex-col gap-2 rounded-lg bg-surface-700 p-3">
@@ -133,23 +138,7 @@
 						<p class="text-xs text-surface-400">
 							{formatArrival(point.estimatedMinutes)}{point.locationName ? ` — ${point.locationName}` : ''}
 						</p>
-						{#if pointAlerts.length > 0}
-							<div class="flex gap-1">
-								{#each pointAlerts as pa}
-									{@const Icon = ALERT_ICONS[pa.type]}
-									<Tooltip positioning={{ placement: 'top', strategy: 'fixed' }} openDelay={200} closeDelay={0}>
-										<Tooltip.Trigger>
-											<Icon size={14} color={alertColor(pa.severity)} />
-										</Tooltip.Trigger>
-										<Tooltip.Positioner class="z-[1100]" style="z-index: 1100;">
-											<Tooltip.Content class="rounded bg-surface-900 px-2 py-1 text-xs text-white shadow-lg">
-												{pa.message}
-											</Tooltip.Content>
-										</Tooltip.Positioner>
-									</Tooltip>
-								{/each}
-							</div>
-						{/if}
+						{@render alertBadges(pointAlerts)}
 					</div>
 					{#if point.distanceKm > 0}
 						<div class="flex gap-3 pl-1 text-xs text-surface-300">
@@ -161,18 +150,18 @@
 							</span>
 						</div>
 					{/if}
-					<div class="flex items-center gap-3">
+					<div class="flex items-center gap-3 {mobile ? 'justify-center' : ''}">
 						<img
 							src="https://openweathermap.org/img/wn/{point.icon}@2x.png"
 							alt={point.description}
 							class="h-12 w-12"
 						/>
-						<div class="flex-1">
+						<div>
 							<p class="text-lg font-bold text-white">{point.temp}°C</p>
 							<p class="text-xs capitalize text-surface-300">{point.description}</p>
 						</div>
 					</div>
-					<div class="flex gap-4 text-xs text-surface-400">
+					<div class="flex gap-4 text-xs text-surface-400 {mobile ? 'justify-center' : ''}">
 						<span class="flex items-center gap-1">
 							<Thermometer size={12} /> {point.feelsLike}°C
 						</span>

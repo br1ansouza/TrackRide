@@ -12,10 +12,11 @@
 	type Props = {
 		placeholder: string;
 		showMyLocation?: boolean;
+		large?: boolean;
 		onselect: (label: string, coords: LatLng) => void;
 	};
 
-	let { placeholder, showMyLocation = false, onselect }: Props = $props();
+	let { placeholder, showMyLocation = false, large = false, onselect }: Props = $props();
 
 	let query = $state('');
 	let results = $state<SearchResult[]>([]);
@@ -99,7 +100,7 @@
 			oninput={handleInput}
 			onfocus={handleFocus}
 			onblur={handleBlur}
-			class="input w-full rounded-md bg-surface-800 py-2 pr-3 text-sm text-white placeholder-surface-400 {isMyLocation ? 'pl-8' : 'pl-3'}"
+			class="input w-full rounded-md bg-surface-800 text-white placeholder-surface-400 {isMyLocation ? 'pl-8' : 'pl-3'} {large ? 'py-3 pr-3 text-base' : 'py-2 pr-3 text-sm'}"
 		/>
 	</div>
 	{#if open}

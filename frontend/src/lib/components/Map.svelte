@@ -7,6 +7,8 @@
 	import { classifyPoint } from '$lib/services/alerts';
 	import { toaster } from '$lib/stores/toaster';
 
+	let { controlsVisible = true }: { controlsVisible?: boolean } = $props();
+
 	let mapContainer: HTMLDivElement;
 	let map = $state<L.Map | null>(null);
 	let routeLayer = $state<L.Polyline | null>(null);
@@ -197,11 +199,15 @@
 	}
 </script>
 
-<div bind:this={mapContainer} class="h-full w-full rounded-lg" style="min-height: 100%;"></div>
+<div bind:this={mapContainer} class="h-full w-full rounded-lg" class:hide-controls={!controlsVisible} style="min-height: 100%;"></div>
 
 <style>
 	:global(.leaflet-div-icon-weather) {
 		background: none !important;
 		border: none !important;
+	}
+	.hide-controls :global(.leaflet-control-zoom),
+	.hide-controls :global(.leaflet-control-attribution) {
+		display: none;
 	}
 </style>
