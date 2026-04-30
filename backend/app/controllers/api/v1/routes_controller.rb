@@ -1,0 +1,112 @@
+module Api
+  module V1
+    class RoutesController < BaseController
+      before_action :set_route, only: [:show, :update, :destroy]
+
+      def index
+        routes = current_user.routes.recent
+        routes = routes.where("created_at >= ?", params[:since].to_date) if params[:since].present?
+        routes = routes.limit(params[:limit] || 20).offset(params[:offset] || 0)
+
+        render json: {
+          routes: routes.map { |r| route_response(r) },
+          total: current_user.routes.count
+        }
+      end
+
+      def show
+        render json: { route: route_response(@route) }
+      end
+
+      def create
+        route = current_user.routes.new(route_params)
+
+        if route.save
+          render json: { route: route_response(route) }, status: :created
+        else
+          render json: { errors: route.errors.full_messages }, status: :unprocessable_entity
+        end
+      end
+
+      def update
+        if @route.update(route_params)
+          render json: { route: route_response(@route) }
+        else
+          render json: { errors: @route.errors.full_messages }, status: :unprocessable_entity
+        end
+      end
+
+      def destroy
+        @route.destroy
+        head :no_content
+      end
+
+      private
+
+      def set_route
+        @route = current_user.routes.find_by(id: params[:id])
+        render json: { error: "Rota não encontrada" }, status: :not_found unless @route
+      end
+
+      def route_params
+        permitted = params.permit(
+          :name, :origin_name, :destination_name,
+          :distance_km, :duration_minutes, :score, :public,
+          origin_coords: [], destination_coords: [], path_coords: []
+        )
+
+        build_geo_params(permitted)
+      end
+
+      def build_geo_params(permitted)
+        result = permitted.except(:origin_coords, :destination_coords, :path_coords)
+
+        if permitted[:origin_coords].present?
+          lon, lat = permitted[:origin_coords].map(&:to_f)
+          result[:origin_coords] = "POINT(#{lon} #{lat})"
+        end
+
+        if permitted[:destination_coords].present?
+          lon, lat = permitted[:destination_coords].map(&:to_f)
+          result[:destination_coords] = "POINT(#{lon} #{lat})"
+        end
+
+        if permitted[:path_coords].present?
+          coords = permitted[:path_coords].map(&:to_f)
+          points = coords.each_slice(2).map { |lon, lat| "#{lon} #{lat}" }.join(", ")
+          result[:path_coords] = "LINESTRING(#{points})"
+        end
+
+        result
+      end
+
+      def route_response(route)
+        {
+          id: route.id,
+          name: route.name,
+          origin_name: route.origin_name,
+          destination_name: route.destination_name,
+          origin_coords: coords_to_array(route.origin_coords),
+          destination_coords: coords_to_array(route.destination_coords),
+          path_coords: linestring_to_array(route.path_coords),
+          distance_km: route.distance_km,
+          duration_minutes: route.duration_minutes,
+          score: route.score,
+          public: route.public,
+          created_at: route.created_at,
+          updated_at: route.updated_at
+        }
+      end
+
+      def coords_to_array(point)
+        return nil unless point
+        [point.x, point.y]
+      end
+
+      def linestring_to_array(line)
+        return nil unless line
+        line.points.map { |p| [p.x, p.y] }
+      end
+    end
+  end
+end
