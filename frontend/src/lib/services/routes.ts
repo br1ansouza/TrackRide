@@ -1,5 +1,13 @@
 import { request } from './api';
 
+export interface SavedRouteStop {
+	id: number;
+	name: string;
+	stop_type: string;
+	position: [number, number];
+	sort_order: number;
+}
+
 export interface SavedRoute {
 	id: number;
 	name: string;
@@ -12,6 +20,7 @@ export interface SavedRoute {
 	duration_minutes: number | null;
 	score: number | null;
 	public: boolean;
+	stops: SavedRouteStop[];
 	created_at: string;
 	updated_at: string;
 }
@@ -25,6 +34,13 @@ export async function fetchSavedRoutes(limit = 20, offset = 0): Promise<RoutesRe
 	return request<RoutesResponse>(`/routes?limit=${limit}&offset=${offset}`);
 }
 
+export interface RouteStopParams {
+	name: string;
+	stop_type: string;
+	sort_order: number;
+	position: [number, number];
+}
+
 export interface CreateRouteParams {
 	name: string;
 	origin_name: string;
@@ -36,6 +52,7 @@ export interface CreateRouteParams {
 	duration_minutes?: number;
 	score?: number;
 	public?: boolean;
+	route_stops_attributes?: RouteStopParams[];
 }
 
 export async function createRoute(params: CreateRouteParams): Promise<SavedRoute> {

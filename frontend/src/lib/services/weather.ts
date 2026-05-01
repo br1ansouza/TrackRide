@@ -13,6 +13,7 @@ export interface WeatherPoint {
 	estimatedMinutes: number;
 	visibility: number;
 	rain: number;
+	stopType?: string;
 }
 
 const MIN_SPACING_KM = 90;

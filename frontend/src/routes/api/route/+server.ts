@@ -1,12 +1,15 @@
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ url }) => {
+	const coords = url.searchParams.get('coords');
 	const origin = url.searchParams.get('origin');
 	const destination = url.searchParams.get('destination');
-	if (!origin || !destination) return new Response(JSON.stringify({}), { status: 400 });
+
+	const waypoints = coords || (origin && destination ? `${origin};${destination}` : null);
+	if (!waypoints) return new Response(JSON.stringify({}), { status: 400 });
 
 	const response = await fetch(
-		`https://router.project-osrm.org/route/v1/driving/${origin};${destination}?overview=full&geometries=geojson&annotations=duration,distance`
+		`https://router.project-osrm.org/route/v1/driving/${waypoints}?overview=full&geometries=geojson&annotations=duration,distance`
 	);
 
 	if (!response.ok) {
