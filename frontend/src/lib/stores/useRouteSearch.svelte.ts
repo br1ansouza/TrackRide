@@ -8,7 +8,6 @@ import { createRoute, type ExploreRoute } from '$lib/services/routes';
 import { toaster } from '$lib/stores/toaster';
 import { useMobile } from '$lib/stores/mobile.svelte';
 import { useAuth } from '$lib/stores/auth.svelte';
-import { applyStopsToWeather } from '$lib/utils/stopWeather';
 
 export function useRouteSearch() {
 	const mobile = useMobile();
@@ -48,12 +47,13 @@ export function useRouteSearch() {
 	async function processWeather(routeData: RouteData) {
 		weatherLoading = true;
 		try {
-			const newPoints = await fetchRouteWeather(routeData, { origin: originLabel, destination: destLabel });
+			const weatherStops = stops.map((s) => ({ coords: s.coords, stopType: s.stopType, name: s.name }));
+			const newPoints = await fetchRouteWeather(routeData, { origin: originLabel, destination: destLabel }, weatherStops);
 			if (newPoints.length === 0) {
 				toaster.warning({ title: 'Clima indisponível', description: 'Não foi possível obter dados de clima para esta rota.' });
 				return;
 			}
-			weatherPoints = applyStopsToWeather(newPoints, stops, routeData);
+			weatherPoints = newPoints;
 			mapRef?.showWeatherMarkers(weatherPoints);
 			mapRef?.showRouteConditions(routeData.coords, weatherPoints);
 			alerts = analyzeRoute(weatherPoints);
