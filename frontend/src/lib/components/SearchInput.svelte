@@ -86,7 +86,7 @@
 	}
 
 	function handleBlur() {
-		setTimeout(() => (open = false), 200);
+		setTimeout(() => (open = false), 300);
 	}
 </script>
 
@@ -113,7 +113,7 @@
 				<li>
 					<button
 						type="button"
-						onclick={selectMyLocation}
+						onmousedown={(e) => { e.preventDefault(); selectMyLocation(); }}
 						class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-white hover:bg-surface-700"
 					>
 						<MapPin size={16} />
@@ -129,7 +129,7 @@
 				<li>
 					<button
 						type="button"
-						onclick={() => selectResult(result)}
+						onmousedown={(e) => { e.preventDefault(); selectResult(result); }}
 						class="w-full px-3 py-2 text-left text-sm text-white hover:bg-surface-700"
 					>
 						{result.label}

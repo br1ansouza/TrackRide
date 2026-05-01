@@ -18,7 +18,7 @@ cd ..
 
 echo "Subindo frontend preview (porta 4173)..."
 cd frontend
-npm run preview -- --host 0.0.0.0 &
+HOST=0.0.0.0 PORT=4173 node build &
 FRONTEND_PID=$!
 cd ..
 
