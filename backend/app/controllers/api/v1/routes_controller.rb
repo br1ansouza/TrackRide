@@ -19,6 +19,16 @@ module Api
       end
 
       def create
+        if params[:origin_coords].present? && params[:destination_coords].present?
+          existing = current_user.routes.find_by(
+            origin_name: params[:origin_name],
+            destination_name: params[:destination_name]
+          )
+          if existing
+            return render json: { error: "Rota já existe no histórico" }, status: :conflict
+          end
+        end
+
         route = current_user.routes.new(route_params)
 
         if route.save
