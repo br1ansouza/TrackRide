@@ -4,13 +4,31 @@ module Api
       before_action :set_route, only: [:show, :update, :destroy]
 
       def index
-        routes = current_user.routes.recent
+        routes = current_user.routes.includes(:route_stops).recent
         routes = routes.where("created_at >= ?", params[:since].to_date) if params[:since].present?
         routes = routes.limit(params[:limit] || 20).offset(params[:offset] || 0)
 
         render json: {
           routes: routes.map { |r| route_response(r) },
           total: current_user.routes.count
+        }
+      end
+
+      def explore
+        lat = params[:lat].to_f
+        lon = params[:lon].to_f
+        radius = [(params[:radius] || 80).to_i, 200].min * 1000
+
+        routes = Route.publicly_visible
+          .includes(:route_stops)
+          .where.not(user_id: current_user.id)
+          .where("ST_DWithin(origin_coords, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography, ?)", lon, lat, radius)
+          .order(score: :desc)
+          .limit(params[:limit] || 10)
+
+        render json: {
+          routes: routes.map { |r| explore_response(r) },
+          total: routes.size
         }
       end
 
@@ -39,6 +57,21 @@ module Api
       end
 
       def update
+        if params[:public] == true && !@route.public
+          if @route.distance_km.present?
+            return render json: { error: "Rota muito curta para compartilhar (mínimo 5 km)" }, status: :unprocessable_entity if @route.distance_km < 5
+            return render json: { error: "Rota muito longa para compartilhar (máximo 1.000 km)" }, status: :unprocessable_entity if @route.distance_km > 1000
+          end
+
+          existing = Route.publicly_visible
+            .where.not(id: @route.id)
+            .where("ST_DWithin(origin_coords, ?::geography, 5000) AND ST_DWithin(destination_coords, ?::geography, 5000)", @route.origin_coords, @route.destination_coords)
+            .exists?
+          if existing
+            return render json: { error: "Já existe uma rota pública com esse trajeto" }, status: :conflict
+          end
+        end
+
         if @route.update(route_params)
           render json: { route: route_response(@route) }
         else
@@ -62,14 +95,15 @@ module Api
         permitted = params.permit(
           :name, :origin_name, :destination_name,
           :distance_km, :duration_minutes, :score, :public,
-          origin_coords: [], destination_coords: [], path_coords: []
+          origin_coords: [], destination_coords: [], path_coords: [],
+          route_stops_attributes: [:name, :stop_type, :sort_order, position: []]
         )
 
         build_geo_params(permitted)
       end
 
       def build_geo_params(permitted)
-        result = permitted.except(:origin_coords, :destination_coords, :path_coords)
+        result = permitted.except(:origin_coords, :destination_coords, :path_coords, :route_stops_attributes)
 
         if permitted[:origin_coords].present?
           lon, lat = permitted[:origin_coords].map(&:to_f)
@@ -85,6 +119,17 @@ module Api
           coords = permitted[:path_coords].map(&:to_f)
           points = coords.each_slice(2).map { |lon, lat| "#{lon} #{lat}" }.join(", ")
           result[:path_coords] = "LINESTRING(#{points})"
+        end
+
+        if permitted[:route_stops_attributes].present?
+          result[:route_stops_attributes] = permitted[:route_stops_attributes].map do |stop|
+            attrs = stop.except(:position)
+            if stop[:position].present?
+              lon, lat = stop[:position].map(&:to_f)
+              attrs[:position] = "POINT(#{lon} #{lat})"
+            end
+            attrs
+          end
         end
 
         result
@@ -103,8 +148,23 @@ module Api
           duration_minutes: route.duration_minutes,
           score: route.score,
           public: route.public,
+          stops: route.route_stops.map { |s| stop_response(s) },
           created_at: route.created_at,
           updated_at: route.updated_at
+        }
+      end
+
+      def explore_response(route)
+        route_response(route).merge(author_name: route.user.name)
+      end
+
+      def stop_response(stop)
+        {
+          id: stop.id,
+          name: stop.name,
+          stop_type: stop.stop_type,
+          position: coords_to_array(stop.position),
+          sort_order: stop.sort_order
         }
       end
 

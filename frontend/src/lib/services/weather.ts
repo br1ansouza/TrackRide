@@ -13,18 +13,41 @@ export interface WeatherPoint {
 	estimatedMinutes: number;
 	visibility: number;
 	rain: number;
+	stopType?: string;
 }
 
 const MIN_SPACING_KM = 90;
 
+export interface SamplePoint {
+	coords: LatLng;
+	distanceKm: number;
+	estimatedMinutes: number;
+	stopType?: string;
+	stopName?: string;
+}
+
 export function sampleRoutePoints(
 	routeData: RouteData,
-	spacingKm = MIN_SPACING_KM
-): { coords: LatLng; distanceKm: number; estimatedMinutes: number }[] {
+	spacingKm = MIN_SPACING_KM,
+	stops: { coords: LatLng; stopType: string; name: string }[] = []
+): SamplePoint[] {
 	const { coords, segmentDistances, segmentDurations } = routeData;
 	if (coords.length === 0) return [];
 
-	const points: { coords: LatLng; distanceKm: number; estimatedMinutes: number }[] = [
+	const stopAnchors = stops.map((s) => {
+		let bestIdx = 0;
+		let bestDist = Infinity;
+		for (let i = 0; i < coords.length; i++) {
+			const dlat = coords[i][0] - s.coords[0];
+			const dlon = coords[i][1] - s.coords[1];
+			const d = dlat * dlat + dlon * dlon;
+			if (d < bestDist) { bestDist = d; bestIdx = i; }
+		}
+		return { segIdx: bestIdx, stopType: s.stopType, name: s.name };
+	});
+	const anchorSet = new Map(stopAnchors.map((a) => [a.segIdx, a]));
+
+	const points: SamplePoint[] = [
 		{ coords: coords[0], distanceKm: 0, estimatedMinutes: 0 }
 	];
 
@@ -33,11 +56,22 @@ export function sampleRoutePoints(
 	let totalTime = 0;
 
 	for (let i = 0; i < segmentDistances.length; i++) {
-		const segDist = segmentDistances[i];
-		const segTime = segmentDurations[i];
-		accDistSinceLastPoint += segDist;
-		totalDist += segDist;
-		totalTime += segTime;
+		totalDist += segmentDistances[i];
+		totalTime += segmentDurations[i];
+		accDistSinceLastPoint += segmentDistances[i];
+
+		const anchor = anchorSet.get(i + 1);
+		if (anchor) {
+			points.push({
+				coords: coords[i + 1],
+				distanceKm: totalDist / 1000,
+				estimatedMinutes: totalTime / 60,
+				stopType: anchor.stopType,
+				stopName: anchor.name
+			});
+			accDistSinceLastPoint = 0;
+			continue;
+		}
 
 		if (accDistSinceLastPoint >= spacingKm * 1000) {
 			points.push({
@@ -66,7 +100,7 @@ export function sampleRoutePoints(
 }
 
 async function fetchWeatherAt(
-	point: { coords: LatLng; distanceKm: number; estimatedMinutes: number }
+	point: SamplePoint
 ): Promise<WeatherPoint | null> {
 	const arrivalTime = Math.floor(Date.now() / 1000) + point.estimatedMinutes * 60;
 
@@ -100,19 +134,21 @@ async function fetchWeatherAt(
 		windSpeed: closest.wind.speed,
 		description: w.description,
 		icon: w.icon.replace('n', 'd'),
-		locationName: data.city?.name ?? '',
+		locationName: point.stopName ?? data.city?.name ?? '',
 		distanceKm: Math.round(point.distanceKm),
 		estimatedMinutes: Math.round(point.estimatedMinutes),
 		visibility: closest.visibility ?? 10000,
-		rain: (closest.rain?.['3h'] ?? 0) + (closest.snow?.['3h'] ?? 0)
+		rain: (closest.rain?.['3h'] ?? 0) + (closest.snow?.['3h'] ?? 0),
+		stopType: point.stopType
 	};
 }
 
 export async function fetchRouteWeather(
 	routeData: RouteData,
-	labels?: { origin: string; destination: string }
+	labels?: { origin: string; destination: string },
+	stops: { coords: LatLng; stopType: string; name: string }[] = []
 ): Promise<WeatherPoint[]> {
-	const points = sampleRoutePoints(routeData);
+	const points = sampleRoutePoints(routeData, MIN_SPACING_KM, stops);
 	const results = await Promise.all(points.map(fetchWeatherAt));
 	const filtered = results.filter((r): r is WeatherPoint => r !== null);
 

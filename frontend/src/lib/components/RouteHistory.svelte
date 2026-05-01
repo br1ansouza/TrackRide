@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Route, Clock, Trash2, ChevronRight } from 'lucide-svelte';
-	import { fetchSavedRoutes, deleteRoute, updateRoute, type SavedRoute } from '$lib/services/routes';
+	import { Route, Clock, Trash2, ChevronRight, Globe, Lock, ArrowDown, Fuel, UtensilsCrossed, BedDouble, Mountain, MapPin } from 'lucide-svelte';
+	import { fetchSavedRoutes, deleteRoute, updateRoute, type SavedRoute, type SavedRouteStop } from '$lib/services/routes';
 	import { toaster } from '$lib/stores/toaster';
+	import { stopColor } from '$lib/utils/stopColors';
 
 	interface Props {
 		limit?: number;
@@ -15,24 +16,26 @@
 	let routes = $state<SavedRoute[]>([]);
 	let total = $state(0);
 	let loading = $state(true);
-	let enrichedNames = $state<Record<number, string>>({});
 
 	onMount(() => loadRoutes());
 
-	async function enrichName(route: SavedRoute): Promise<string> {
-		if (!route.name.startsWith('Minha localização →')) return route.name;
+	async function enrichName(route: SavedRoute): Promise<void> {
+		if (!route.origin_name.startsWith('Minha localização')) return;
+		if (route.origin_name.includes('(')) return;
 		try {
 			const [lon, lat] = route.origin_coords;
 			const res = await fetch(`/api/geocode/reverse?lat=${lat}&lon=${lon}`);
 			const data = await res.json();
 			if (data.district) {
-				const enrichedOrigin = `Minha localização (${data.district})`;
-				const enrichedName = route.name.replace('Minha localização', enrichedOrigin);
-				updateRoute(route.id, { name: enrichedName, origin_name: enrichedOrigin }).catch(() => {});
-				return enrichedName;
+				const enriched = `Minha localização (${data.district})`;
+				route.origin_name = enriched;
+				routes = [...routes];
+				updateRoute(route.id, { name: `${enriched} → ${route.destination_name}`, origin_name: enriched })
+					.catch(() => toaster.warning({ title: 'Aviso', description: 'Não foi possível atualizar o nome da rota.' }));
 			}
-		} catch {}
-		return route.name;
+		} catch {
+			toaster.warning({ title: 'Aviso', description: 'Não foi possível identificar sua localização.' });
+		}
 	}
 
 	async function loadRoutes() {
@@ -42,7 +45,7 @@
 			routes = data.routes;
 			total = data.total;
 			for (const route of routes) {
-				enrichName(route).then(name => { enrichedNames[route.id] = name; });
+				enrichName(route);
 			}
 		} catch {
 			toaster.error({ title: 'Erro', description: 'Não foi possível carregar as rotas.' });
@@ -62,6 +65,26 @@
 		}
 	}
 
+	async function togglePublic(route: SavedRoute) {
+		try {
+			await updateRoute(route.id, { public: !route.public });
+			route.public = !route.public;
+			routes = [...routes];
+			toaster.success({ title: route.public ? 'Rota pública' : 'Rota privada', description: route.public ? 'Outros motociclistas podem ver esta rota.' : 'Apenas você pode ver esta rota.' });
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : '';
+			if (msg.includes('Já existe')) {
+				toaster.warning({ title: 'Trajeto já compartilhado', description: 'Outro motociclista já publicou uma rota com origem e destino semelhantes.' });
+			} else if (msg.includes('curta')) {
+				toaster.warning({ title: 'Rota muito curta', description: 'Rotas com menos de 5 km não podem ser compartilhadas. A análise de clima não seria relevante.' });
+			} else if (msg.includes('longa')) {
+				toaster.warning({ title: 'Rota muito longa', description: 'Rotas acima de 1.000 km não podem ser compartilhadas. Divida em etapas menores.' });
+			} else {
+				toaster.error({ title: 'Erro', description: 'Não foi possível alterar a visibilidade.' });
+			}
+		}
+	}
+
 	function formatDate(date: string): string {
 		return new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
 	}
@@ -73,6 +96,14 @@
 		const m = minutes % 60;
 		return m > 0 ? `${h}h ${m}min` : `${h}h`;
 	}
+
+	const STOP_ICONS: Record<string, typeof MapPin> = {
+		gas_station: Fuel,
+		restaurant: UtensilsCrossed,
+		rest: BedDouble,
+		viewpoint: Mountain,
+		other: MapPin
+	};
 </script>
 
 <div class="flex flex-col gap-2">
@@ -86,7 +117,10 @@
 		{#each routes as route}
 			<div class="flex items-center gap-3 rounded-lg bg-surface-700 p-3">
 				<div class="flex flex-1 flex-col gap-1">
-					<span class="text-sm font-medium text-white">{enrichedNames[route.id] ?? route.name}</span>
+					<div class="flex flex-col text-sm font-medium text-white">
+						<span>{route.origin_name}</span>
+						<span class="flex items-center gap-1 text-xs text-surface-400"><ArrowDown size={10} /> {route.destination_name}</span>
+					</div>
 					<div class="flex flex-wrap gap-3 text-xs text-surface-400">
 						{#if route.distance_km}
 							<span class="flex items-center gap-1">
@@ -100,12 +134,35 @@
 						{/if}
 						<span>{formatDate(route.created_at)}</span>
 					</div>
+					{#if route.stops?.length > 0}
+						<div class="flex flex-wrap gap-1">
+							{#each route.stops as stop}
+								{@const Icon = STOP_ICONS[stop.stop_type] ?? MapPin}
+								{@const sc = stopColor(stop.stop_type)}
+								<span class="flex items-center gap-1 rounded-md bg-surface-600 px-2 py-0.5 text-xs" style="color: var({sc.fg});">
+									<Icon size={10} /> {stop.name}
+								</span>
+							{/each}
+						</div>
+					{/if}
 				</div>
 				{#if route.score}
 					<span class="text-sm font-bold" style="color: var({route.score >= 80 ? '--color-ride-safe-300' : route.score >= 55 ? '--color-ride-alert-300' : '--color-ride-danger-300'});">
 						{route.score}
 					</span>
 				{/if}
+				<button
+					type="button"
+					onclick={() => togglePublic(route)}
+					class="text-surface-500 hover:text-surface-300"
+					title={route.public ? 'Tornar privada' : 'Tornar pública'}
+				>
+					{#if route.public}
+						<Globe size={16} style="color: var(--color-ride-safe-300);" />
+					{:else}
+						<Lock size={16} />
+					{/if}
+				</button>
 				<button
 					type="button"
 					onclick={() => handleDelete(route.id)}
