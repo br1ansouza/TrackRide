@@ -1,4 +1,5 @@
 import type Map from '$lib/components/Map.svelte';
+import type { RouteStopEntry } from '$lib/components/RouteStops.svelte';
 import { analyzeRoute, type RouteAlert } from '$lib/services/alerts';
 import type { LatLng, RouteData } from '$lib/services/routing';
 import { calculateRouteScore, type RouteScore, type RidingPreference } from '$lib/services/routeScore';
@@ -7,6 +8,7 @@ import { createRoute, type ExploreRoute } from '$lib/services/routes';
 import { toaster } from '$lib/stores/toaster';
 import { useMobile } from '$lib/stores/mobile.svelte';
 import { useAuth } from '$lib/stores/auth.svelte';
+import { applyStopsToWeather } from '$lib/utils/stopWeather';
 
 export function useRouteSearch() {
 	const mobile = useMobile();
@@ -19,12 +21,22 @@ export function useRouteSearch() {
 	let mapRef = $state<ReturnType<typeof Map>>();
 	let weatherPoints = $state<WeatherPoint[]>([]);
 	let weatherLoading = $state(false);
+	let recalculating = $state(false);
 	let alerts = $state<RouteAlert[]>([]);
 	let score = $state<RouteScore | null>(null);
 	let saving = $state(false);
 	let routeSaved = $state(false);
+	let stops = $state<RouteStopEntry[]>([]);
 
 	let canSearch = $derived(!!originCoords && !!destCoords);
+	let hasRoute = $derived(weatherPoints.length > 0);
+
+	$effect(() => {
+		const pref = auth.user?.riding_preference;
+		if (weatherPoints.length > 0 && pref) {
+			score = calculateRouteScore(weatherPoints, pref as RidingPreference);
+		}
+	});
 
 	function resetWeather() {
 		weatherPoints = [];
@@ -36,15 +48,17 @@ export function useRouteSearch() {
 	async function processWeather(routeData: RouteData) {
 		weatherLoading = true;
 		try {
-			weatherPoints = await fetchRouteWeather(routeData, { origin: originLabel, destination: destLabel });
-			if (weatherPoints.length === 0) {
+			const newPoints = await fetchRouteWeather(routeData, { origin: originLabel, destination: destLabel });
+			if (newPoints.length === 0) {
 				toaster.warning({ title: 'Clima indisponível', description: 'Não foi possível obter dados de clima para esta rota.' });
 				return;
 			}
+			weatherPoints = applyStopsToWeather(newPoints, stops, routeData);
 			mapRef?.showWeatherMarkers(weatherPoints);
 			mapRef?.showRouteConditions(routeData.coords, weatherPoints);
 			alerts = analyzeRoute(weatherPoints);
 			score = calculateRouteScore(weatherPoints, (auth.user?.riding_preference ?? 'mixed') as RidingPreference);
+			routeSaved = false;
 			if (mobile.isMobile) mobile.setTab('weather');
 		} catch {
 			toaster.error({ title: 'Erro ao buscar clima', description: 'Falha na comunicação com o serviço de clima.' });
@@ -53,28 +67,51 @@ export function useRouteSearch() {
 		}
 	}
 
+	async function executeRoute(isRecalc = false) {
+		if (!originCoords || !destCoords || !mapRef) return;
+		if (isRecalc) recalculating = true;
+
+		try {
+			const waypoints = stops.map((s) => s.coords);
+			const routeData = await mapRef.drawRoute(originCoords, destCoords, waypoints);
+			if (!routeData) {
+				toaster.error({ title: 'Rota indisponível', description: 'Não foi possível traçar a rota.' });
+				return;
+			}
+
+			const distanceKm = routeData.totalDistance / 1000;
+			if (distanceKm < 5) {
+				toaster.warning({ title: 'Rota muito curta', description: 'A rota precisa ter no mínimo 5 km para análise de clima.' });
+				return;
+			}
+			if (distanceKm > 1000) {
+				toaster.warning({ title: 'Rota muito longa', description: 'A rota não pode ultrapassar 1.000 km.' });
+				return;
+			}
+
+			if (stops.length > 0) mapRef.showStopMarkers(stops);
+			await processWeather(routeData);
+		} finally {
+			if (isRecalc) recalculating = false;
+		}
+	}
+
 	async function handleSearch() {
 		if (!originCoords || !destCoords || !mapRef) return;
+		stops = [];
 		resetWeather();
 		if (mobile.isMobile) mobile.setTab('map');
+		await executeRoute();
+	}
 
-		const routeData = await mapRef.drawRoute(originCoords, destCoords);
-		if (!routeData) {
-			toaster.error({ title: 'Rota indisponível', description: 'Não foi possível traçar a rota. O serviço pode estar fora do ar.' });
-			return;
-		}
+	function addStop(stop: RouteStopEntry) {
+		stops = [...stops, stop];
+		executeRoute(true);
+	}
 
-		const distanceKm = routeData.totalDistance / 1000;
-		if (distanceKm < 5) {
-			toaster.warning({ title: 'Rota muito curta', description: 'A rota precisa ter no mínimo 5 km para análise de clima.' });
-			return;
-		}
-		if (distanceKm > 1000) {
-			toaster.warning({ title: 'Rota muito longa', description: 'A rota não pode ultrapassar 1.000 km. Divida em etapas.' });
-			return;
-		}
-
-		await processWeather(routeData);
+	function removeStop(index: number) {
+		stops = stops.filter((_, i) => i !== index);
+		executeRoute(true);
 	}
 
 	async function handleSelectExploreRoute(route: ExploreRoute) {
@@ -86,6 +123,7 @@ export function useRouteSearch() {
 		destCoords = dest;
 		originLabel = route.origin_name;
 		destLabel = route.destination_name;
+		stops = [];
 		resetWeather();
 
 		const routeData = await mapRef.drawRoute(origin, dest);
@@ -101,6 +139,13 @@ export function useRouteSearch() {
 		if (!originCoords || !destCoords || !score) return;
 		saving = true;
 		try {
+			const stopsAttributes = stops.map((s, i) => ({
+				name: s.name,
+				stop_type: s.stopType,
+				sort_order: i,
+				position: [s.coords[1], s.coords[0]] as [number, number]
+			}));
+
 			await createRoute({
 				name: `${originLabel} → ${destLabel}`,
 				origin_name: originLabel,
@@ -109,7 +154,8 @@ export function useRouteSearch() {
 				destination_coords: [destCoords[1], destCoords[0]],
 				distance_km: weatherPoints.length > 0 ? weatherPoints[weatherPoints.length - 1].distanceKm : undefined,
 				duration_minutes: weatherPoints.length > 0 ? weatherPoints[weatherPoints.length - 1].estimatedMinutes : undefined,
-				score: score.value
+				score: score.value,
+				route_stops_attributes: stopsAttributes
 			});
 			routeSaved = true;
 			toaster.success({ title: 'Rota salva', description: 'A rota foi adicionada ao seu histórico.' });
@@ -139,12 +185,17 @@ export function useRouteSearch() {
 		set mapRef(v: ReturnType<typeof Map> | undefined) { mapRef = v; },
 		get weatherPoints() { return weatherPoints; },
 		get weatherLoading() { return weatherLoading; },
+		get recalculating() { return recalculating; },
 		get alerts() { return alerts; },
 		get score() { return score; },
 		get saving() { return saving; },
 		get routeSaved() { return routeSaved; },
 		get canSearch() { return canSearch; },
+		get hasRoute() { return hasRoute; },
+		get stops() { return stops; },
 		handleSearch,
+		addStop,
+		removeStop,
 		handleSelectExploreRoute,
 		handleSaveRoute
 	};

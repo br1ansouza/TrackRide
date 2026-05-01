@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type L from 'leaflet';
+	import type { RouteStopEntry } from '$lib/components/RouteStops.svelte';
 	import { cssVar } from '$lib/utils/color';
+	import { stopColor } from '$lib/utils/stopColors';
 	import { fetchRoute, type LatLng, type RouteData } from '$lib/services/routing';
 	import type { WeatherPoint } from '$lib/services/weather';
 	import { classifyPoint } from '$lib/services/alerts';
@@ -17,6 +19,7 @@
 	let originMarker = $state<L.CircleMarker | null>(null);
 	let destinationMarker = $state<L.CircleMarker | null>(null);
 	let weatherMarkers = $state<L.Marker[]>([]);
+	let stopMarkers = $state<L.CircleMarker[]>([]);
 	let locationMarker = $state<L.CircleMarker | null>(null);
 	let hasInitialPosition = false;
 	let gpsLoading = $state(true);
@@ -88,9 +91,15 @@
 		destinationMarker = null;
 		weatherMarkers.forEach((m) => m.remove());
 		weatherMarkers = [];
+		stopMarkers.forEach((m) => m.remove());
+		stopMarkers = [];
 	}
 
-	export async function drawRoute(originCoords: LatLng, destCoords: LatLng): Promise<RouteData | null> {
+	export async function drawRoute(
+		originCoords: LatLng,
+		destCoords: LatLng,
+		waypoints: LatLng[] = []
+	): Promise<RouteData | null> {
 		if (!map || !leaflet) return null;
 
 		clearRoute();
@@ -114,7 +123,7 @@
 			.addTo(map)
 			.bindPopup('Destino');
 
-		const routeData = await fetchRoute(originCoords, destCoords);
+		const routeData = await fetchRoute(originCoords, destCoords, waypoints);
 		if (!routeData) return null;
 
 		routeLayer = leaflet
@@ -123,6 +132,23 @@
 
 		map.fitBounds(routeLayer.getBounds(), { padding: [40, 40] });
 		return routeData;
+	}
+
+	export function showStopMarkers(stops: RouteStopEntry[]) {
+		if (!map || !leaflet) return;
+		stopMarkers.forEach((m) => m.remove());
+		stopMarkers = stops.map((stop) => {
+			const sc = stopColor(stop.stopType);
+			return leaflet
+				.circleMarker(stop.coords, {
+					radius: 7,
+					color: cssVar(sc.bg),
+					fillColor: cssVar(sc.marker),
+					fillOpacity: 0.9
+				})
+				.addTo(map!)
+				.bindPopup(stop.name);
+		});
 	}
 
 	function updateWeatherVisibility() {
