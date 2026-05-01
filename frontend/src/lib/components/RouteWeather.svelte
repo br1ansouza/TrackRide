@@ -6,6 +6,7 @@
 	import type { RouteScore } from '$lib/services/routeScore';
 	import type { WeatherPoint } from '$lib/services/weather';
 	import { ALERT_ICONS, alertColor } from '$lib/utils/alertIcons';
+	import { formatTime, formatArrival } from '$lib/utils/routeFormat';
 
 	interface Props {
 		points: WeatherPoint[];
@@ -42,19 +43,6 @@
 
 	function isIntermediate(index: number): boolean {
 		return index > 0 && index < points.length - 1;
-	}
-
-	function formatTime(minutes: number): string {
-		if (minutes < 60) return `${minutes} min`;
-		const h = Math.floor(minutes / 60);
-		const m = minutes % 60;
-		return m > 0 ? `${h}h ${m}min` : `${h}h`;
-	}
-
-	function formatArrival(minutes: number): string {
-		if (minutes === 0) return 'Agora';
-		const arrival = new Date(Date.now() + minutes * 60000);
-		return `~${arrival.getHours().toString().padStart(2, '0')}:${arrival.getMinutes().toString().padStart(2, '0')}`;
 	}
 </script>
 

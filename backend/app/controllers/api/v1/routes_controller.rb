@@ -57,6 +57,11 @@ module Api
 
       def update
         if params[:public] == true && !@route.public
+          if @route.distance_km.present?
+            return render json: { error: "Rota muito curta para compartilhar (mínimo 5 km)" }, status: :unprocessable_entity if @route.distance_km < 5
+            return render json: { error: "Rota muito longa para compartilhar (máximo 1.000 km)" }, status: :unprocessable_entity if @route.distance_km > 1000
+          end
+
           existing = Route.publicly_visible
             .where.not(id: @route.id)
             .where("ST_DWithin(origin_coords, ?::geography, 5000) AND ST_DWithin(destination_coords, ?::geography, 5000)", @route.origin_coords, @route.destination_coords)
