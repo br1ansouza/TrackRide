@@ -22,6 +22,8 @@ export async function fetchRoute(origin: LatLng, destination: LatLng): Promise<R
 	const response = await fetch(
 		`/api/route?origin=${origin[1]},${origin[0]}&destination=${destination[1]},${destination[0]}`
 	);
+	if (!response.ok) return null;
+
 	const data = await response.json();
 	if (data.code !== 'Ok' || !data.routes.length) return null;
 

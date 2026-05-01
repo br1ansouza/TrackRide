@@ -1,11 +1,19 @@
 import { THRESHOLDS, classifyNight } from './alerts';
 import type { WeatherPoint } from './weather';
 
+export type RidingPreference = 'calm' | 'mixed' | 'sport';
+
 export interface RouteScore {
 	value: number;
 	label: string;
 	color: 'safe' | 'alert' | 'danger';
 }
+
+const PREFERENCE_MULTIPLIER: Record<RidingPreference, number> = {
+	calm: 0.8,
+	mixed: 1.0,
+	sport: 1.3
+};
 
 function weatherPenalty(point: WeatherPoint): number {
 	let penalty = 0;
@@ -32,10 +40,11 @@ function scoreLabel(value: number): { label: string; color: RouteScore['color'] 
 	return { label: 'Condições adversas', color: 'danger' };
 }
 
-export function calculateRouteScore(points: WeatherPoint[]): RouteScore {
+export function calculateRouteScore(points: WeatherPoint[], preference: RidingPreference = 'mixed'): RouteScore {
 	if (points.length === 0) return { value: 100, label: 'Sem dados', color: 'safe' };
 
-	const weatherPenalties = points.map(weatherPenalty);
+	const multiplier = PREFERENCE_MULTIPLIER[preference];
+	const weatherPenalties = points.map((p) => Math.min(weatherPenalty(p) * multiplier, 100));
 	const nightPenalties = points.map(nightPenalty);
 
 	const avgWeather = weatherPenalties.reduce((sum, p) => sum + p, 0) / points.length;
