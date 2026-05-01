@@ -3,6 +3,7 @@
 	import type { AuthUser } from '$lib/services/auth';
 	import { updateProfile } from '$lib/services/auth';
 	import { toaster } from '$lib/stores/toaster';
+	import backgroundImg from '$lib/assets/background-trackride.png';
 
 	interface Props {
 		user: AuthUser;
@@ -34,7 +35,11 @@
 	}
 </script>
 
-<div class="flex flex-col gap-4 {compact ? '' : 'h-full overflow-y-auto bg-surface-800 p-5 pb-20'}">
+<div class="relative flex flex-col gap-4 {compact ? '' : 'h-full overflow-y-auto bg-surface-800 p-5 pb-20'}">
+	{#if !compact}
+		<div class="absolute inset-0 scale-110 bg-cover bg-center opacity-5" style="background-image: url({backgroundImg});"></div>
+	{/if}
+	<div class="relative flex flex-col gap-4">
 	{#if !compact}
 		<div class="flex flex-col items-center gap-2 py-4">
 			<div class="flex h-16 w-16 items-center justify-center rounded-full" style="background-color: var(--color-ride-alert-500);">
@@ -97,4 +102,5 @@
 			Sair da conta
 		</button>
 	</div>
+</div>
 </div>
