@@ -75,6 +75,8 @@
 		{/if}
 	</div>
 
+	<hr class="border-surface-700" />
+
 	<button
 		type="button"
 		onclick={onViewAllRoutes}

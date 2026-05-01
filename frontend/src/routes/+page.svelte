@@ -12,6 +12,7 @@
 	import type { LatLng } from '$lib/services/routing';
 	import { calculateRouteScore, type RouteScore, type RidingPreference } from '$lib/services/routeScore';
 	import { fetchRouteWeather, type WeatherPoint } from '$lib/services/weather';
+	import { createRoute } from '$lib/services/routes';
 	import { toaster } from '$lib/stores/toaster';
 	import { useMobile } from '$lib/stores/mobile.svelte';
 	import { useAuth } from '$lib/stores/auth.svelte';
@@ -36,11 +37,36 @@
 	let canSearch = $derived(!!originCoords && !!destCoords);
 	let desktopProfileOpen = $state(false);
 	let historyOpen = $state(false);
+	let saving = $state(false);
+	let routeSaved = $state(false);
 
 	function openHistory() {
 		historyOpen = true;
 		desktopProfileOpen = false;
 		if (mobile.isMobile) mobile.setTab('map');
+	}
+
+	async function handleSaveRoute() {
+		if (!originCoords || !destCoords || !score) return;
+		saving = true;
+		try {
+			await createRoute({
+				name: `${originLabel} → ${destLabel}`,
+				origin_name: originLabel,
+				destination_name: destLabel,
+				origin_coords: [originCoords[1], originCoords[0]],
+				destination_coords: [destCoords[1], destCoords[0]],
+				distance_km: weatherPoints.length > 0 ? weatherPoints[weatherPoints.length - 1].distanceKm : undefined,
+				duration_minutes: weatherPoints.length > 0 ? weatherPoints[weatherPoints.length - 1].estimatedMinutes : undefined,
+				score: score.value
+			});
+			routeSaved = true;
+			toaster.success({ title: 'Rota salva', description: 'A rota foi adicionada ao seu histórico.' });
+		} catch {
+			toaster.error({ title: 'Erro ao salvar', description: 'Não foi possível salvar a rota.' });
+		} finally {
+			saving = false;
+		}
 	}
 
 	async function handleSearch() {
@@ -49,13 +75,17 @@
 		weatherPoints = [];
 		alerts = [];
 		score = null;
+		routeSaved = false;
 
 		if (mobile.isMobile) {
 			mobile.setTab('map');
 		}
 
 		const routeData = await mapRef.drawRoute(originCoords, destCoords);
-		if (!routeData) return;
+		if (!routeData) {
+			toaster.error({ title: 'Rota indisponível', description: 'Não foi possível traçar a rota. O serviço pode estar fora do ar.' });
+			return;
+		}
 
 		weatherLoading = true;
 		try {
@@ -152,7 +182,7 @@
 					<RouteHistory />
 				</aside>
 			{:else}
-				<RouteWeather points={weatherPoints} loading={weatherLoading} {alerts} {score} />
+				<RouteWeather points={weatherPoints} loading={weatherLoading} {alerts} {score} onSave={!routeSaved ? handleSaveRoute : undefined} {saving} />
 			{/if}
 		{/if}
 
@@ -168,7 +198,7 @@
 
 			{#if mobile.activeTab === 'weather'}
 				<div class="absolute inset-0 bottom-[52px] z-[500] overflow-y-auto bg-surface-800">
-					<RouteWeather points={weatherPoints} loading={weatherLoading} {alerts} {score} mobile />
+					<RouteWeather points={weatherPoints} loading={weatherLoading} {alerts} {score} mobile onSave={!routeSaved ? handleSaveRoute : undefined} {saving} />
 				</div>
 			{/if}
 
