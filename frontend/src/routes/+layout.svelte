@@ -15,7 +15,7 @@
 
 <Toast.Group {toaster}>
 	{#snippet children(toast)}
-		<Toast {toast} class="preset-filled-{toast.type === 'error' ? 'error' : toast.type === 'warning' ? 'warning' : toast.type === 'success' ? 'success' : 'surface'}-500">
+		<Toast {toast} class="preset-filled-{toast.type === 'error' ? 'error' : toast.type === 'warning' ? 'warning' : toast.type === 'success' ? 'primary' : 'surface'}-500">
 			<div class="flex flex-1 flex-col">
 				<Toast.Title class="font-bold">{toast.title}</Toast.Title>
 				{#if toast.description}

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Droplets, Wind, Thermometer, ChevronDown, Clock, Route, ChevronsDownUp, ChevronsUpDown } from 'lucide-svelte';
+	import { Droplets, Wind, Thermometer, ChevronDown, Clock, Route, ChevronsDownUp, ChevronsUpDown, Save } from 'lucide-svelte';
 	import { Tooltip } from '@skeletonlabs/skeleton-svelte';
 	import RouteScoreBadge from '$lib/components/RouteScoreBadge.svelte';
 	import { classifyPoint, type RouteAlert } from '$lib/services/alerts';
@@ -13,9 +13,11 @@
 		alerts: RouteAlert[];
 		score: RouteScore | null;
 		mobile?: boolean;
+		onSave?: () => void;
+		saving?: boolean;
 	}
 
-	let { points, loading, alerts, score, mobile = false }: Props = $props();
+	let { points, loading, alerts, score, mobile = false, onSave, saving = false }: Props = $props();
 
 	let collapsed = $state<Set<number>>(new Set());
 
@@ -97,6 +99,17 @@
 	{:else}
 		{#if score}
 			<RouteScoreBadge {score} {alerts} />
+		{/if}
+		{#if onSave}
+			<button
+				type="button"
+				onclick={onSave}
+				disabled={saving}
+				class="btn preset-filled-primary-500 flex items-center justify-center gap-2 rounded-lg py-2 text-sm font-semibold disabled:opacity-40"
+			>
+				<Save size={16} />
+				{saving ? 'Salvando…' : 'Salvar rota'}
+			</button>
 		{/if}
 		{#each points as point, i}
 			{@const pointAlerts = classifyPoint(point)}

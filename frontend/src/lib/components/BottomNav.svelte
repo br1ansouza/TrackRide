@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Map, Search, CloudSun } from 'lucide-svelte';
+	import { Map, Search, CloudSun, User } from 'lucide-svelte';
 	import type { MobileTab } from '$lib/stores/mobile.svelte';
 
 	interface Props {
@@ -43,5 +43,15 @@
 	>
 		<Search size={20} />
 		<span class="text-[10px] font-medium">Buscar</span>
+	</button>
+
+	<button
+		type="button"
+		onclick={() => onTabChange('profile')}
+		class="flex flex-1 flex-col items-center gap-0.5 py-2 transition-colors"
+		style="color: var({activeTab === 'profile' && !searchOpen ? '--color-ride-route-300' : '--color-surface-400'});"
+	>
+		<User size={20} />
+		<span class="text-[10px] font-medium">Perfil</span>
 	</button>
 </nav>
