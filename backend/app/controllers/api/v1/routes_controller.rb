@@ -4,7 +4,7 @@ module Api
       before_action :set_route, only: [:show, :update, :destroy]
 
       def index
-        routes = current_user.routes.recent
+        routes = current_user.routes.includes(:route_stops).recent
         routes = routes.where("created_at >= ?", params[:since].to_date) if params[:since].present?
         routes = routes.limit(params[:limit] || 20).offset(params[:offset] || 0)
 
@@ -20,6 +20,7 @@ module Api
         radius = [(params[:radius] || 80).to_i, 200].min * 1000
 
         routes = Route.publicly_visible
+          .includes(:route_stops)
           .where.not(user_id: current_user.id)
           .where("ST_DWithin(origin_coords, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography, ?)", lon, lat, radius)
           .order(score: :desc)
@@ -94,14 +95,15 @@ module Api
         permitted = params.permit(
           :name, :origin_name, :destination_name,
           :distance_km, :duration_minutes, :score, :public,
-          origin_coords: [], destination_coords: [], path_coords: []
+          origin_coords: [], destination_coords: [], path_coords: [],
+          route_stops_attributes: [:name, :stop_type, :sort_order, position: []]
         )
 
         build_geo_params(permitted)
       end
 
       def build_geo_params(permitted)
-        result = permitted.except(:origin_coords, :destination_coords, :path_coords)
+        result = permitted.except(:origin_coords, :destination_coords, :path_coords, :route_stops_attributes)
 
         if permitted[:origin_coords].present?
           lon, lat = permitted[:origin_coords].map(&:to_f)
@@ -117,6 +119,17 @@ module Api
           coords = permitted[:path_coords].map(&:to_f)
           points = coords.each_slice(2).map { |lon, lat| "#{lon} #{lat}" }.join(", ")
           result[:path_coords] = "LINESTRING(#{points})"
+        end
+
+        if permitted[:route_stops_attributes].present?
+          result[:route_stops_attributes] = permitted[:route_stops_attributes].map do |stop|
+            attrs = stop.except(:position)
+            if stop[:position].present?
+              lon, lat = stop[:position].map(&:to_f)
+              attrs[:position] = "POINT(#{lon} #{lat})"
+            end
+            attrs
+          end
         end
 
         result
@@ -135,6 +148,7 @@ module Api
           duration_minutes: route.duration_minutes,
           score: route.score,
           public: route.public,
+          stops: route.route_stops.map { |s| stop_response(s) },
           created_at: route.created_at,
           updated_at: route.updated_at
         }
@@ -142,6 +156,16 @@ module Api
 
       def explore_response(route)
         route_response(route).merge(author_name: route.user.name)
+      end
+
+      def stop_response(stop)
+        {
+          id: stop.id,
+          name: stop.name,
+          stop_type: stop.stop_type,
+          position: coords_to_array(stop.position),
+          sort_order: stop.sort_order
+        }
       end
 
       def coords_to_array(point)
