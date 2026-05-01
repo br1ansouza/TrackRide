@@ -35,6 +35,7 @@ export interface CreateRouteParams {
 	distance_km?: number;
 	duration_minutes?: number;
 	score?: number;
+	public?: boolean;
 }
 
 export async function createRoute(params: CreateRouteParams): Promise<SavedRoute> {
@@ -49,6 +50,19 @@ export async function deleteRoute(id: number): Promise<void> {
 	await request(`/routes/${id}`, { method: 'DELETE' });
 }
 
-export async function updateRoute(id: number, params: Partial<CreateRouteParams>): Promise<void> {
+export async function updateRoute(id: number, params: Partial<CreateRouteParams & { public: boolean }>): Promise<void> {
 	await request(`/routes/${id}`, { method: 'PATCH', body: JSON.stringify(params) });
+}
+
+export interface ExploreRoute extends SavedRoute {
+	author_name: string;
+}
+
+interface ExploreResponse {
+	routes: ExploreRoute[];
+	total: number;
+}
+
+export async function fetchNearbyRoutes(lat: number, lon: number, radius = 80): Promise<ExploreResponse> {
+	return request<ExploreResponse>(`/routes/explore?lat=${lat}&lon=${lon}&radius=${radius}`);
 }

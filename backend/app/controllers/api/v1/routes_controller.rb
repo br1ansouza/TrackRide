@@ -14,6 +14,23 @@ module Api
         }
       end
 
+      def explore
+        lat = params[:lat].to_f
+        lon = params[:lon].to_f
+        radius = [(params[:radius] || 80).to_i, 200].min * 1000
+
+        routes = Route.publicly_visible
+          .where.not(user_id: current_user.id)
+          .where("ST_DWithin(origin_coords, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography, ?)", lon, lat, radius)
+          .order(score: :desc)
+          .limit(params[:limit] || 10)
+
+        render json: {
+          routes: routes.map { |r| explore_response(r) },
+          total: routes.size
+        }
+      end
+
       def show
         render json: { route: route_response(@route) }
       end
@@ -39,6 +56,16 @@ module Api
       end
 
       def update
+        if params[:public] == true && !@route.public
+          existing = Route.publicly_visible
+            .where.not(id: @route.id)
+            .where("ST_DWithin(origin_coords, ?::geography, 5000) AND ST_DWithin(destination_coords, ?::geography, 5000)", @route.origin_coords, @route.destination_coords)
+            .exists?
+          if existing
+            return render json: { error: "Já existe uma rota pública com esse trajeto" }, status: :conflict
+          end
+        end
+
         if @route.update(route_params)
           render json: { route: route_response(@route) }
         else
@@ -106,6 +133,10 @@ module Api
           created_at: route.created_at,
           updated_at: route.updated_at
         }
+      end
+
+      def explore_response(route)
+        route_response(route).merge(author_name: route.user.name)
       end
 
       def coords_to_array(point)

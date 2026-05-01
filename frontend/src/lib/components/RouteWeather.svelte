@@ -100,23 +100,12 @@
 		{#if score}
 			<RouteScoreBadge {score} {alerts} />
 		{/if}
-		{#if onSave}
-			<button
-				type="button"
-				onclick={onSave}
-				disabled={saving}
-				class="btn preset-filled-primary-500 flex items-center justify-center gap-2 rounded-lg py-2 text-sm font-semibold disabled:opacity-40"
-			>
-				<Save size={16} />
-				{saving ? 'Salvando…' : 'Salvar rota'}
-			</button>
-		{/if}
 		{#each points as point, i}
 			{@const pointAlerts = classifyPoint(point)}
 			{#if i > 0}
 				<button
 					type="button"
-					class="flex w-full justify-center py-1 text-surface-500 {isIntermediate(i) ? 'cursor-pointer hover:text-surface-300' : 'cursor-default'}"
+					class="flex w-full justify-center py-2 text-surface-500 {isIntermediate(i) ? 'cursor-pointer hover:text-surface-300' : 'cursor-default'}"
 					onclick={() => isIntermediate(i) && toggleCollapse(i)}
 					disabled={!isIntermediate(i)}
 				>
@@ -188,5 +177,25 @@
 				</div>
 			{/if}
 		{/each}
+		{#if onSave}
+			<button
+				type="button"
+				onclick={onSave}
+				disabled={saving}
+				class="group mt-2 flex w-full items-center gap-3 rounded-xl border border-surface-600 bg-surface-700 p-3 text-left transition-all hover:border-primary-500/50 hover:bg-surface-600 disabled:opacity-40"
+			>
+				<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg" style="background-color: var(--color-ride-route-500);">
+					{#if saving}
+						<div class="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
+					{:else}
+						<Save size={18} class="text-white" />
+					{/if}
+				</div>
+				<div class="flex flex-col">
+					<span class="text-sm font-semibold text-white">{saving ? 'Salvando rota…' : 'Salvar no histórico'}</span>
+					<span class="text-xs text-surface-400">Acesse depois no seu perfil</span>
+				</div>
+			</button>
+		{/if}
 	{/if}
 </aside>
