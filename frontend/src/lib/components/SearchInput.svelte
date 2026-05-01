@@ -56,6 +56,15 @@
 		onselect(result.label, [result.lat, result.lon]);
 	}
 
+	async function resolveLocationLabel(coords: LatLng): Promise<string> {
+		try {
+			const res = await fetch(`/api/geocode/reverse?lat=${coords[0]}&lon=${coords[1]}`);
+			const data = await res.json();
+			if (data.district) return `Minha localização (${data.district})`;
+		} catch {}
+		return 'Minha localização';
+	}
+
 	async function selectMyLocation() {
 		const cached = getLastPosition();
 		if (cached) {
@@ -63,16 +72,20 @@
 			isMyLocation = true;
 			open = false;
 			results = [];
-			onselect('Minha localização', cached);
+			const label = await resolveLocationLabel(cached);
+			query = label;
+			onselect(label, cached);
 			return;
 		}
 		await getCurrentPosition({
-			onPosition(coords) {
+			async onPosition(coords) {
 				query = 'Minha localização';
 				isMyLocation = true;
 				open = false;
 				results = [];
-				onselect('Minha localização', coords);
+				const label = await resolveLocationLabel(coords);
+				query = label;
+				onselect(label, coords);
 			},
 			onError(message) {
 				toaster.error({ title: 'Erro de localização', description: message });

@@ -62,8 +62,14 @@
 			});
 			routeSaved = true;
 			toaster.success({ title: 'Rota salva', description: 'A rota foi adicionada ao seu histórico.' });
-		} catch {
-			toaster.error({ title: 'Erro ao salvar', description: 'Não foi possível salvar a rota.' });
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : '';
+			if (msg.includes('já existe')) {
+				routeSaved = true;
+				toaster.warning({ title: 'Rota duplicada', description: 'Essa rota já está no seu histórico.' });
+			} else {
+				toaster.error({ title: 'Erro ao salvar', description: 'Não foi possível salvar a rota.' });
+			}
 		} finally {
 			saving = false;
 		}

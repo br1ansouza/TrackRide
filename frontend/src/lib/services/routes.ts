@@ -48,3 +48,7 @@ export async function createRoute(params: CreateRouteParams): Promise<SavedRoute
 export async function deleteRoute(id: number): Promise<void> {
 	await request(`/routes/${id}`, { method: 'DELETE' });
 }
+
+export async function updateRoute(id: number, params: Partial<CreateRouteParams>): Promise<void> {
+	await request(`/routes/${id}`, { method: 'PATCH', body: JSON.stringify(params) });
+}
