@@ -8,7 +8,11 @@ Rails.application.routes.draw do
       get "auth/me", to: "auth#me"
       patch "auth/profile", to: "auth#update_profile"
 
-      resources :routes, only: [:index, :show, :create, :update, :destroy]
+      resources :routes, only: [:index, :show, :create, :update, :destroy] do
+        collection do
+          get :explore
+        end
+      end
     end
   end
 end

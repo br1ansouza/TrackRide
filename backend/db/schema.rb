@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_30_194239) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_01_212112) do
   create_schema "tiger"
   create_schema "topology"
 
@@ -20,6 +20,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_30_194239) do
   enable_extension "postgis"
   enable_extension "tiger.postgis_tiger_geocoder"
   enable_extension "topology.postgis_topology"
+
+  create_table "public.route_stops", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.geography "position", limit: {:srid=>4326, :type=>"st_point", :geographic=>true}, null: false
+    t.bigint "route_id", null: false
+    t.integer "sort_order", default: 0, null: false
+    t.integer "stop_type", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.index ["route_id"], name: "index_route_stops_on_route_id"
+  end
 
   create_table "public.routes", force: :cascade do |t|
     t.datetime "created_at", null: false
@@ -49,6 +60,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_30_194239) do
     t.index ["email"], name: "index_users_on_email", unique: true
   end
 
+  add_foreign_key "public.route_stops", "public.routes"
   add_foreign_key "public.routes", "public.users"
 
 
