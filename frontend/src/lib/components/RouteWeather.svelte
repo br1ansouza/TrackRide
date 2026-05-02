@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { Droplets, Wind, Thermometer, ChevronDown, Clock, Route, ChevronsDownUp, ChevronsUpDown, Save, Fuel, UtensilsCrossed, BedDouble, Mountain, MapPin } from 'lucide-svelte';
+	import { fade, fly } from 'svelte/transition';
+	import { transitions } from '$lib/utils/transitions';
 	import { Tooltip } from '@skeletonlabs/skeleton-svelte';
 	import RouteScoreBadge from '$lib/components/RouteScoreBadge.svelte';
 	import RouteStops from '$lib/components/RouteStops.svelte';
@@ -26,9 +28,10 @@
 		stops?: RouteStopEntry[];
 		onAddStop?: (stop: RouteStopEntry) => void;
 		onRemoveStop?: (index: number) => void;
+		onClear?: () => void;
 	}
 
-	let { points, loading, alerts, score, mobile = false, onSave, saving = false, stops = [], onAddStop, onRemoveStop }: Props = $props();
+	let { points, loading, alerts, score, mobile = false, onSave, saving = false, stops = [], onAddStop, onRemoveStop, onClear }: Props = $props();
 
 	let collapsed = $state<Set<number>>(new Set());
 
@@ -115,7 +118,7 @@
 	{/if}
 {/snippet}
 
-<aside class="flex flex-col gap-1 overflow-y-auto p-4 {mobile ? 'w-full pb-20' : 'w-80 bg-surface-800'}">
+<aside class="flex flex-col gap-1 overflow-y-auto p-4 {mobile ? 'w-full pb-20 pt-[calc(16px+env(safe-area-inset-top))]' : 'w-80 bg-surface-800'}">
 	<div class="flex items-center justify-between">
 		<h2 class="text-lg font-semibold text-white">Clima na rota</h2>
 		{#if points.length > 2}
@@ -128,11 +131,16 @@
 			</button>
 		{/if}
 	</div>
+	{#if onClear && points.length > 0}
+		<button type="button" onclick={onClear} class="text-xs text-surface-500 hover:text-surface-300">
+			Limpar rota
+		</button>
+	{/if}
 
 	{#if loading}
-		<p class="text-sm text-surface-400">Carregando clima…</p>
+		<p class="text-sm text-surface-400" in:fade={transitions.quick}>Carregando clima…</p>
 	{:else if points.length === 0}
-		<p class="text-sm text-surface-400">Trace uma rota para ver o clima.</p>
+		<p class="text-sm text-surface-400" in:fade={transitions.quick}>Trace uma rota para ver o clima.</p>
 	{:else}
 		{#if score}
 			<RouteScoreBadge {score} {alerts} />
@@ -162,7 +170,7 @@
 					{#if point.stopType}
 					{@const StopIcon = STOP_ICONS[point.stopType] ?? MapPin}
 					{@const sc = stopColor(point.stopType)}
-					<div bind:this={cardEls[i]} class="flex items-center gap-3 rounded-lg bg-surface-700 p-3">
+					<div bind:this={cardEls[i]} class="flex items-center gap-3 rounded-lg bg-surface-700 p-3" in:fly={{ ...transitions.card, delay: i * 50 }}>
 						<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg" style="background-color: var({sc.bg});">
 							<StopIcon size={20} style="color: var({sc.fg});" />
 						</div>
@@ -196,7 +204,7 @@
 							{@render alertBadges(pointAlerts)}
 						</button>
 					{:else}
-						<div bind:this={cardEls[i]} class="flex flex-col gap-2 rounded-lg bg-surface-700 p-3">
+						<div bind:this={cardEls[i]} class="flex flex-col gap-2 rounded-lg bg-surface-700 p-3" in:fly={{ ...transitions.card, delay: i * 50 }}>
 							<div class="flex items-center justify-between pl-1">
 								<p class="text-xs text-surface-400">
 									{formatArrival(point.estimatedMinutes)}{point.locationName ? ` — ${point.locationName}` : ''}

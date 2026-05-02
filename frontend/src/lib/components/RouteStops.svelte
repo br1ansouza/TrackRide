@@ -1,8 +1,11 @@
 <script lang="ts">
 	import { Plus, X, Fuel, UtensilsCrossed, BedDouble, Mountain, MapPin } from 'lucide-svelte';
+	import { slide } from 'svelte/transition';
+	import { transitions } from '$lib/utils/transitions';
 	import SearchInput from '$lib/components/SearchInput.svelte';
 	import type { LatLng } from '$lib/services/routing';
 	import { stopColor } from '$lib/utils/stopColors';
+	import { vibrate } from '$lib/utils/haptics';
 
 	export type StopType = 'other' | 'gas_station' | 'restaurant' | 'rest' | 'viewpoint';
 
@@ -46,13 +49,15 @@
 
 	function onPointerDown(e: PointerEvent) {
 		dragging = true;
-		selectedIndex = indexFromX(e.clientX);
+		const idx = indexFromX(e.clientX);
+		if (idx !== selectedIndex) { selectedIndex = idx; vibrate(); }
 		(e.target as HTMLElement).setPointerCapture(e.pointerId);
 	}
 
 	function onPointerMove(e: PointerEvent) {
 		if (!dragging) return;
-		selectedIndex = indexFromX(e.clientX);
+		const idx = indexFromX(e.clientX);
+		if (idx !== selectedIndex) { selectedIndex = idx; vibrate(); }
 	}
 
 	function onPointerUp() {
@@ -77,7 +82,7 @@
 		{#each stops as stop, i}
 			{@const Icon = stopIcon(stop.stopType)}
 			{@const colors = stopColor(stop.stopType)}
-			<div class="flex items-center gap-2 rounded-lg bg-surface-700 px-3 py-2">
+			<div class="flex items-center gap-2 rounded-lg bg-surface-700 px-3 py-2" transition:slide={transitions.quick}>
 				<Icon size={14} style="color: var({colors.fg});" />
 				<span class="min-w-0 flex-1 truncate text-sm text-white">{stop.name}</span>
 				<button type="button" onclick={() => onRemove(i)} class="shrink-0 text-surface-500 hover:text-surface-300">
@@ -96,7 +101,7 @@
 						{@const c = stopColor(st.value)}
 						<button
 							type="button"
-							onclick={() => selectedIndex = i}
+							onclick={() => { selectedIndex = i; vibrate(); }}
 							class="flex flex-col items-center gap-0.5 transition-colors"
 							title={st.label}
 						>

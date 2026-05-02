@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { UserPlus } from 'lucide-svelte';
+	import { fly } from 'svelte/transition';
+	import { transitions } from '$lib/utils/transitions';
 	import { register } from '$lib/services/auth';
 	import { useAuth } from '$lib/stores/auth.svelte';
 	import { toaster } from '$lib/stores/toaster';
@@ -34,7 +36,7 @@
 
 <div class="relative flex h-dvh items-center justify-center overflow-hidden bg-surface-900 p-6">
 	<div class="absolute inset-0 scale-110 bg-cover bg-center opacity-5" style="background-image: url({backgroundImg});"></div>
-	<div class="relative flex w-full max-w-sm flex-col gap-6">
+	<div class="relative flex w-full max-w-sm flex-col gap-6" in:fly={transitions.panel}>
 		<div class="flex flex-col items-center gap-2">
 			<h1 class="text-2xl font-bold text-white">TrackRide</h1>
 			<p class="text-sm text-surface-400">Crie sua conta para começar</p>
