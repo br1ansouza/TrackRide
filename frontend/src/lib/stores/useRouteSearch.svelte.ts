@@ -26,6 +26,7 @@ export function useRouteSearch() {
 	let saving = $state(false);
 	let routeSaved = $state(false);
 	let stops = $state<RouteStopEntry[]>([]);
+	let routeCoords = $state<LatLng[]>([]);
 
 	let canSearch = $derived(!!originCoords && !!destCoords);
 	let hasRoute = $derived(weatherPoints.length > 0);
@@ -39,6 +40,7 @@ export function useRouteSearch() {
 
 	function resetWeather() {
 		weatherPoints = [];
+		routeCoords = [];
 		alerts = [];
 		score = null;
 		routeSaved = false;
@@ -54,6 +56,7 @@ export function useRouteSearch() {
 				return;
 			}
 			weatherPoints = newPoints;
+			routeCoords = routeData.coords;
 			mapRef?.showWeatherMarkers(weatherPoints);
 			mapRef?.showRouteConditions(routeData.coords, weatherPoints);
 			alerts = analyzeRoute(weatherPoints);
@@ -112,6 +115,15 @@ export function useRouteSearch() {
 	function removeStop(index: number) {
 		stops = stops.filter((_, i) => i !== index);
 		executeRoute(true);
+	}
+
+	function clearCurrentRoute() {
+		resetWeather();
+		stops = [];
+		originCoords = null;
+		destCoords = null;
+		originLabel = '';
+		destLabel = '';
 	}
 
 	async function handleSelectExploreRoute(route: ExploreRoute) {
@@ -193,9 +205,11 @@ export function useRouteSearch() {
 		get canSearch() { return canSearch; },
 		get hasRoute() { return hasRoute; },
 		get stops() { return stops; },
+		get routeCoords() { return routeCoords; },
 		handleSearch,
 		addStop,
 		removeStop,
+		clearCurrentRoute,
 		handleSelectExploreRoute,
 		handleSaveRoute
 	};

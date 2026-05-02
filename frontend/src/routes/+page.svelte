@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { X, Compass } from 'lucide-svelte';
+	import { X, Compass, Play } from 'lucide-svelte';
 	import Map from '$lib/components/Map.svelte';
 	import RouteWeather from '$lib/components/RouteWeather.svelte';
+	import TrackingOverlay from '$lib/components/TrackingOverlay.svelte';
 	import BottomNav from '$lib/components/BottomNav.svelte';
 	import MobileSearch from '$lib/components/MobileSearch.svelte';
 	import ProfilePanel from '$lib/components/ProfilePanel.svelte';
@@ -12,13 +13,28 @@
 	import { useMobile } from '$lib/stores/mobile.svelte';
 	import { useAuth } from '$lib/stores/auth.svelte';
 	import { useRouteSearch } from '$lib/stores/useRouteSearch.svelte';
+	import { useTracking } from '$lib/stores/useTracking.svelte';
+	import { createRoute } from '$lib/services/routes';
+	import type { LatLng } from '$lib/services/routing';
+	import { toaster } from '$lib/stores/toaster';
 
 	const mobile = useMobile();
 	const auth = useAuth();
 	const route = useRouteSearch();
+	const tracking = useTracking();
 
 	$effect(() => {
 		if (!auth.loading && !auth.isLoggedIn) goto('/login');
+	});
+
+	$effect(() => {
+		if (tracking.active && tracking.trackedPath.length >= 2) {
+			route.mapRef?.drawTrackedPath(tracking.trackedPath);
+			const path = tracking.trackedPath;
+			route.mapRef?.followPosition(path[path.length - 1], path[path.length - 2]);
+		} else if (tracking.active && tracking.currentPosition) {
+			route.mapRef?.followPosition(tracking.currentPosition);
+		}
 	});
 
 	let desktopProfileOpen = $state(false);
@@ -36,6 +52,58 @@
 		exploreOpen = true;
 		historyOpen = false;
 	}
+
+	async function handleReroute(position: LatLng) {
+		if (!route.mapRef || !route.destCoords) return;
+		toaster.info({ title: 'Recalculando rota', description: 'Você saiu do trajeto planejado.' });
+		const routeData = await route.mapRef.drawRoute(position, route.destCoords, [], true);
+		if (routeData) {
+			tracking.updatePlannedRoute(routeData.coords);
+		}
+	}
+
+	function startTracking() {
+		tracking.start({
+			plannedRoute: route.routeCoords,
+			onReroute: handleReroute
+		});
+		mobile.setTab('map');
+		if (tracking.currentPosition) {
+			route.mapRef?.followPosition(tracking.currentPosition);
+		}
+	}
+
+	async function stopTracking() {
+		const result = tracking.stop();
+		route.mapRef?.clearTracking();
+
+		if (result.path.length < 2 || result.distanceKm < 0.1) {
+			toaster.warning({ title: 'Percurso muito curto', description: 'Nenhum percurso registrado.' });
+			return;
+		}
+
+		try {
+			const pathFlat = result.path.flatMap((p) => [p[1], p[0]]);
+			await createRoute({
+				name: `${route.originLabel} → ${route.destLabel}`,
+				origin_name: route.originLabel,
+				destination_name: route.destLabel,
+				origin_coords: [route.originCoords![1], route.originCoords![0]],
+				destination_coords: [route.destCoords![1], route.destCoords![0]],
+				path_coords: pathFlat,
+				distance_km: result.distanceKm,
+				duration_minutes: result.durationMinutes,
+				score: route.score?.value
+			});
+			toaster.success({ title: 'Percurso salvo', description: `${result.distanceKm} km registrados no histórico.` });
+		} catch {
+			toaster.error({ title: 'Erro ao salvar', description: 'Não foi possível salvar o percurso.' });
+		}
+	}
+
+	let showStartButton = $derived(
+		mobile.isMobile && route.hasRoute && !tracking.active && (mobile.activeTab === 'map' || mobile.activeTab === 'weather') && !mobile.searchOpen && !historyOpen && !exploreOpen
+	);
 </script>
 
 {#if auth.loading || !auth.isLoggedIn}
@@ -59,8 +127,18 @@
 	{/if}
 
 	<div class="relative flex min-h-0 flex-1">
-		<div class="{mobile.isMobile ? 'absolute inset-0 bottom-[52px]' : 'flex-1'}">
+		<div class="{mobile.isMobile ? 'absolute inset-0' : 'flex-1'}" class:bottom-[52px]={mobile.isMobile && !tracking.active}>
 			<Map bind:this={route.mapRef} controlsVisible={!mobile.isMobile || (mobile.activeTab === 'map' && !historyOpen && !exploreOpen)} />
+
+			{#if tracking.active}
+				<TrackingOverlay
+					distanceKm={tracking.distanceKm}
+					elapsed={tracking.elapsedFormatted()}
+					speed={tracking.speedFormatted}
+					onStop={stopTracking}
+				/>
+			{/if}
+
 			{#if route.recalculating}
 				<div class="absolute inset-x-0 top-4 z-[600] flex justify-center">
 					<div class="flex items-center gap-2 rounded-full bg-surface-900/90 px-4 py-2 shadow-lg backdrop-blur-sm">
@@ -69,7 +147,8 @@
 					</div>
 				</div>
 			{/if}
-			{#if !exploreOpen}
+
+			{#if !exploreOpen && !tracking.active}
 				<button
 					type="button"
 					onclick={openExplore}
@@ -96,11 +175,11 @@
 					<RouteHistory />
 				</aside>
 			{:else}
-				<RouteWeather points={route.weatherPoints} loading={route.weatherLoading} alerts={route.alerts} score={route.score} onSave={!route.routeSaved ? route.handleSaveRoute : undefined} saving={route.saving} stops={route.stops} onAddStop={route.addStop} onRemoveStop={route.removeStop} />
+				<RouteWeather points={route.weatherPoints} loading={route.weatherLoading} alerts={route.alerts} score={route.score} onSave={!route.routeSaved ? route.handleSaveRoute : undefined} saving={route.saving} stops={route.stops} onAddStop={route.addStop} onRemoveStop={route.removeStop} onClear={route.clearCurrentRoute} />
 			{/if}
 		{/if}
 
-		{#if mobile.isMobile}
+		{#if mobile.isMobile && !tracking.active}
 			{#if route.weatherLoading && !route.recalculating && mobile.activeTab === 'map'}
 				<div class="absolute inset-x-0 top-4 z-[600] flex justify-center">
 					<div class="flex items-center gap-2 rounded-full bg-surface-900/90 px-4 py-2 shadow-lg backdrop-blur-sm">
@@ -112,7 +191,7 @@
 
 			{#if mobile.activeTab === 'weather'}
 				<div class="absolute inset-0 bottom-[52px] z-[500] overflow-y-auto bg-surface-800">
-					<RouteWeather points={route.weatherPoints} loading={route.weatherLoading} alerts={route.alerts} score={route.score} mobile onSave={!route.routeSaved ? route.handleSaveRoute : undefined} saving={route.saving} stops={route.stops} onAddStop={route.addStop} onRemoveStop={route.removeStop} />
+					<RouteWeather points={route.weatherPoints} loading={route.weatherLoading} alerts={route.alerts} score={route.score} mobile onSave={!route.routeSaved ? route.handleSaveRoute : undefined} saving={route.saving} stops={route.stops} onAddStop={route.addStop} onRemoveStop={route.removeStop} onClear={route.clearCurrentRoute} />
 				</div>
 			{/if}
 
@@ -147,6 +226,20 @@
 					onSearch={route.handleSearch}
 					onClose={() => mobile.toggleSearch()}
 				/>
+			{/if}
+
+			{#if showStartButton}
+				<div class="absolute inset-x-0 bottom-[60px] z-[800] flex justify-center">
+					<button
+						type="button"
+						onclick={startTracking}
+						class="flex items-center gap-2 rounded-full px-5 py-3 shadow-lg"
+						style="background-color: var(--color-ride-alert-500);"
+					>
+						<Play size={18} class="text-white" fill="white" />
+						<span class="text-sm font-semibold text-white">Começar rota</span>
+					</button>
+				</div>
 			{/if}
 
 			<BottomNav

@@ -26,9 +26,10 @@
 		stops?: RouteStopEntry[];
 		onAddStop?: (stop: RouteStopEntry) => void;
 		onRemoveStop?: (index: number) => void;
+		onClear?: () => void;
 	}
 
-	let { points, loading, alerts, score, mobile = false, onSave, saving = false, stops = [], onAddStop, onRemoveStop }: Props = $props();
+	let { points, loading, alerts, score, mobile = false, onSave, saving = false, stops = [], onAddStop, onRemoveStop, onClear }: Props = $props();
 
 	let collapsed = $state<Set<number>>(new Set());
 
@@ -128,6 +129,11 @@
 			</button>
 		{/if}
 	</div>
+	{#if onClear && points.length > 0}
+		<button type="button" onclick={onClear} class="text-xs text-surface-500 hover:text-surface-300">
+			Limpar rota
+		</button>
+	{/if}
 
 	{#if loading}
 		<p class="text-sm text-surface-400">Carregando clima…</p>
