@@ -35,7 +35,7 @@
 	}
 </script>
 
-<div class="relative flex flex-col gap-4 {compact ? '' : 'h-full overflow-y-auto bg-surface-800 p-5 pb-20'}">
+<div class="relative flex flex-col gap-4 {compact ? '' : 'h-full overflow-y-auto bg-surface-800 p-5 pb-20 pt-[calc(20px+env(safe-area-inset-top))]'}">
 	{#if !compact}
 		<div class="absolute inset-0 scale-110 bg-cover bg-center opacity-5" style="background-image: url({backgroundImg});"></div>
 	{/if}

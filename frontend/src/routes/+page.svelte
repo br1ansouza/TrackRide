@@ -16,6 +16,7 @@
 	import { useTracking } from '$lib/stores/useTracking.svelte';
 	import { createRoute } from '$lib/services/routes';
 	import type { LatLng } from '$lib/services/routing';
+	import { safeTop, safeBottom, safeBottomNav } from '$lib/utils/safeArea';
 	import { toaster } from '$lib/stores/toaster';
 
 	const mobile = useMobile();
@@ -140,7 +141,7 @@
 			{/if}
 
 			{#if route.recalculating}
-				<div class="absolute inset-x-0 top-4 z-[600] flex justify-center">
+				<div class="absolute inset-x-0 z-[600] flex justify-center" style="top: {safeTop};">
 					<div class="flex items-center gap-2 rounded-full bg-surface-900/90 px-4 py-2 shadow-lg backdrop-blur-sm">
 						<div class="h-4 w-4 animate-spin rounded-full border-2 border-surface-400 border-t-primary-400"></div>
 						<span class="text-sm text-surface-300">Recalculando rota…</span>
@@ -153,14 +154,14 @@
 					type="button"
 					onclick={openExplore}
 					class="absolute left-4 z-[500] flex h-11 w-11 items-center justify-center rounded-full shadow-lg"
-					style="bottom: calc(16px + env(safe-area-inset-bottom)); background-color: var(--color-ride-route-500);"
+					style="bottom: {safeBottom}; background-color: var(--color-ride-route-500);"
 					title="Explorar rotas próximas"
 				>
 					<Compass size={22} class="text-white" />
 				</button>
 			{/if}
 			{#if route.hasRoute || tracking.active}
-				<div class="absolute right-4 z-[500] flex flex-col gap-2" style="bottom: calc(16px + env(safe-area-inset-bottom));">
+				<div class="absolute right-4 z-[500] flex flex-col gap-2" style="bottom: {safeBottom};">
 					<button
 						type="button"
 						onclick={() => route.mapRef?.fitRoute()}
@@ -201,7 +202,7 @@
 
 		{#if mobile.isMobile && !tracking.active}
 			{#if route.weatherLoading && !route.recalculating && mobile.activeTab === 'map'}
-				<div class="absolute inset-x-0 top-4 z-[600] flex justify-center">
+				<div class="absolute inset-x-0 z-[600] flex justify-center" style="top: {safeTop};">
 					<div class="flex items-center gap-2 rounded-full bg-surface-900/90 px-4 py-2 shadow-lg backdrop-blur-sm">
 						<div class="h-4 w-4 animate-spin rounded-full border-2 border-surface-400 border-t-primary-400"></div>
 						<span class="text-sm text-surface-300">Buscando clima…</span>
@@ -222,7 +223,7 @@
 			{/if}
 
 			{#if historyOpen}
-				<div class="absolute inset-0 bottom-[52px] z-[600] flex flex-col overflow-y-auto bg-surface-800 p-4">
+				<div class="absolute inset-0 bottom-[52px] z-[600] flex flex-col overflow-y-auto bg-surface-800 p-4" style="padding-top: {safeTop};">
 					<div class="flex items-center justify-between pb-3">
 						<h2 class="text-lg font-semibold text-white">Histórico de viagens</h2>
 						<button type="button" onclick={() => historyOpen = false} class="text-surface-400 hover:text-surface-200"><X size={18} /></button>
@@ -232,7 +233,7 @@
 			{/if}
 
 			{#if exploreOpen}
-				<div class="absolute inset-0 bottom-[52px] z-[600] flex flex-col overflow-y-auto bg-surface-800 p-4">
+				<div class="absolute inset-0 bottom-[52px] z-[600] flex flex-col overflow-y-auto bg-surface-800 p-4" style="padding-top: {safeTop};">
 					<ExplorePanel onSelect={(r) => { exploreOpen = false; route.handleSelectExploreRoute(r); }} onClose={() => exploreOpen = false} />
 				</div>
 			{/if}
@@ -249,11 +250,11 @@
 			{/if}
 
 			{#if showStartButton}
-				<div class="absolute inset-x-0 z-[800] flex justify-center" style="bottom: calc(60px + env(safe-area-inset-bottom));">
+				<div class="pointer-events-none absolute inset-x-0 z-[800] flex justify-center" style="bottom: {safeBottomNav};">
 					<button
 						type="button"
 						onclick={startTracking}
-						class="flex items-center gap-2 rounded-full px-5 py-3 shadow-lg"
+						class="pointer-events-auto flex items-center gap-2 rounded-full px-5 py-3 shadow-lg"
 						style="background-color: var(--color-ride-alert-500);"
 					>
 						<Play size={18} class="text-white" fill="white" />

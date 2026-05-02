@@ -9,6 +9,7 @@
 	import type { WeatherPoint } from '$lib/services/weather';
 	import { classifyPoint } from '$lib/services/alerts';
 	import { toaster } from '$lib/stores/toaster';
+	import { safeTop } from '$lib/utils/safeArea';
 	import { watchPosition, clearWatch, getLastPosition } from '$lib/services/geolocation';
 
 	let { controlsVisible = true }: { controlsVisible?: boolean } = $props();
@@ -57,6 +58,9 @@
 			resolveReady();
 		});
 
+		const resizeObserver = new ResizeObserver(() => map?.resize());
+		resizeObserver.observe(mapContainer);
+
 		watchPosition({
 			onPosition(coords) {
 				if (!map) return;
@@ -81,6 +85,7 @@
 		});
 
 		return () => {
+			resizeObserver.disconnect();
 			clearWatch();
 			map?.remove();
 		};
@@ -247,11 +252,8 @@
 	export function zoomStreet() {
 		if (!map) return;
 		const last = getLastPosition();
-		if (last) {
-			map.easeTo({ center: toLngLat(last), zoom: 18, duration: 500 });
-		} else {
-			map.easeTo({ zoom: 18, duration: 500 });
-		}
+		const center = last ? toLngLat(last) : map.getCenter().toArray() as [number, number];
+		map.easeTo({ center, zoom: 18, duration: 500 });
 	}
 
 	export function drawTrackedPath(path: LatLng[]) {
@@ -278,7 +280,7 @@
 	<div bind:this={mapContainer} class="h-full w-full rounded-lg" class:hide-controls={!controlsVisible} style="min-height: 100%;"></div>
 
 	{#if gpsLoading}
-		<div class="absolute inset-x-0 top-4 z-[600] flex justify-center">
+		<div class="absolute inset-x-0 z-[600] flex justify-center" style="top: {safeTop};">
 			<div class="flex items-center gap-2 rounded-full bg-surface-900/90 px-4 py-2 shadow-lg backdrop-blur-sm">
 				<div class="h-4 w-4 animate-spin rounded-full border-2 border-surface-400 border-t-primary-400"></div>
 				<span class="text-sm text-surface-300">Localizando…</span>

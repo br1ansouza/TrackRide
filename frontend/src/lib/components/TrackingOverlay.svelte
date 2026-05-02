@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Square, Route, Clock, Gauge } from 'lucide-svelte';
+	import { safeTop, safeBottom } from '$lib/utils/safeArea';
 
 	interface Props {
 		distanceKm: number;
@@ -11,7 +12,7 @@
 	let { distanceKm, elapsed, speed, onStop }: Props = $props();
 </script>
 
-<div class="absolute inset-x-0 top-4 z-[700] flex justify-center px-4">
+<div class="absolute inset-x-0 z-[700] flex justify-center px-4" style="top: {safeTop};">
 	<div class="flex items-center gap-4 rounded-2xl bg-surface-900/90 px-5 py-3 shadow-lg backdrop-blur-sm">
 		<div class="flex flex-col items-center">
 			<span class="text-lg font-bold text-white">{distanceKm}</span>
@@ -30,7 +31,7 @@
 	</div>
 </div>
 
-<div class="absolute inset-x-0 bottom-6 z-[700] flex justify-center">
+<div class="absolute inset-x-0 z-[700] flex justify-center" style="bottom: {safeBottom};">
 	<button
 		type="button"
 		onclick={onStop}
