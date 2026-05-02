@@ -3,6 +3,8 @@
 	import SearchInput from '$lib/components/SearchInput.svelte';
 	import type { LatLng } from '$lib/services/routing';
 	import { safeBottomNav } from '$lib/utils/safeArea';
+	import { fly } from 'svelte/transition';
+	import { transitions } from '$lib/utils/transitions';
 
 	interface Props {
 		canSearch: boolean;
@@ -16,7 +18,7 @@
 	let { canSearch, loading, onOriginSelect, onDestSelect, onSearch, onClose }: Props = $props();
 </script>
 
-<div class="absolute inset-x-3 z-[900] flex flex-col gap-3 rounded-xl bg-surface-900/95 p-4 shadow-xl backdrop-blur-sm" style="bottom: {safeBottomNav};">
+<div class="absolute inset-x-3 z-[900] flex flex-col gap-3 rounded-xl bg-surface-900/95 p-4 shadow-xl backdrop-blur-sm" style="bottom: {safeBottomNav};" transition:fly={transitions.popup}>
 	<div class="flex items-center justify-between">
 		<span class="text-sm font-semibold text-white">Planejar rota</span>
 		<button type="button" onclick={onClose} class="text-surface-400">
