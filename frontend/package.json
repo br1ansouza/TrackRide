@@ -34,6 +34,7 @@
 		"@capacitor/android": "^6.2.0",
 		"@capacitor/core": "^6.2.0",
 		"@capacitor/geolocation": "^6.0.1",
+		"@capacitor/haptics": "^8.0.2",
 		"@tanstack/svelte-query": "^6.1.16",
 		"lucide-svelte": "^1.0.1",
 		"maplibre-gl": "^4.7.1",
