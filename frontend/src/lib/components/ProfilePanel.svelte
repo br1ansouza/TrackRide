@@ -3,6 +3,7 @@
 	import type { AuthUser } from '$lib/services/auth';
 	import { updateProfile } from '$lib/services/auth';
 	import { toaster } from '$lib/stores/toaster';
+	import { vibrate } from '$lib/utils/haptics';
 	import backgroundImg from '$lib/assets/background-trackride.png';
 
 	interface Props {
@@ -24,6 +25,7 @@
 	] as const;
 
 	async function selectPreference(value: string) {
+		vibrate();
 		try {
 			const updated = await updateProfile({ riding_preference: value });
 			onUserUpdate(updated);
@@ -35,7 +37,7 @@
 	}
 </script>
 
-<div class="relative flex flex-col gap-4 {compact ? '' : 'h-full overflow-y-auto bg-surface-800 p-5 pb-20'}">
+<div class="relative flex flex-col gap-4 {compact ? '' : 'h-full overflow-y-auto bg-surface-800 p-5 pb-20 pt-[calc(20px+env(safe-area-inset-top))]'}">
 	{#if !compact}
 		<div class="absolute inset-0 scale-110 bg-cover bg-center opacity-5" style="background-image: url({backgroundImg});"></div>
 	{/if}
@@ -94,7 +96,7 @@
 	<div class="{compact ? 'pt-2' : 'mt-auto'}">
 		<button
 			type="button"
-			onclick={onLogout}
+			onclick={() => { vibrate(); onLogout(); }}
 			class="flex w-full items-center justify-center gap-2 rounded-lg py-3 text-sm font-medium"
 			style="color: var(--color-ride-danger-300);"
 		>

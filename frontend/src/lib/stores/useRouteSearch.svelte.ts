@@ -26,6 +26,7 @@ export function useRouteSearch() {
 	let saving = $state(false);
 	let routeSaved = $state(false);
 	let stops = $state<RouteStopEntry[]>([]);
+	let routeCoords = $state<LatLng[]>([]);
 
 	let canSearch = $derived(!!originCoords && !!destCoords);
 	let hasRoute = $derived(weatherPoints.length > 0);
@@ -39,6 +40,7 @@ export function useRouteSearch() {
 
 	function resetWeather() {
 		weatherPoints = [];
+		routeCoords = [];
 		alerts = [];
 		score = null;
 		routeSaved = false;
@@ -54,12 +56,12 @@ export function useRouteSearch() {
 				return;
 			}
 			weatherPoints = newPoints;
+			routeCoords = routeData.coords;
 			mapRef?.showWeatherMarkers(weatherPoints);
 			mapRef?.showRouteConditions(routeData.coords, weatherPoints);
 			alerts = analyzeRoute(weatherPoints);
 			score = calculateRouteScore(weatherPoints, (auth.user?.riding_preference ?? 'mixed') as RidingPreference);
 			routeSaved = false;
-			if (mobile.isMobile) mobile.setTab('weather');
 		} catch {
 			toaster.error({ title: 'Erro ao buscar clima', description: 'Falha na comunicação com o serviço de clima.' });
 		} finally {
@@ -100,7 +102,7 @@ export function useRouteSearch() {
 		if (!originCoords || !destCoords || !mapRef) return;
 		stops = [];
 		resetWeather();
-		if (mobile.isMobile) mobile.setTab('map');
+		if (mobile.isMobile) mobile.setTab('weather');
 		await executeRoute();
 	}
 
@@ -112,6 +114,15 @@ export function useRouteSearch() {
 	function removeStop(index: number) {
 		stops = stops.filter((_, i) => i !== index);
 		executeRoute(true);
+	}
+
+	function clearCurrentRoute() {
+		resetWeather();
+		stops = [];
+		originCoords = null;
+		destCoords = null;
+		originLabel = '';
+		destLabel = '';
 	}
 
 	async function handleSelectExploreRoute(route: ExploreRoute) {
@@ -193,9 +204,11 @@ export function useRouteSearch() {
 		get canSearch() { return canSearch; },
 		get hasRoute() { return hasRoute; },
 		get stops() { return stops; },
+		get routeCoords() { return routeCoords; },
 		handleSearch,
 		addStop,
 		removeStop,
+		clearCurrentRoute,
 		handleSelectExploreRoute,
 		handleSaveRoute
 	};

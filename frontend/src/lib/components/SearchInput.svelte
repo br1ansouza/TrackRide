@@ -42,7 +42,9 @@
 
 	async function search(q: string) {
 		loading = true;
-		const response = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`);
+		const pos = getLastPosition();
+		const proximity = pos ? `&lat=${pos[0]}&lon=${pos[1]}` : '';
+		const response = await fetch(`/api/geocode?q=${encodeURIComponent(q)}${proximity}`);
 		results = await response.json();
 		loading = false;
 		open = results.length > 0;
