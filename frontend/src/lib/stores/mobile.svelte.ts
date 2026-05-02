@@ -8,7 +8,7 @@ let searchOpen = $state(false);
 
 export function useMobile() {
 	onMount(() => {
-		const mq = window.matchMedia('(max-width: 767px)');
+		const mq = window.matchMedia('(pointer: coarse)');
 		isMobile = mq.matches;
 		const handler = (e: MediaQueryListEvent) => (isMobile = e.matches);
 		mq.addEventListener('change', handler);

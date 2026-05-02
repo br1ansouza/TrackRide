@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { X, Compass, Play } from 'lucide-svelte';
+	import { X, Compass, Play, Maximize2, LocateFixed } from 'lucide-svelte';
 	import Map from '$lib/components/Map.svelte';
 	import RouteWeather from '$lib/components/RouteWeather.svelte';
 	import TrackingOverlay from '$lib/components/TrackingOverlay.svelte';
@@ -152,12 +152,32 @@
 				<button
 					type="button"
 					onclick={openExplore}
-					class="absolute bottom-4 left-4 z-[500] flex h-11 w-11 items-center justify-center rounded-full shadow-lg"
-					style="background-color: var(--color-ride-route-500);"
+					class="absolute left-4 z-[500] flex h-11 w-11 items-center justify-center rounded-full shadow-lg"
+					style="bottom: calc(16px + env(safe-area-inset-bottom)); background-color: var(--color-ride-route-500);"
 					title="Explorar rotas próximas"
 				>
 					<Compass size={22} class="text-white" />
 				</button>
+			{/if}
+			{#if route.hasRoute || tracking.active}
+				<div class="absolute right-4 z-[500] flex flex-col gap-2" style="bottom: calc(16px + env(safe-area-inset-bottom));">
+					<button
+						type="button"
+						onclick={() => route.mapRef?.fitRoute()}
+						class="flex h-10 w-10 items-center justify-center rounded-full bg-surface-800/90 shadow-lg backdrop-blur-sm"
+						title="Ver rota inteira"
+					>
+						<Maximize2 size={18} class="text-white" />
+					</button>
+					<button
+						type="button"
+						onclick={() => route.mapRef?.zoomStreet()}
+						class="flex h-10 w-10 items-center justify-center rounded-full bg-surface-800/90 shadow-lg backdrop-blur-sm"
+						title="Zoom na sua posição"
+					>
+						<LocateFixed size={18} class="text-white" />
+					</button>
+				</div>
 			{/if}
 		</div>
 
@@ -229,7 +249,7 @@
 			{/if}
 
 			{#if showStartButton}
-				<div class="absolute inset-x-0 bottom-[60px] z-[800] flex justify-center">
+				<div class="absolute inset-x-0 z-[800] flex justify-center" style="bottom: calc(60px + env(safe-area-inset-bottom));">
 					<button
 						type="button"
 						onclick={startTracking}

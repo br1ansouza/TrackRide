@@ -66,7 +66,7 @@
 					locationMarker.setLngLat(lngLat);
 				} else {
 					const el = document.createElement('div');
-					el.style.cssText = `width:16px;height:16px;border-radius:50%;background:${cssVar('--color-ride-location-500') || '#7926cb'};border:2px solid ${cssVar('--color-ride-location-700') || '#5e23a4'};`;
+					el.style.cssText = `width:16px;height:16px;border-radius:50%;background:${cssVar('--color-ride-location-500')};border:2px solid ${cssVar('--color-ride-location-700')};`;
 					locationMarker = new maplibregl.Marker({ element: el }).setLngLat(lngLat).addTo(map!);
 				}
 				if (!hasInitialPosition) {
@@ -91,13 +91,13 @@
 		const emptyLine = { type: 'Feature' as const, properties: {}, geometry: { type: 'LineString' as const, coordinates: [] as [number, number][] } };
 
 		map.addSource('route', { type: 'geojson', data: emptyLine });
-		map.addLayer({ id: 'route-line', type: 'line', source: 'route', paint: { 'line-color': '#57a1f9', 'line-width': 5, 'line-opacity': 0.9 } });
+		map.addLayer({ id: 'route-line', type: 'line', source: 'route', paint: { 'line-color': cssVar('--color-ride-route-300'), 'line-width': 5, 'line-opacity': 0.9 } });
 
 		map.addSource('conditions', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
 		map.addLayer({ id: 'conditions-line', type: 'line', source: 'conditions', paint: { 'line-color': ['get', 'color'], 'line-width': 6, 'line-opacity': ['get', 'opacity'] } });
 
 		map.addSource('tracked', { type: 'geojson', data: emptyLine });
-		map.addLayer({ id: 'tracked-line', type: 'line', source: 'tracked', paint: { 'line-color': '#56e3c2', 'line-width': 4, 'line-opacity': 0.9 } });
+		map.addLayer({ id: 'tracked-line', type: 'line', source: 'tracked', paint: { 'line-color': cssVar('--color-ride-safe-500'), 'line-width': 4, 'line-opacity': 0.9 } });
 		trackedSourceAdded = true;
 	}
 
@@ -126,8 +126,8 @@
 		await mapReady;
 		clearRoute();
 
-		const originEl = createCircleMarker(cssVar('--color-ride-safe-500') || '#56e3c2', cssVar('--color-ride-safe-700') || '#319a84');
-		const destEl = createCircleMarker(cssVar('--color-ride-danger-500') || '#f53f33', cssVar('--color-ride-danger-700') || '#cc2921');
+		const originEl = createCircleMarker(cssVar('--color-ride-safe-500'), cssVar('--color-ride-safe-700'));
+		const destEl = createCircleMarker(cssVar('--color-ride-danger-500'), cssVar('--color-ride-danger-700'));
 		routeMarkers.push(new maplibregl.Marker({ element: originEl }).setLngLat(toLngLat(originCoords)).setPopup(new maplibregl.Popup().setText('Origem')).addTo(map));
 		routeMarkers.push(new maplibregl.Marker({ element: destEl }).setLngLat(toLngLat(destCoords)).setPopup(new maplibregl.Popup().setText('Destino')).addTo(map));
 
@@ -147,7 +147,7 @@
 		stopMarkerEls.forEach((m) => m.remove());
 		stopMarkerEls = stops.map((stop) => {
 			const sc = stopColor(stop.stopType);
-			const el = createCircleMarker(cssVar(sc.marker) || '#888', cssVar(sc.bg) || '#555', 14);
+			const el = createCircleMarker(cssVar(sc.marker), cssVar(sc.bg), 14);
 			return new maplibregl.Marker({ element: el }).setLngLat(toLngLat(stop.coords)).setPopup(new maplibregl.Popup().setText(stop.name)).addTo(map!);
 		});
 	}
@@ -231,6 +231,27 @@
 		const y = Math.sin(dLon) * Math.cos(lat2);
 		const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
 		return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+	}
+
+	export function fitRoute() {
+		if (!map) return;
+		const src = map.getSource('route') as maplibregl.GeoJSONSource | undefined;
+		if (!src) return;
+		const data = (src as unknown as { _data: { geometry?: { coordinates: [number, number][] } } })._data;
+		if (!data?.geometry?.coordinates?.length) return;
+		const bounds = new maplibregl.LngLatBounds();
+		data.geometry.coordinates.forEach((c) => bounds.extend(c));
+		map.fitBounds(bounds, { padding: 40, bearing: 0, pitch: 0 });
+	}
+
+	export function zoomStreet() {
+		if (!map) return;
+		const last = getLastPosition();
+		if (last) {
+			map.easeTo({ center: toLngLat(last), zoom: 18, duration: 500 });
+		} else {
+			map.easeTo({ zoom: 18, duration: 500 });
+		}
 	}
 
 	export function drawTrackedPath(path: LatLng[]) {
