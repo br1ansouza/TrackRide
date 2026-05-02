@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { Route, Clock, Trash2, ChevronRight, Globe, Lock, ArrowDown, Fuel, UtensilsCrossed, BedDouble, Mountain, MapPin } from 'lucide-svelte';
-	import { fetchSavedRoutes, deleteRoute, updateRoute, type SavedRoute, type SavedRouteStop } from '$lib/services/routes';
+	import { fetchSavedRoutes, deleteRoute, updateRoute, type SavedRoute } from '$lib/services/routes';
 	import { toaster } from '$lib/stores/toaster';
 	import { stopColor } from '$lib/utils/stopColors';
 
