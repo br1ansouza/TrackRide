@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { scale, fade, fly } from 'svelte/transition';
+	import { transitions } from '$lib/utils/transitions';
 	import { X, Compass, Play, Maximize2, LocateFixed } from 'lucide-svelte';
 	import Map from '$lib/components/Map.svelte';
 	import RouteWeather from '$lib/components/RouteWeather.svelte';
@@ -17,6 +19,7 @@
 	import { createRoute } from '$lib/services/routes';
 	import type { LatLng } from '$lib/services/routing';
 	import { safeTop, safeBottom, safeBottomNav } from '$lib/utils/safeArea';
+	import { vibrateHeavy } from '$lib/utils/haptics';
 	import { toaster } from '$lib/stores/toaster';
 
 	const mobile = useMobile();
@@ -64,6 +67,7 @@
 	}
 
 	function startTracking() {
+		vibrateHeavy();
 		tracking.start({
 			plannedRoute: route.routeCoords,
 			onReroute: handleReroute
@@ -75,6 +79,7 @@
 	}
 
 	async function stopTracking() {
+		vibrateHeavy();
 		const result = tracking.stop();
 		route.mapRef?.clearTracking();
 
@@ -141,8 +146,7 @@
 			{/if}
 
 			{#if route.recalculating}
-				<div class="absolute inset-x-0 z-[600] flex justify-center" style="top: {safeTop};">
-					<div class="flex items-center gap-2 rounded-full bg-surface-900/90 px-4 py-2 shadow-lg backdrop-blur-sm">
+				<div class="absolute inset-x-0 z-[600] flex justify-center" style="top: {safeTop};" transition:fade={transitions.quick}>					<div class="flex items-center gap-2 rounded-full bg-surface-900/90 px-4 py-2 shadow-lg backdrop-blur-sm">
 						<div class="h-4 w-4 animate-spin rounded-full border-2 border-surface-400 border-t-primary-400"></div>
 						<span class="text-sm text-surface-300">Recalculando rota…</span>
 					</div>
@@ -202,7 +206,7 @@
 
 		{#if mobile.isMobile && !tracking.active}
 			{#if route.weatherLoading && !route.recalculating && mobile.activeTab === 'map'}
-				<div class="absolute inset-x-0 z-[600] flex justify-center" style="top: {safeTop};">
+				<div class="absolute inset-x-0 z-[600] flex justify-center" style="top: {safeTop};" transition:fade={transitions.quick}>
 					<div class="flex items-center gap-2 rounded-full bg-surface-900/90 px-4 py-2 shadow-lg backdrop-blur-sm">
 						<div class="h-4 w-4 animate-spin rounded-full border-2 border-surface-400 border-t-primary-400"></div>
 						<span class="text-sm text-surface-300">Buscando clima…</span>
@@ -211,19 +215,19 @@
 			{/if}
 
 			{#if mobile.activeTab === 'weather'}
-				<div class="absolute inset-0 bottom-[52px] z-[500] overflow-y-auto bg-surface-800">
+				<div class="absolute inset-0 bottom-[52px] z-[500] overflow-y-auto bg-surface-800" transition:fly={transitions.panel}>
 					<RouteWeather points={route.weatherPoints} loading={route.weatherLoading} alerts={route.alerts} score={route.score} mobile onSave={!route.routeSaved ? route.handleSaveRoute : undefined} saving={route.saving} stops={route.stops} onAddStop={route.addStop} onRemoveStop={route.removeStop} onClear={route.clearCurrentRoute} />
 				</div>
 			{/if}
 
 			{#if mobile.activeTab === 'profile' && auth.user}
-				<div class="absolute inset-0 bottom-[52px] z-[500]">
+				<div class="absolute inset-0 bottom-[52px] z-[500]" transition:fly={transitions.panel}>
 					<ProfilePanel user={auth.user} onLogout={() => auth.logout()} onUserUpdate={(u) => auth.setUser(u)} onViewAllRoutes={openHistory} />
 				</div>
 			{/if}
 
 			{#if historyOpen}
-				<div class="absolute inset-0 bottom-[52px] z-[600] flex flex-col overflow-y-auto bg-surface-800 p-4" style="padding-top: {safeTop};">
+				<div class="absolute inset-0 bottom-[52px] z-[600] flex flex-col overflow-y-auto bg-surface-800 p-4" style="padding-top: {safeTop};" transition:fly={transitions.panel}>
 					<div class="flex items-center justify-between pb-3">
 						<h2 class="text-lg font-semibold text-white">Histórico de viagens</h2>
 						<button type="button" onclick={() => historyOpen = false} class="text-surface-400 hover:text-surface-200"><X size={18} /></button>
@@ -233,7 +237,7 @@
 			{/if}
 
 			{#if exploreOpen}
-				<div class="absolute inset-0 bottom-[52px] z-[600] flex flex-col overflow-y-auto bg-surface-800 p-4" style="padding-top: {safeTop};">
+				<div class="absolute inset-0 bottom-[52px] z-[600] flex flex-col overflow-y-auto bg-surface-800 p-4" style="padding-top: {safeTop};" transition:fly={transitions.panel}>
 					<ExplorePanel onSelect={(r) => { exploreOpen = false; route.handleSelectExploreRoute(r); }} onClose={() => exploreOpen = false} />
 				</div>
 			{/if}
@@ -250,7 +254,7 @@
 			{/if}
 
 			{#if showStartButton}
-				<div class="pointer-events-none absolute inset-x-0 z-[800] flex justify-center" style="bottom: {safeBottomNav};">
+				<div class="pointer-events-none absolute inset-x-0 z-[800] flex justify-center" style="bottom: {safeBottomNav};" transition:scale={transitions.button}>
 					<button
 						type="button"
 						onclick={startTracking}
