@@ -62,7 +62,6 @@ export function useRouteSearch() {
 			alerts = analyzeRoute(weatherPoints);
 			score = calculateRouteScore(weatherPoints, (auth.user?.riding_preference ?? 'mixed') as RidingPreference);
 			routeSaved = false;
-			if (mobile.isMobile) mobile.setTab('weather');
 		} catch {
 			toaster.error({ title: 'Erro ao buscar clima', description: 'Falha na comunicação com o serviço de clima.' });
 		} finally {
@@ -103,7 +102,7 @@ export function useRouteSearch() {
 		if (!originCoords || !destCoords || !mapRef) return;
 		stops = [];
 		resetWeather();
-		if (mobile.isMobile) mobile.setTab('map');
+		if (mobile.isMobile) mobile.setTab('weather');
 		await executeRoute();
 	}
 
