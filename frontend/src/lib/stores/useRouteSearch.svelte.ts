@@ -1,13 +1,22 @@
 import type Map from '$lib/components/Map.svelte';
 import type { RouteStopEntry } from '$lib/components/RouteStops.svelte';
 import { analyzeRoute, type RouteAlert } from '$lib/services/alerts';
-import type { LatLng, RouteData } from '$lib/services/routing';
+import { fetchRoute, type LatLng, type RouteData } from '$lib/services/routing';
 import { calculateRouteScore, type RouteScore, type RidingPreference } from '$lib/services/routeScore';
 import { fetchRouteWeather, type WeatherPoint } from '$lib/services/weather';
 import { createRoute, type ExploreRoute } from '$lib/services/routes';
+import { getLastPosition } from '$lib/services/geolocation';
 import { toaster } from '$lib/stores/toaster';
 import { useMobile } from '$lib/stores/mobile.svelte';
 import { useAuth } from '$lib/stores/auth.svelte';
+
+export interface ApproachRoute {
+	coords: LatLng[];
+	distanceKm: number;
+	durationMinutes: number;
+}
+
+const APPROACH_MIN_M = 200;
 
 export function useRouteSearch() {
 	const mobile = useMobile();
@@ -27,6 +36,7 @@ export function useRouteSearch() {
 	let routeSaved = $state(false);
 	let stops = $state<RouteStopEntry[]>([]);
 	let routeCoords = $state<LatLng[]>([]);
+	let approachRoute = $state<ApproachRoute | null>(null);
 
 	let canSearch = $derived(!!originCoords && !!destCoords);
 	let hasRoute = $derived(weatherPoints.length > 0);
@@ -44,6 +54,25 @@ export function useRouteSearch() {
 		alerts = [];
 		score = null;
 		routeSaved = false;
+		approachRoute = null;
+	}
+
+	async function computeApproach(routeOrigin: LatLng): Promise<void> {
+		const pos = getLastPosition();
+		if (!pos) return;
+		const dlat = pos[0] - routeOrigin[0];
+		const dlon = pos[1] - routeOrigin[1];
+		const approxM = Math.sqrt(dlat * dlat + dlon * dlon) * 111_320;
+		if (approxM < APPROACH_MIN_M) return;
+
+		const data = await fetchRoute(pos, routeOrigin);
+		if (!data) return;
+		approachRoute = {
+			coords: data.coords,
+			distanceKm: Math.round(data.totalDistance / 100) / 10,
+			durationMinutes: Math.round(data.totalDuration / 60)
+		};
+		mapRef?.drawApproachRoute(data.coords);
 	}
 
 	async function processWeather(routeData: RouteData) {
@@ -123,6 +152,7 @@ export function useRouteSearch() {
 		destCoords = null;
 		originLabel = '';
 		destLabel = '';
+		mapRef?.clearApproachRoute();
 	}
 
 	async function handleSelectExploreRoute(route: ExploreRoute) {
@@ -142,6 +172,7 @@ export function useRouteSearch() {
 			toaster.error({ title: 'Rota indisponível', description: 'Não foi possível traçar a rota.' });
 			return;
 		}
+		await computeApproach(origin);
 		if (mobile.isMobile) mobile.setTab('map');
 		await processWeather(routeData);
 	}
@@ -205,6 +236,7 @@ export function useRouteSearch() {
 		get hasRoute() { return hasRoute; },
 		get stops() { return stops; },
 		get routeCoords() { return routeCoords; },
+		get approachRoute() { return approachRoute; },
 		handleSearch,
 		addStop,
 		removeStop,

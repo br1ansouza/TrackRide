@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Droplets, Wind, Thermometer, ChevronDown, Clock, Route, ChevronsDownUp, ChevronsUpDown, Save, Fuel, UtensilsCrossed, BedDouble, Mountain, MapPin } from 'lucide-svelte';
+	import { Droplets, Wind, Thermometer, ChevronDown, Clock, Route, ChevronsDownUp, ChevronsUpDown, Save, Fuel, UtensilsCrossed, BedDouble, Mountain, MapPin, Navigation } from 'lucide-svelte';
 	import { fade, fly } from 'svelte/transition';
 	import { transitions } from '$lib/utils/transitions';
 	import { Tooltip } from '@skeletonlabs/skeleton-svelte';
@@ -9,6 +9,7 @@
 	import { classifyPoint, type RouteAlert } from '$lib/services/alerts';
 	import type { RouteScore } from '$lib/services/routeScore';
 	import type { WeatherPoint } from '$lib/services/weather';
+	import type { ApproachRoute } from '$lib/stores/useRouteSearch.svelte';
 	import { ALERT_ICONS, alertColor } from '$lib/utils/alertIcons';
 	import { formatTime, formatArrival } from '$lib/utils/routeFormat';
 	import { stopColor } from '$lib/utils/stopColors';
@@ -29,9 +30,10 @@
 		onAddStop?: (stop: RouteStopEntry) => void;
 		onRemoveStop?: (index: number) => void;
 		onClear?: () => void;
+		approachRoute?: ApproachRoute | null;
 	}
 
-	let { points, loading, alerts, score, mobile = false, onSave, saving = false, stops = [], onAddStop, onRemoveStop, onClear }: Props = $props();
+	let { points, loading, alerts, score, mobile = false, onSave, saving = false, stops = [], onAddStop, onRemoveStop, onClear, approachRoute = null }: Props = $props();
 
 	let collapsed = $state<Set<number>>(new Set());
 
@@ -118,7 +120,7 @@
 	{/if}
 {/snippet}
 
-<aside class="flex flex-col gap-1 overflow-y-auto p-4 {mobile ? 'w-full pb-20 pt-[calc(16px+env(safe-area-inset-top))]' : 'w-80 bg-surface-800'}">
+<aside class="flex flex-col gap-1 overflow-y-auto p-4 {mobile ? 'w-full pt-[calc(16px+env(safe-area-inset-top))]' : 'w-80 bg-surface-800'}" style={mobile ? 'padding-bottom: calc(24px + env(safe-area-inset-bottom))' : ''}>
 	<div class="flex items-center justify-between">
 		<h2 class="text-lg font-semibold text-white">Clima na rota</h2>
 		{#if points.length > 2}
@@ -144,6 +146,22 @@
 	{:else}
 		{#if score}
 			<RouteScoreBadge {score} {alerts} />
+		{/if}
+
+		{#if approachRoute}
+			<div class="my-1 flex items-center gap-3 rounded-lg bg-surface-700 p-3" in:fly={{ ...transitions.card }}>
+				<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg" style="background-color: var(--color-ride-location-900);">
+					<Navigation size={20} style="color: var(--color-ride-location-300);" />
+				</div>
+				<div class="flex flex-1 flex-col gap-0.5">
+					<span class="text-sm font-medium text-white">Caminho até a rota</span>
+					<div class="flex gap-3 text-xs text-surface-400">
+						<span class="flex items-center gap-1"><Route size={11} /> {approachRoute.distanceKm} km</span>
+						<span class="flex items-center gap-1"><Clock size={11} /> {formatTime(approachRoute.durationMinutes)}</span>
+					</div>
+				</div>
+			</div>
+			<hr class="my-2 border-surface-600" />
 		{/if}
 
 		<div class="relative ml-4">

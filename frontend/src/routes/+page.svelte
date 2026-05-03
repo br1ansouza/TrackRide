@@ -70,7 +70,12 @@
 		vibrateHeavy();
 		tracking.start({
 			plannedRoute: route.routeCoords,
-			onReroute: handleReroute
+			approachRoute: route.approachRoute?.coords,
+			routeOrigin: route.originCoords ?? undefined,
+			onReroute: handleReroute,
+			onApproachComplete() {
+				route.mapRef?.clearApproachRoute();
+			}
 		});
 		mobile.setTab('map');
 		if (tracking.currentPosition) {
@@ -200,7 +205,7 @@
 					<RouteHistory />
 				</aside>
 			{:else}
-				<RouteWeather points={route.weatherPoints} loading={route.weatherLoading} alerts={route.alerts} score={route.score} onSave={!route.routeSaved ? route.handleSaveRoute : undefined} saving={route.saving} stops={route.stops} onAddStop={route.addStop} onRemoveStop={route.removeStop} onClear={route.clearCurrentRoute} />
+				<RouteWeather points={route.weatherPoints} loading={route.weatherLoading} alerts={route.alerts} score={route.score} onSave={!route.routeSaved ? route.handleSaveRoute : undefined} saving={route.saving} stops={route.stops} onAddStop={route.addStop} onRemoveStop={route.removeStop} onClear={route.clearCurrentRoute} approachRoute={route.approachRoute} />
 			{/if}
 		{/if}
 
@@ -215,8 +220,8 @@
 			{/if}
 
 			{#if mobile.activeTab === 'weather'}
-				<div class="absolute inset-0 bottom-[52px] z-[500] overflow-y-auto bg-surface-800" transition:fly={transitions.panel}>
-					<RouteWeather points={route.weatherPoints} loading={route.weatherLoading} alerts={route.alerts} score={route.score} mobile onSave={!route.routeSaved ? route.handleSaveRoute : undefined} saving={route.saving} stops={route.stops} onAddStop={route.addStop} onRemoveStop={route.removeStop} onClear={route.clearCurrentRoute} />
+				<div class="absolute inset-0 z-[500] overflow-y-auto bg-surface-800" style="bottom: calc(52px + env(safe-area-inset-bottom))" transition:fly={transitions.panel}>
+					<RouteWeather points={route.weatherPoints} loading={route.weatherLoading} alerts={route.alerts} score={route.score} mobile onSave={!route.routeSaved ? route.handleSaveRoute : undefined} saving={route.saving} stops={route.stops} onAddStop={route.addStop} onRemoveStop={route.removeStop} onClear={route.clearCurrentRoute} approachRoute={route.approachRoute} />
 				</div>
 			{/if}
 
@@ -227,7 +232,7 @@
 			{/if}
 
 			{#if historyOpen}
-				<div class="absolute inset-0 bottom-[52px] z-[600] flex flex-col overflow-y-auto bg-surface-800 p-4" style="padding-top: {safeTop};" transition:fly={transitions.panel}>
+				<div class="absolute inset-0 z-[600] flex flex-col overflow-y-auto bg-surface-800 p-4" style="padding-top: {safeTop}; bottom: calc(52px + env(safe-area-inset-bottom))" transition:fly={transitions.panel}>
 					<div class="flex items-center justify-between pb-3">
 						<h2 class="text-lg font-semibold text-white">Histórico de viagens</h2>
 						<button type="button" onclick={() => historyOpen = false} class="text-surface-400 hover:text-surface-200"><X size={18} /></button>
@@ -237,7 +242,7 @@
 			{/if}
 
 			{#if exploreOpen}
-				<div class="absolute inset-0 bottom-[52px] z-[600] flex flex-col overflow-y-auto bg-surface-800 p-4" style="padding-top: {safeTop};" transition:fly={transitions.panel}>
+				<div class="absolute inset-0 z-[600] flex flex-col overflow-y-auto bg-surface-800 p-4" style="padding-top: {safeTop}; bottom: calc(52px + env(safe-area-inset-bottom))" transition:fly={transitions.panel}>
 					<ExplorePanel onSelect={(r) => { exploreOpen = false; route.handleSelectExploreRoute(r); }} onClose={() => exploreOpen = false} />
 				</div>
 			{/if}

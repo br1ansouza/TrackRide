@@ -75,6 +75,8 @@
 		map.addLayer({ id: 'route-line', type: 'line', source: 'route', paint: { 'line-color': cssVar('--color-ride-route-300'), 'line-width': 5, 'line-opacity': 0.9 } });
 		map.addSource('conditions', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
 		map.addLayer({ id: 'conditions-line', type: 'line', source: 'conditions', paint: { 'line-color': ['get', 'color'], 'line-width': 6, 'line-opacity': ['get', 'opacity'] } });
+		map.addSource('approach', { type: 'geojson', data: emptyLine() });
+		map.addLayer({ id: 'approach-line', type: 'line', source: 'approach', paint: { 'line-color': cssVar('--color-ride-location-300'), 'line-width': 4, 'line-opacity': 0.8, 'line-dasharray': [2, 3] } });
 		map.addSource('tracked', { type: 'geojson', data: emptyLine() });
 		map.addLayer({ id: 'tracked-line', type: 'line', source: 'tracked', paint: { 'line-color': cssVar('--color-ride-safe-500'), 'line-width': 4, 'line-opacity': 0.9 } });
 		trackedSourceAdded = true;
@@ -84,6 +86,7 @@
 		if (!map) return;
 		(map.getSource('route') as maplibregl.GeoJSONSource | undefined)?.setData(emptyLine());
 		(map.getSource('conditions') as maplibregl.GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features: [] });
+		(map.getSource('approach') as maplibregl.GeoJSONSource | undefined)?.setData(emptyLine());
 		routeMarkers.forEach((m) => m.remove()); routeMarkers = [];
 		weatherMarkerEls.forEach((m) => m.remove()); weatherMarkerEls = [];
 		stopMarkerEls.forEach((m) => m.remove()); stopMarkerEls = [];
@@ -179,6 +182,16 @@
 	export function followPosition(coords: LatLng, prevCoords?: LatLng) {
 		if (!map) return;
 		map.easeTo({ center: toLngLat(coords), zoom: 18, bearing: prevCoords ? calculateBearing(prevCoords, coords) : map.getBearing(), pitch: 60, duration: 1000 });
+	}
+
+	export function drawApproachRoute(coords: LatLng[]) {
+		if (!map || coords.length < 2) return;
+		(map.getSource('approach') as maplibregl.GeoJSONSource | undefined)?.setData({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: toLineCoords(coords) } });
+	}
+
+	export function clearApproachRoute() {
+		if (!map) return;
+		(map.getSource('approach') as maplibregl.GeoJSONSource | undefined)?.setData(emptyLine());
 	}
 
 	export function clearTracking() {

@@ -5,8 +5,13 @@ const OFF_ROUTE_THRESHOLD_M = 25;
 
 export interface TrackingOptions {
 	plannedRoute: LatLng[];
+	approachRoute?: LatLng[];
+	routeOrigin?: LatLng;
 	onReroute: (position: LatLng) => void;
+	onApproachComplete?: () => void;
 }
+
+const APPROACH_ARRIVAL_M = 50;
 
 export function useTracking() {
 	let active = $state(false);
@@ -20,6 +25,9 @@ export function useTracking() {
 	let plannedRoute: LatLng[] = [];
 	let onReroute: ((pos: LatLng) => void) | null = null;
 	let rerouteNotified = false;
+	let inApproach = $state(false);
+	let routeOrigin: LatLng | null = null;
+	let onApproachComplete: (() => void) | null = null;
 
 	function haversineM(a: LatLng, b: LatLng): number {
 		const R = 6371000;
@@ -42,6 +50,14 @@ export function useTracking() {
 	}
 
 	function checkOffRoute(pos: LatLng) {
+		if (inApproach && routeOrigin) {
+			if (haversineM(pos, routeOrigin) <= APPROACH_ARRIVAL_M) {
+				inApproach = false;
+				routeOrigin = null;
+				onApproachComplete?.();
+			}
+			return;
+		}
 		if (plannedRoute.length === 0 || !onReroute) return;
 		const dist = distanceToRoute(pos);
 		if (dist > OFF_ROUTE_THRESHOLD_M && !rerouteNotified) {
@@ -76,6 +92,9 @@ export function useTracking() {
 		rerouteNotified = false;
 		plannedRoute = options?.plannedRoute ?? [];
 		onReroute = options?.onReroute ?? null;
+		inApproach = !!options?.approachRoute?.length;
+		routeOrigin = options?.routeOrigin ?? null;
+		onApproachComplete = options?.onApproachComplete ?? null;
 
 		const cached = getLastPosition();
 		if (cached) {
@@ -111,6 +130,9 @@ export function useTracking() {
 		elapsed = 0;
 		plannedRoute = [];
 		onReroute = null;
+		inApproach = false;
+		routeOrigin = null;
+		onApproachComplete = null;
 		return result;
 	}
 
