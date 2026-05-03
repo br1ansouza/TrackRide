@@ -1,5 +1,5 @@
 import type { LatLng } from '$lib/services/routing';
-import { getCurrentPosition, getLastPosition } from '$lib/services/geolocation';
+import { getLastPosition, startBackgroundWatch, stopBackgroundWatch } from '$lib/services/geolocation';
 
 const OFF_ROUTE_THRESHOLD_M = 25;
 
@@ -17,7 +17,6 @@ export function useTracking() {
 	let speed = $state(0);
 	let distanceM = $state(0);
 	let timerInterval = $state<ReturnType<typeof setInterval>>();
-	let gpsInterval = $state<ReturnType<typeof setInterval>>();
 	let plannedRoute: LatLng[] = [];
 	let onReroute: ((pos: LatLng) => void) | null = null;
 	let rerouteNotified = false;
@@ -67,10 +66,6 @@ export function useTracking() {
 		checkOffRoute(coords);
 	}
 
-	function pollGps() {
-		getCurrentPosition({ onPosition: addPoint, onError() {} });
-	}
-
 	function start(options?: TrackingOptions) {
 		active = true;
 		trackedPath = [];
@@ -92,8 +87,7 @@ export function useTracking() {
 			elapsed = Math.floor((Date.now() - startTime) / 1000);
 		}, 1000);
 
-		pollGps();
-		gpsInterval = setInterval(pollGps, 3000);
+		startBackgroundWatch({ onPosition: addPoint, onError() {} });
 	}
 
 	function updatePlannedRoute(route: LatLng[]) {
@@ -103,7 +97,7 @@ export function useTracking() {
 
 	function stop(): { path: LatLng[]; distanceKm: number; durationMinutes: number } {
 		clearInterval(timerInterval);
-		clearInterval(gpsInterval);
+		stopBackgroundWatch();
 		const result = {
 			path: [...trackedPath],
 			distanceKm: Math.round(distanceM / 100) / 10,
