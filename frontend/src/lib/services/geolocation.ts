@@ -1,4 +1,15 @@
+import type { BackgroundGeolocationPlugin, Location, CallbackError } from '@capacitor-community/background-geolocation';
 import type { LatLng } from './routing';
+
+let bgPlugin: BackgroundGeolocationPlugin | null = null;
+
+async function getBackgroundGeolocation(): Promise<BackgroundGeolocationPlugin> {
+	if (!bgPlugin) {
+		const { Capacitor } = await import('@capacitor/core');
+		bgPlugin = Capacitor.Plugins.BackgroundGeolocation as BackgroundGeolocationPlugin;
+	}
+	return bgPlugin;
+}
 
 interface GeoCallbacks {
 	onPosition: (coords: LatLng) => void;
@@ -6,6 +17,7 @@ interface GeoCallbacks {
 }
 
 let watchId: string | number | null = null;
+let bgWatcherId: string | null = null;
 
 const LAST_POSITION_KEY = 'trackride:last-position';
 
@@ -110,4 +122,66 @@ export async function clearWatch(): Promise<void> {
 		navigator.geolocation.clearWatch(watchId);
 	}
 	watchId = null;
+}
+
+async function requestNotificationPermission(): Promise<void> {
+	try {
+		const { LocalNotifications } = await import('@capacitor/local-notifications');
+		const { display } = await LocalNotifications.checkPermissions();
+		if (display !== 'granted') {
+			await LocalNotifications.requestPermissions();
+		}
+	} catch {}
+}
+
+export async function startBackgroundWatch(callbacks: GeoCallbacks): Promise<void> {
+	const isNative = await waitForCapacitor();
+	if (!isNative) {
+		watchPosition(callbacks);
+		return;
+	}
+
+	await requestNotificationPermission();
+
+	try {
+		const bg = await getBackgroundGeolocation();
+		const callbackId = bg.addWatcher(
+			{
+				backgroundMessage: 'Rota em andamento',
+				backgroundTitle: 'TrackRide',
+				requestPermissions: true,
+				stale: false,
+				distanceFilter: 5
+			},
+			(location?: Location, error?: CallbackError) => {
+				if (error) {
+					if (error.code !== 'NOT_AUTHORIZED') callbacks.onError(error.message ?? 'Erro de GPS');
+					return;
+				}
+				if (!location) return;
+				const coords: LatLng = [location.latitude, location.longitude];
+				savePosition(coords);
+				callbacks.onPosition(coords);
+			}
+		);
+		if (callbackId && typeof callbackId.then === 'function') {
+			callbackId.then((id: string) => { bgWatcherId = id; });
+		} else {
+			bgWatcherId = callbackId as unknown as string;
+		}
+	} catch {
+		watchPosition(callbacks);
+	}
+}
+
+export async function stopBackgroundWatch(): Promise<void> {
+	if (bgWatcherId !== null) {
+		try {
+			const bg = await getBackgroundGeolocation();
+			bg.removeWatcher({ id: bgWatcherId });
+		} catch {}
+		bgWatcherId = null;
+		return;
+	}
+	await clearWatch();
 }

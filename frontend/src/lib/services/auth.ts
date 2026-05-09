@@ -45,3 +45,19 @@ export async function updateProfile(params: { name?: string; riding_preference?:
 	});
 	return data.user;
 }
+
+export async function forgotPassword(email: string): Promise<string> {
+	const data = await request<{ message: string }>('/auth/forgot_password', {
+		method: 'POST',
+		body: JSON.stringify({ email })
+	});
+	return data.message;
+}
+
+export async function resetPassword(token: string, password: string, passwordConfirmation: string): Promise<string> {
+	const data = await request<{ message: string }>('/auth/reset_password', {
+		method: 'POST',
+		body: JSON.stringify({ token, password, password_confirmation: passwordConfirmation })
+	});
+	return data.message;
+}

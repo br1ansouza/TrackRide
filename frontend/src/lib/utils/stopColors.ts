@@ -1,4 +1,4 @@
-import type { StopType } from '$lib/components/RouteStops.svelte';
+import type { StopType } from '$lib/types/routeStop';
 
 export const STOP_COLORS: Record<StopType, { fg: string; bg: string; marker: string }> = {
 	gas_station: { fg: '--color-ride-alert-300', bg: '--color-ride-alert-900', marker: '--color-ride-alert-500' },

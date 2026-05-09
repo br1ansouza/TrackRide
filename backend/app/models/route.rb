@@ -1,6 +1,8 @@
 class Route < ApplicationRecord
   belongs_to :user
   has_many :route_stops, -> { order(:sort_order) }, dependent: :destroy
+  has_many :route_likes, dependent: :destroy
+  has_many :route_completions, dependent: :destroy
   accepts_nested_attributes_for :route_stops, allow_destroy: true
 
   validates :name, presence: true

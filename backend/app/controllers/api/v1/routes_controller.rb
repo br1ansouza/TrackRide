@@ -2,6 +2,7 @@ module Api
   module V1
     class RoutesController < BaseController
       before_action :set_route, only: [:show, :update, :destroy]
+      before_action :set_public_route, only: [:like, :unlike, :complete]
 
       def index
         routes = current_user.routes.includes(:route_stops).recent
@@ -20,7 +21,7 @@ module Api
         radius = [(params[:radius] || 80).to_i, 200].min * 1000
 
         routes = Route.publicly_visible
-          .includes(:route_stops)
+          .includes(:route_stops, :route_likes, :route_completions)
           .where.not(user_id: current_user.id)
           .where("ST_DWithin(origin_coords, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography, ?)", lon, lat, radius)
           .order(score: :desc)
@@ -84,10 +85,31 @@ module Api
         head :no_content
       end
 
+      def like
+        RouteLike.find_or_create_by(user: current_user, route: @route)
+        render json: { likes_count: @route.route_likes.count }
+      end
+
+      def unlike
+        RouteLike.find_by(user: current_user, route: @route)&.destroy
+        render json: { likes_count: @route.route_likes.count }
+      end
+
+      def complete
+        @route.increment!(:times_completed)
+        RouteCompletion.create(user: current_user, route: @route)
+        render json: { times_completed: @route.times_completed }
+      end
+
       private
 
       def set_route
         @route = current_user.routes.find_by(id: params[:id])
+        render json: { error: "Rota não encontrada" }, status: :not_found unless @route
+      end
+
+      def set_public_route
+        @route = Route.publicly_visible.find_by(id: params[:id])
         render json: { error: "Rota não encontrada" }, status: :not_found unless @route
       end
 
@@ -155,7 +177,13 @@ module Api
       end
 
       def explore_response(route)
-        route_response(route).merge(author_name: route.user.name)
+        route_response(route).merge(
+          author_name: route.user.name,
+          likes_count: route.route_likes.size,
+          times_completed: route.times_completed,
+          liked_by_user: route.route_likes.any? { |l| l.user_id == current_user.id },
+          completed_by_user: route.route_completions.any? { |c| c.user_id == current_user.id }
+        )
       end
 
       def stop_response(stop)

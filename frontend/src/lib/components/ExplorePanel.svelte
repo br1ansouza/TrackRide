@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { Compass, Route, Clock, User, X, ArrowDown } from 'lucide-svelte';
+	import { Compass, Route, Clock, User, X, ArrowDown, Heart, Flag } from 'lucide-svelte';
 	import { Tooltip } from '@skeletonlabs/skeleton-svelte';
-	import { fetchNearbyRoutes, type ExploreRoute } from '$lib/services/routes';
+	import { fetchNearbyRoutes, likeRoute, unlikeRoute, type ExploreRoute } from '$lib/services/routes';
 	import { getLastPosition } from '$lib/services/geolocation';
 	import { toaster } from '$lib/stores/toaster';
 
@@ -33,6 +33,23 @@
 	}
 
 	load();
+
+	async function toggleLike(e: Event, route: ExploreRoute) {
+		e.stopPropagation();
+		try {
+			if (route.liked_by_user) {
+				const res = await unlikeRoute(route.id);
+				route.liked_by_user = false;
+				route.likes_count = res.likes_count;
+			} else {
+				const res = await likeRoute(route.id);
+				route.liked_by_user = true;
+				route.likes_count = res.likes_count;
+			}
+		} catch {
+			toaster.error({ title: 'Erro', description: 'Não foi possível curtir a rota.' });
+		}
+	}
 
 	function formatDuration(minutes: number | null): string {
 		if (!minutes) return '';
@@ -69,9 +86,11 @@
 		<p class="text-sm text-surface-400">Nenhuma rota pública encontrada por perto.</p>
 	{:else}
 		{#each routes as route}
-			<button
-				type="button"
+			<div
+				role="button"
+				tabindex="0"
 				onclick={() => onSelect(route)}
+				onkeydown={(e) => { if (e.key === 'Enter') onSelect(route); }}
 				class="flex flex-col gap-1 rounded-lg bg-surface-700 p-3 text-left transition-colors hover:bg-surface-600"
 			>
 				<span class="text-sm font-medium text-white">{route.origin_name}</span>
@@ -92,7 +111,25 @@
 						</span>
 					</div>
 				{/if}
-			</button>
+				<div class="mt-1 flex items-center justify-end gap-3">
+					<button
+						type="button"
+						onclick={(e) => toggleLike(e, route)}
+						class="flex items-center gap-1 text-xs transition-colors {route.liked_by_user ? '' : 'text-surface-400 hover:text-surface-200'}"
+						style={route.liked_by_user ? 'color: var(--color-ride-danger-300);' : ''}
+					>
+						<Heart size={14} fill={route.liked_by_user ? 'currentColor' : 'none'} />
+						{route.likes_count}
+					</button>
+					<span
+						class="flex items-center gap-1 text-xs {route.completed_by_user ? '' : 'text-surface-400'}"
+						style={route.completed_by_user ? 'color: var(--color-ride-alert-300);' : ''}
+					>
+						<Flag size={14} fill={route.completed_by_user ? 'currentColor' : 'none'} />
+						{route.times_completed}
+					</span>
+				</div>
+			</div>
 		{/each}
 	{/if}
 </div>

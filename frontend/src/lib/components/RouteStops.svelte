@@ -6,14 +6,9 @@
 	import type { LatLng } from '$lib/services/routing';
 	import { stopColor } from '$lib/utils/stopColors';
 	import { vibrate } from '$lib/utils/haptics';
+	import type { StopType, RouteStopEntry } from '$lib/types/routeStop';
 
-	export type StopType = 'other' | 'gas_station' | 'restaurant' | 'rest' | 'viewpoint';
-
-	export interface RouteStopEntry {
-		name: string;
-		coords: LatLng;
-		stopType: StopType;
-	}
+	export type { StopType, RouteStopEntry };
 
 	interface Props {
 		stops: RouteStopEntry[];

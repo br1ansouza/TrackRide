@@ -7,6 +7,9 @@ const config: CapacitorConfig = {
 	server: {
 		url: 'http://YOUR_LOCAL_IP:4173',
 		cleartext: true
+	},
+	android: {
+		useLegacyBridge: true
 	}
 };
 
