@@ -74,5 +74,8 @@
 			Não tem conta?
 			<a href="/register" class="font-medium" style="color: var(--color-ride-route-300);">Criar conta</a>
 		</p>
+		<p class="text-center text-sm text-surface-400">
+			<a href="/forgot-password" class="font-medium" style="color: var(--color-ride-route-300);">Esqueci minha senha</a>
+		</p>
 	</div>
 </div>
