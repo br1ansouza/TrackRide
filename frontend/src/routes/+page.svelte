@@ -16,7 +16,7 @@
 	import { useAuth } from '$lib/stores/auth.svelte';
 	import { useRouteSearch } from '$lib/stores/useRouteSearch.svelte';
 	import { useTracking } from '$lib/stores/useTracking.svelte';
-	import { createRoute } from '$lib/services/routes';
+	import { createRoute, completeRoute } from '$lib/services/routes';
 	import type { LatLng } from '$lib/services/routing';
 	import { safeTop, safeBottom, safeBottomNav } from '$lib/utils/safeArea';
 	import { vibrateHeavy } from '$lib/utils/haptics';
@@ -107,6 +107,9 @@
 				score: route.score?.value
 			});
 			toaster.success({ title: 'Percurso salvo', description: `${result.distanceKm} km registrados no histórico.` });
+			if (route.exploreRouteId) {
+				completeRoute(route.exploreRouteId).catch(() => {});
+			}
 		} catch {
 			toaster.error({ title: 'Erro ao salvar', description: 'Não foi possível salvar o percurso.' });
 		}

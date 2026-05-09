@@ -73,6 +73,10 @@ export async function updateRoute(id: number, params: Partial<CreateRouteParams 
 
 export interface ExploreRoute extends SavedRoute {
 	author_name: string;
+	likes_count: number;
+	times_completed: number;
+	liked_by_user: boolean;
+	completed_by_user: boolean;
 }
 
 interface ExploreResponse {
@@ -82,4 +86,16 @@ interface ExploreResponse {
 
 export async function fetchNearbyRoutes(lat: number, lon: number, radius = 80): Promise<ExploreResponse> {
 	return request<ExploreResponse>(`/routes/explore?lat=${lat}&lon=${lon}&radius=${radius}`);
+}
+
+export async function likeRoute(id: number): Promise<{ likes_count: number }> {
+	return request(`/routes/${id}/like`, { method: 'POST' });
+}
+
+export async function unlikeRoute(id: number): Promise<{ likes_count: number }> {
+	return request(`/routes/${id}/unlike`, { method: 'DELETE' });
+}
+
+export async function completeRoute(id: number): Promise<{ times_completed: number }> {
+	return request(`/routes/${id}/complete`, { method: 'POST' });
 }
