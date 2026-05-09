@@ -8,7 +8,7 @@
 	import backgroundImg from '$lib/assets/background-trackride.png';
 
 	let { data }: { data: { token: string } } = $props();
-	const token = data.token;
+	const token = $derived(data.token);
 
 	let password = $state('');
 	let passwordConfirmation = $state('');
