@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import maplibregl from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
-	import type { RouteStopEntry } from '$lib/components/RouteStops.svelte';
+	import type { RouteStopEntry } from '$lib/types/routeStop';
 	import { cssVar } from '$lib/utils/color';
 	import { stopColor } from '$lib/utils/stopColors';
 	import { safeTop } from '$lib/utils/safeArea';

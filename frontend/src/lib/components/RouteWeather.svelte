@@ -5,7 +5,7 @@
 	import { Tooltip } from '@skeletonlabs/skeleton-svelte';
 	import RouteScoreBadge from '$lib/components/RouteScoreBadge.svelte';
 	import RouteStops from '$lib/components/RouteStops.svelte';
-	import type { RouteStopEntry } from '$lib/components/RouteStops.svelte';
+	import type { RouteStopEntry } from '$lib/types/routeStop';
 	import { classifyPoint, type RouteAlert } from '$lib/services/alerts';
 	import type { RouteScore } from '$lib/services/routeScore';
 	import type { WeatherPoint } from '$lib/services/weather';

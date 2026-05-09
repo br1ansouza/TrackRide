@@ -1,5 +1,5 @@
 import type Map from '$lib/components/Map.svelte';
-import type { RouteStopEntry } from '$lib/components/RouteStops.svelte';
+import type { RouteStopEntry } from '$lib/types/routeStop';
 import { analyzeRoute, type RouteAlert } from '$lib/services/alerts';
 import { fetchRoute, type LatLng, type RouteData } from '$lib/services/routing';
 import { calculateRouteScore, type RouteScore, type RidingPreference } from '$lib/services/routeScore';
@@ -37,6 +37,7 @@ export function useRouteSearch() {
 	let stops = $state<RouteStopEntry[]>([]);
 	let routeCoords = $state<LatLng[]>([]);
 	let approachRoute = $state<ApproachRoute | null>(null);
+	let exploreRouteId = $state<number | null>(null);
 
 	let canSearch = $derived(!!originCoords && !!destCoords);
 	let hasRoute = $derived(weatherPoints.length > 0);
@@ -152,12 +153,14 @@ export function useRouteSearch() {
 		destCoords = null;
 		originLabel = '';
 		destLabel = '';
+		exploreRouteId = null;
 		mapRef?.clearApproachRoute();
 	}
 
 	async function handleSelectExploreRoute(route: ExploreRoute) {
 		if (!mapRef) return;
 
+		exploreRouteId = route.id;
 		const origin: LatLng = [route.origin_coords[1], route.origin_coords[0]];
 		const dest: LatLng = [route.destination_coords[1], route.destination_coords[0]];
 		originCoords = origin;
@@ -237,6 +240,7 @@ export function useRouteSearch() {
 		get stops() { return stops; },
 		get routeCoords() { return routeCoords; },
 		get approachRoute() { return approachRoute; },
+		get exploreRouteId() { return exploreRouteId; },
 		handleSearch,
 		addStop,
 		removeStop,
