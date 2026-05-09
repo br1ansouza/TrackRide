@@ -14,6 +14,11 @@ Rails.application.routes.draw do
         collection do
           get :explore
         end
+        member do
+          post :like
+          delete :unlike
+          post :complete
+        end
       end
     end
   end

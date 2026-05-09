@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_09_005821) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_09_020503) do
   create_schema "tiger"
   create_schema "topology"
 
@@ -20,6 +20,25 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_09_005821) do
   enable_extension "postgis"
   enable_extension "tiger.postgis_tiger_geocoder"
   enable_extension "topology.postgis_topology"
+
+  create_table "public.route_completions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "route_id", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["route_id"], name: "index_route_completions_on_route_id"
+    t.index ["user_id"], name: "index_route_completions_on_user_id"
+  end
+
+  create_table "public.route_likes", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "route_id", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["route_id"], name: "index_route_likes_on_route_id"
+    t.index ["user_id", "route_id"], name: "index_route_likes_on_user_id_and_route_id", unique: true
+    t.index ["user_id"], name: "index_route_likes_on_user_id"
+  end
 
   create_table "public.route_stops", force: :cascade do |t|
     t.datetime "created_at", null: false
@@ -44,6 +63,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_09_005821) do
     t.geography "path_coords", limit: {:srid=>4326, :type=>"line_string", :geographic=>true}
     t.boolean "public", default: false, null: false
     t.integer "score"
+    t.integer "times_completed", default: 0, null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["public"], name: "index_routes_on_public"
@@ -63,6 +83,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_09_005821) do
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end
 
+  add_foreign_key "public.route_completions", "public.routes"
+  add_foreign_key "public.route_completions", "public.users"
+  add_foreign_key "public.route_likes", "public.routes"
+  add_foreign_key "public.route_likes", "public.users"
   add_foreign_key "public.route_stops", "public.routes"
   add_foreign_key "public.routes", "public.users"
 
