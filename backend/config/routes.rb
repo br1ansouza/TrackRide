@@ -7,6 +7,8 @@ Rails.application.routes.draw do
       post "auth/login", to: "auth#login"
       get "auth/me", to: "auth#me"
       patch "auth/profile", to: "auth#update_profile"
+      post "auth/forgot_password", to: "auth#forgot_password"
+      post "auth/reset_password", to: "auth#reset_password"
 
       resources :routes, only: [:index, :show, :create, :update, :destroy] do
         collection do
