@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_01_212112) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_09_005821) do
   create_schema "tiger"
   create_schema "topology"
 
@@ -55,9 +55,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_01_212112) do
     t.string "email", null: false
     t.string "name", null: false
     t.string "password_digest", null: false
+    t.datetime "reset_password_sent_at"
+    t.string "reset_password_token"
     t.integer "riding_preference", default: 0, null: false
     t.datetime "updated_at", null: false
     t.index ["email"], name: "index_users_on_email", unique: true
+    t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end
 
   add_foreign_key "public.route_stops", "public.routes"
