@@ -6,7 +6,8 @@ module Api
 
       def index
         routes = current_user.routes.includes(:route_stops).recent
-        routes = routes.where("created_at >= ?", params[:since].to_date) if params[:since].present?
+        since = parse_since_date(params[:since])
+        routes = routes.where("created_at >= ?", since) if since
         routes = routes.limit(params[:limit] || 20).offset(params[:offset] || 0)
 
         render json: {
@@ -104,6 +105,13 @@ module Api
 
       private
 
+      def parse_since_date(value)
+        return nil if value.blank?
+        Date.parse(value.to_s)
+      rescue Date::Error
+        nil
+      end
+
       def set_route
         @route = current_user.routes.find_by(id: params[:id])
         render json: { error: "Rota não encontrada" }, status: :not_found unless @route
@@ -140,8 +148,10 @@ module Api
 
         if permitted[:path_coords].present?
           coords = permitted[:path_coords].map(&:to_f)
-          points = coords.each_slice(2).map { |lon, lat| "#{lon} #{lat}" }.join(", ")
-          result[:path_coords] = "LINESTRING(#{points})"
+          if coords.size >= 4 && coords.size.even?
+            points = coords.each_slice(2).map { |lon, lat| "#{lon} #{lat}" }.join(", ")
+            result[:path_coords] = "LINESTRING(#{points})"
+          end
         end
 
         if permitted[:route_stops_attributes].present?
