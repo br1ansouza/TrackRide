@@ -98,8 +98,10 @@ module Api
       end
 
       def complete
-        @route.increment!(:times_completed)
-        RouteCompletion.create(user: current_user, route: @route)
+        ActiveRecord::Base.transaction do
+          @route.increment!(:times_completed)
+          RouteCompletion.create!(user: current_user, route: @route)
+        end
         render json: { times_completed: @route.times_completed }
       end
 
