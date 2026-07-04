@@ -204,7 +204,7 @@
 <div class="relative h-full w-full">
 	<div bind:this={mapContainer} class="h-full w-full rounded-lg" class:hide-controls={!controlsVisible} style="min-height: 100%;"></div>
 	{#if gpsLoading}
-		<div class="absolute inset-x-0 z-[600] flex justify-center" style="top: {safeTop};">
+		<div class="pointer-events-none absolute inset-x-0 z-[600] flex justify-center" style="top: {safeTop};">
 			<div class="flex items-center gap-2 rounded-full bg-surface-900/90 px-4 py-2 shadow-lg backdrop-blur-sm">
 				<div class="h-4 w-4 animate-spin rounded-full border-2 border-surface-400 border-t-primary-400"></div>
 				<span class="text-sm text-surface-300">Localizando…</span>

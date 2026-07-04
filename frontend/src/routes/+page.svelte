@@ -154,7 +154,7 @@
 			{/if}
 
 			{#if route.recalculating}
-				<div class="absolute inset-x-0 z-[600] flex justify-center" style="top: {safeTop};" transition:fade={transitions.quick}>					<div class="flex items-center gap-2 rounded-full bg-surface-900/90 px-4 py-2 shadow-lg backdrop-blur-sm">
+				<div class="pointer-events-none absolute inset-x-0 z-[600] flex justify-center" style="top: {safeTop};" transition:fade={transitions.quick}>					<div class="flex items-center gap-2 rounded-full bg-surface-900/90 px-4 py-2 shadow-lg backdrop-blur-sm">
 						<div class="h-4 w-4 animate-spin rounded-full border-2 border-surface-400 border-t-primary-400"></div>
 						<span class="text-sm text-surface-300">Recalculando rota…</span>
 					</div>
@@ -214,7 +214,7 @@
 
 		{#if mobile.isMobile && !tracking.active}
 			{#if route.weatherLoading && !route.recalculating && mobile.activeTab === 'map'}
-				<div class="absolute inset-x-0 z-[600] flex justify-center" style="top: {safeTop};" transition:fade={transitions.quick}>
+				<div class="pointer-events-none absolute inset-x-0 z-[600] flex justify-center" style="top: {safeTop};" transition:fade={transitions.quick}>
 					<div class="flex items-center gap-2 rounded-full bg-surface-900/90 px-4 py-2 shadow-lg backdrop-blur-sm">
 						<div class="h-4 w-4 animate-spin rounded-full border-2 border-surface-400 border-t-primary-400"></div>
 						<span class="text-sm text-surface-300">Buscando clima…</span>
