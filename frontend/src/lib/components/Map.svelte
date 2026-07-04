@@ -179,9 +179,10 @@
 		(map.getSource('tracked') as maplibregl.GeoJSONSource).setData({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: toLineCoords(path) } });
 	}
 
-	export function followPosition(coords: LatLng, prevCoords?: LatLng) {
+	export function followPosition(coords: LatLng, prevCoords?: LatLng, bearingOverride?: number) {
 		if (!map) return;
-		map.easeTo({ center: toLngLat(coords), zoom: 18, bearing: prevCoords ? calculateBearing(prevCoords, coords) : map.getBearing(), pitch: 60, duration: 1000 });
+		const bearing = bearingOverride ?? (prevCoords ? calculateBearing(prevCoords, coords) : map.getBearing());
+		map.easeTo({ center: toLngLat(coords), zoom: 18, bearing, pitch: 60, duration: 1000 });
 	}
 
 	export function drawApproachRoute(coords: LatLng[]) {

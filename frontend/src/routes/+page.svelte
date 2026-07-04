@@ -19,6 +19,7 @@
 	import { createRoute, completeRoute } from '$lib/services/routes';
 	import type { LatLng } from '$lib/services/routing';
 	import { safeTop, safeBottom, safeBottomNav } from '$lib/utils/safeArea';
+	import { bearingAlongPath, haversineM } from '$lib/utils/mapHelpers';
 	import { vibrateHeavy } from '$lib/utils/haptics';
 	import { toaster } from '$lib/stores/toaster';
 
@@ -31,15 +32,55 @@
 		if (!auth.loading && !auth.isLoggedIn) goto('/login');
 	});
 
+	let following = $state(true);
+
+	const MOVEMENT_BEARING_MIN_M = 10;
+
+	function routeAheadBearing(position: LatLng): number | undefined {
+		const path = tracking.inApproach && route.approachRoute
+			? route.approachRoute.coords
+			: tracking.plannedRoute.length >= 2 ? tracking.plannedRoute : route.routeCoords;
+		return bearingAlongPath(path, position) ?? undefined;
+	}
+
+	function navigationBearing(current: LatLng, prev?: LatLng): number | undefined {
+		if (prev && haversineM(prev, current) >= MOVEMENT_BEARING_MIN_M) return undefined;
+		return routeAheadBearing(current);
+	}
+
 	$effect(() => {
 		if (tracking.active && tracking.trackedPath.length >= 2) {
 			route.mapRef?.drawTrackedPath(tracking.trackedPath);
+			if (!following) return;
 			const path = tracking.trackedPath;
-			route.mapRef?.followPosition(path[path.length - 1], path[path.length - 2]);
-		} else if (tracking.active && tracking.currentPosition) {
-			route.mapRef?.followPosition(tracking.currentPosition);
+			const current = path[path.length - 1];
+			const prev = path[path.length - 2];
+			route.mapRef?.followPosition(current, prev, navigationBearing(current, prev));
+		} else if (tracking.active && following && tracking.currentPosition) {
+			route.mapRef?.followPosition(tracking.currentPosition, undefined, routeAheadBearing(tracking.currentPosition));
 		}
 	});
+
+	function showRouteOverview() {
+		following = false;
+		route.mapRef?.fitRoute();
+	}
+
+	function recenterOnPosition() {
+		if (tracking.active) {
+			following = true;
+			const path = tracking.trackedPath;
+			if (path.length >= 2) {
+				const current = path[path.length - 1];
+				const prev = path[path.length - 2];
+				route.mapRef?.followPosition(current, prev, navigationBearing(current, prev));
+			} else if (tracking.currentPosition) {
+				route.mapRef?.followPosition(tracking.currentPosition, undefined, routeAheadBearing(tracking.currentPosition));
+			}
+			return;
+		}
+		route.mapRef?.zoomStreet();
+	}
 
 	let desktopProfileOpen = $state(false);
 	let historyOpen = $state(false);
@@ -68,6 +109,7 @@
 
 	function startTracking() {
 		vibrateHeavy();
+		following = true;
 		tracking.start({
 			plannedRoute: route.routeCoords,
 			approachRoute: route.approachRoute?.coords,
@@ -79,7 +121,7 @@
 		});
 		mobile.setTab('map');
 		if (tracking.currentPosition) {
-			route.mapRef?.followPosition(tracking.currentPosition);
+			route.mapRef?.followPosition(tracking.currentPosition, undefined, routeAheadBearing(tracking.currentPosition));
 		}
 	}
 
@@ -176,7 +218,7 @@
 				<div class="absolute right-4 z-[500] flex flex-col gap-2" style="bottom: {safeBottom};">
 					<button
 						type="button"
-						onclick={() => route.mapRef?.fitRoute()}
+						onclick={showRouteOverview}
 						class="flex h-10 w-10 items-center justify-center rounded-full bg-surface-800/90 shadow-lg backdrop-blur-sm"
 						title="Ver rota inteira"
 					>
@@ -184,7 +226,7 @@
 					</button>
 					<button
 						type="button"
-						onclick={() => route.mapRef?.zoomStreet()}
+						onclick={recenterOnPosition}
 						class="flex h-10 w-10 items-center justify-center rounded-full bg-surface-800/90 shadow-lg backdrop-blur-sm"
 						title="Zoom na sua posição"
 					>
