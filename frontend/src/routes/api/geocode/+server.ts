@@ -1,17 +1,28 @@
+import { parseCoord } from '$lib/server/coords';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ url }) => {
 	const query = url.searchParams.get('q');
 	if (!query) return new Response(JSON.stringify([]), { status: 400 });
 
-	const lat = url.searchParams.get('lat');
-	const lon = url.searchParams.get('lon');
-	const proximity = lat && lon ? `&lat=${lat}&lon=${lon}` : '';
+	const lat = parseCoord(url.searchParams.get('lat'));
+	const lon = parseCoord(url.searchParams.get('lon'));
+	const proximity = Number.isFinite(lat) && Number.isFinite(lon) ? `&lat=${lat}&lon=${lon}` : '';
 
-	const response = await fetch(
-		`https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=15${proximity}`
-	);
-	const data = await response.json();
+	let data: { features: { properties: Record<string, string>; geometry: { coordinates: [number, number] } }[] };
+	try {
+		const response = await fetch(
+			`https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=15${proximity}`
+		);
+		if (!response.ok) throw new Error(`Photon respondeu ${response.status}`);
+		data = await response.json();
+	} catch (error) {
+		console.error('Geocoding failed:', error);
+		return new Response(JSON.stringify([]), {
+			status: 502,
+			headers: { 'Content-Type': 'application/json' }
+		});
+	}
 
 	const seen = new Set<string>();
 	const results = data.features

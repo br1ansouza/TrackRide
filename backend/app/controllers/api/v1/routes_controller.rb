@@ -6,7 +6,8 @@ module Api
 
       def index
         routes = current_user.routes.includes(:route_stops).recent
-        routes = routes.where("created_at >= ?", params[:since].to_date) if params[:since].present?
+        since = parse_since_date(params[:since])
+        routes = routes.where("created_at >= ?", since) if since
         routes = routes.limit(params[:limit] || 20).offset(params[:offset] || 0)
 
         render json: {
@@ -21,7 +22,7 @@ module Api
         radius = [(params[:radius] || 80).to_i, 200].min * 1000
 
         routes = Route.publicly_visible
-          .includes(:route_stops, :route_likes, :route_completions)
+          .includes(:user, :route_stops, :route_likes, :route_completions)
           .where.not(user_id: current_user.id)
           .where("ST_DWithin(origin_coords, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography, ?)", lon, lat, radius)
           .order(score: :desc)
@@ -58,7 +59,8 @@ module Api
       end
 
       def update
-        if params[:public] == true && !@route.public
+        making_public = ActiveModel::Type::Boolean.new.cast(params[:public])
+        if making_public && !@route.public
           if @route.distance_km.present?
             return render json: { error: "Rota muito curta para compartilhar (mínimo 5 km)" }, status: :unprocessable_entity if @route.distance_km < 5
             return render json: { error: "Rota muito longa para compartilhar (máximo 1.000 km)" }, status: :unprocessable_entity if @route.distance_km > 1000
@@ -96,12 +98,21 @@ module Api
       end
 
       def complete
-        @route.increment!(:times_completed)
-        RouteCompletion.create(user: current_user, route: @route)
+        ActiveRecord::Base.transaction do
+          @route.increment!(:times_completed)
+          RouteCompletion.create!(user: current_user, route: @route)
+        end
         render json: { times_completed: @route.times_completed }
       end
 
       private
+
+      def parse_since_date(value)
+        return nil if value.blank?
+        Date.parse(value.to_s)
+      rescue Date::Error
+        nil
+      end
 
       def set_route
         @route = current_user.routes.find_by(id: params[:id])
@@ -139,8 +150,10 @@ module Api
 
         if permitted[:path_coords].present?
           coords = permitted[:path_coords].map(&:to_f)
-          points = coords.each_slice(2).map { |lon, lat| "#{lon} #{lat}" }.join(", ")
-          result[:path_coords] = "LINESTRING(#{points})"
+          if coords.size >= 4 && coords.size.even?
+            points = coords.each_slice(2).map { |lon, lat| "#{lon} #{lat}" }.join(", ")
+            result[:path_coords] = "LINESTRING(#{points})"
+          end
         end
 
         if permitted[:route_stops_attributes].present?

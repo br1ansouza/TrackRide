@@ -8,12 +8,18 @@ class User < ApplicationRecord
   validates :email, presence: true, uniqueness: true, format: { with: URI::MailTo::EMAIL_REGEXP }
   validates :password, length: { minimum: 6 }, if: :password_digest_changed?
 
+  def self.find_by_reset_token(raw_token)
+    return nil if raw_token.blank?
+    find_by(reset_password_token: Digest::SHA256.hexdigest(raw_token))
+  end
+
   def generate_reset_token!
+    raw_token = SecureRandom.urlsafe_base64(32)
     update!(
-      reset_password_token: SecureRandom.urlsafe_base64(32),
+      reset_password_token: Digest::SHA256.hexdigest(raw_token),
       reset_password_sent_at: Time.current
     )
-    reset_password_token
+    raw_token
   end
 
   def reset_token_valid?
