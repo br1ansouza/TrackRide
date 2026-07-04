@@ -47,15 +47,15 @@ module Api
         user = User.find_by(email: params[:email])
 
         if user
-          user.generate_reset_token!
-          UserMailer.reset_password(user).deliver_later
+          raw_token = user.generate_reset_token!
+          UserMailer.reset_password(user, raw_token).deliver_later
         end
 
         render json: { message: "Se o email existir, enviaremos instruções de recuperação." }
       end
 
       def reset_password
-        user = User.find_by(reset_password_token: params[:token])
+        user = User.find_by_reset_token(params[:token])
 
         if user.nil? || !user.reset_token_valid?
           return render json: { error: "Token inválido ou expirado" }, status: :unprocessable_entity

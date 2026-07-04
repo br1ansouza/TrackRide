@@ -1,7 +1,7 @@
 class UserMailer < ApplicationMailer
-  def reset_password(user)
+  def reset_password(user, raw_token)
     @user = user
-    @reset_url = "#{frontend_url}/reset-password?token=#{user.reset_password_token}"
+    @reset_url = "#{frontend_url}/reset-password?token=#{raw_token}"
 
     mail(to: user.email, subject: "TrackRide — Redefinir senha")
   end
