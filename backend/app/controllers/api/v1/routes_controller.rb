@@ -22,7 +22,7 @@ module Api
         radius = [(params[:radius] || 80).to_i, 200].min * 1000
 
         routes = Route.publicly_visible
-          .includes(:route_stops, :route_likes, :route_completions)
+          .includes(:user, :route_stops, :route_likes, :route_completions)
           .where.not(user_id: current_user.id)
           .where("ST_DWithin(origin_coords, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography, ?)", lon, lat, radius)
           .order(score: :desc)
