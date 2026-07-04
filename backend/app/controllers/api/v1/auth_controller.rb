@@ -4,6 +4,11 @@ module Api
       skip_before_action :authenticate!, only: [:register, :login, :forgot_password, :reset_password]
       wrap_parameters false
 
+      rate_limit to: 10, within: 1.minute, only: [:login, :register],
+        with: -> { render json: { error: "Muitas tentativas. Aguarde um minuto." }, status: :too_many_requests }
+      rate_limit to: 5, within: 15.minutes, only: [:forgot_password, :reset_password],
+        with: -> { render json: { error: "Muitas tentativas. Aguarde alguns minutos." }, status: :too_many_requests }
+
       def register
         user = User.new(register_params)
 
