@@ -4,12 +4,34 @@ import type { RequestHandler } from './$types';
 const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 const SEARCH_RADIUS_M = 10000;
 const MAX_RESULTS = 10;
+const RETRIES = 2;
 
 interface OverpassElement {
 	lat?: number;
 	lon?: number;
 	center?: { lat: number; lon: number };
 	tags?: Record<string, string>;
+}
+
+async function queryOverpass(query: string): Promise<{ elements: OverpassElement[] } | null> {
+	for (let attempt = 0; attempt <= RETRIES; attempt++) {
+		try {
+			const response = await fetch(OVERPASS_URL, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/x-www-form-urlencoded',
+					'User-Agent': 'TrackRide/1.0'
+				},
+				body: `data=${encodeURIComponent(query)}`
+			});
+			if (response.ok) return await response.json();
+			console.error(`Overpass respondeu ${response.status} (tentativa ${attempt + 1})`);
+		} catch (error) {
+			console.error(`Overpass falhou (tentativa ${attempt + 1}):`, error);
+		}
+		if (attempt < RETRIES) await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
+	}
+	return null;
 }
 
 export const GET: RequestHandler = async ({ url }) => {
@@ -21,22 +43,10 @@ export const GET: RequestHandler = async ({ url }) => {
 		});
 	}
 
-	const query = `[out:json][timeout:10];nwr["amenity"="fuel"](around:${SEARCH_RADIUS_M},${coords.lat},${coords.lon});out center ${MAX_RESULTS};`;
+	const query = `[out:json][timeout:15];nwr["amenity"="fuel"](around:${SEARCH_RADIUS_M},${coords.lat},${coords.lon});out center ${MAX_RESULTS};`;
 
-	let data: { elements: OverpassElement[] };
-	try {
-		const response = await fetch(OVERPASS_URL, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/x-www-form-urlencoded',
-				'User-Agent': 'TrackRide/1.0'
-			},
-			body: `data=${encodeURIComponent(query)}`
-		});
-		if (!response.ok) throw new Error(`Overpass respondeu ${response.status}`);
-		data = await response.json();
-	} catch (error) {
-		console.error('Fuel station search failed:', error);
+	const data = await queryOverpass(query);
+	if (!data) {
 		return new Response(JSON.stringify([]), {
 			status: 502,
 			headers: { 'Content-Type': 'application/json' }
