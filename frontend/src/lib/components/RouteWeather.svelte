@@ -174,7 +174,7 @@
 			</svg>
 
 			<div class="relative flex flex-col gap-1" style="z-index: 1;">
-				{#each points as point, i}
+				{#each points as point, i (point)}
 					{@const pointAlerts = classifyPoint(point)}
 					{#if i > 0}
 						<button

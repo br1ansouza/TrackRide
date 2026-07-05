@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Plus, X, Fuel, UtensilsCrossed, BedDouble, Mountain, MapPin } from 'lucide-svelte';
 	import { slide } from 'svelte/transition';
+	import { flip } from 'svelte/animate';
 	import { transitions } from '$lib/utils/transitions';
 	import SearchInput from '$lib/components/SearchInput.svelte';
 	import type { LatLng } from '$lib/services/routing';
@@ -103,10 +104,10 @@
 	<hr class="border-surface-600" />
 	{#if stops.length > 0}
 		<span class="text-xs font-medium text-surface-400">Paradas ({stops.length})</span>
-		{#each stops as stop, i}
+		{#each stops as stop, i (stop)}
 			{@const Icon = stopIcon(stop.stopType)}
 			{@const colors = stopColor(stop.stopType)}
-			<div class="flex items-center gap-2 rounded-lg bg-surface-700 px-3 py-2" transition:slide={transitions.quick}>
+			<div class="flex items-center gap-2 rounded-lg bg-surface-700 px-3 py-2" transition:slide={transitions.quick} animate:flip={transitions.quick}>
 				<Icon size={14} style="color: var({colors.fg});" />
 				<span class="min-w-0 flex-1 truncate text-sm text-white">{stop.name}</span>
 				<button type="button" onclick={() => onRemove(i)} class="shrink-0 text-surface-500 hover:text-surface-300">
