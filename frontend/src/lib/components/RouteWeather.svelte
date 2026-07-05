@@ -30,11 +30,12 @@
 		stops?: RouteStopEntry[];
 		onAddStop?: (stop: RouteStopEntry) => void;
 		onRemoveStop?: (index: number) => void;
+		onSuggestFuel?: (intervalKm: number) => Promise<void>;
 		onClear?: () => void;
 		approachRoute?: ApproachRoute | null;
 	}
 
-	let { points, loading, alerts, score, mobile = false, onSave, saving = false, editing = false, stops = [], onAddStop, onRemoveStop, onClear, approachRoute = null }: Props = $props();
+	let { points, loading, alerts, score, mobile = false, onSave, saving = false, editing = false, stops = [], onAddStop, onRemoveStop, onSuggestFuel, onClear, approachRoute = null }: Props = $props();
 
 	let collapsed = $state<Set<number>>(new Set());
 
@@ -255,7 +256,7 @@
 		</div>
 
 		{#if onAddStop && onRemoveStop}
-			<RouteStops {stops} onAdd={onAddStop} onRemove={onRemoveStop} />
+			<RouteStops {stops} onAdd={onAddStop} onRemove={onRemoveStop} {onSuggestFuel} />
 		{/if}
 		{#if onSave}
 			<button

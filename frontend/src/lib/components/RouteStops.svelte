@@ -14,14 +14,43 @@
 		stops: RouteStopEntry[];
 		onAdd: (stop: RouteStopEntry) => void;
 		onRemove: (index: number) => void;
+		onSuggestFuel?: (intervalKm: number) => Promise<void>;
 	}
 
-	let { stops, onAdd, onRemove }: Props = $props();
+	let { stops, onAdd, onRemove, onSuggestFuel }: Props = $props();
+
+	const FUEL_INTERVAL_KEY = 'trackride:fuel-interval-km';
+	const FUEL_INTERVAL_MIN = 30;
+	const FUEL_INTERVAL_MAX = 1000;
 
 	let adding = $state(false);
 	let selectedIndex = $state(0);
 	let dragging = $state(false);
 	let trackEl = $state<HTMLDivElement>();
+	let fuelIntervalKm = $state(loadFuelInterval());
+	let suggestingFuel = $state(false);
+
+	function loadFuelInterval(): number {
+		if (typeof localStorage === 'undefined') return 200;
+		const saved = Number(localStorage.getItem(FUEL_INTERVAL_KEY));
+		return Number.isFinite(saved) && saved >= FUEL_INTERVAL_MIN && saved <= FUEL_INTERVAL_MAX ? saved : 200;
+	}
+
+	async function applyFuelSuggestion() {
+		if (!onSuggestFuel || suggestingFuel) return;
+		const interval = Math.max(FUEL_INTERVAL_MIN, Math.min(FUEL_INTERVAL_MAX, Math.round(fuelIntervalKm)));
+		fuelIntervalKm = interval;
+		localStorage.setItem(FUEL_INTERVAL_KEY, String(interval));
+		vibrate();
+		suggestingFuel = true;
+		try {
+			await onSuggestFuel(interval);
+			adding = false;
+			selectedIndex = 0;
+		} finally {
+			suggestingFuel = false;
+		}
+	}
 
 	const STOP_TYPES: { value: StopType; label: string; icon: typeof MapPin }[] = [
 		{ value: 'gas_station', label: 'Posto', icon: Fuel },
@@ -132,6 +161,37 @@
 			</div>
 
 			<SearchInput placeholder="Buscar local da parada" onselect={handleSelect} />
+
+			{#if selectedType === 'gas_station' && onSuggestFuel}
+				<div class="flex items-center gap-2" transition:slide={transitions.quick}>
+					<span class="shrink-0 text-xs text-surface-400">ou a cada</span>
+					<input
+						type="number"
+						bind:value={fuelIntervalKm}
+						min={FUEL_INTERVAL_MIN}
+						max={FUEL_INTERVAL_MAX}
+						disabled={suggestingFuel}
+						class="w-16 rounded-md bg-surface-800 px-2 py-1 text-center text-sm text-white outline-none"
+					/>
+					<span class="shrink-0 text-xs text-surface-400">km</span>
+					<button
+						type="button"
+						onclick={applyFuelSuggestion}
+						disabled={suggestingFuel}
+						class="ml-auto flex shrink-0 items-center gap-1 rounded-md px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+						style="background-color: var(--color-ride-alert-500);"
+					>
+						{#if suggestingFuel}
+							<span class="h-3 w-3 animate-spin rounded-full border border-white/40 border-t-white"></span>
+							Buscando…
+						{:else}
+							<Fuel size={12} />
+							Sugerir postos
+						{/if}
+					</button>
+				</div>
+			{/if}
+
 			<button type="button" onclick={() => adding = false} class="text-xs text-surface-400 hover:text-surface-200">
 				Cancelar
 			</button>

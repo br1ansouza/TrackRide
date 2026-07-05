@@ -5,6 +5,8 @@ import { fetchRoute, type LatLng, type RouteData } from '$lib/services/routing';
 import { calculateRouteScore, type RouteScore, type RidingPreference } from '$lib/services/routeScore';
 import { fetchRouteWeather, type WeatherPoint } from '$lib/services/weather';
 import { createRoute, updateRoute, toStopEntries, type ExploreRoute, type SavedRoute } from '$lib/services/routes';
+import { findFuelStops } from '$lib/services/fuelStops';
+import { closestRouteIndex } from '$lib/utils/mapHelpers';
 import { getLastPosition } from '$lib/services/geolocation';
 import { toaster } from '$lib/stores/toaster';
 import { useMobile } from '$lib/stores/mobile.svelte';
@@ -148,6 +150,31 @@ export function useRouteSearch() {
 		executeRoute(true);
 	}
 
+	async function suggestFuelStops(intervalKm: number) {
+		if (routeCoords.length < 2) return;
+
+		const { stops: fuelStops, missedPoints } = await findFuelStops(routeCoords, intervalKm, stops);
+		if (fuelStops.length === 0) {
+			toaster.warning({
+				title: 'Nenhum posto encontrado',
+				description: 'Não há postos de combustível próximos aos pontos de abastecimento da rota.'
+			});
+			return;
+		}
+
+		const merged = [...stops, ...fuelStops];
+		merged.sort((a, b) => closestRouteIndex(routeCoords, a.coords) - closestRouteIndex(routeCoords, b.coords));
+		stops = merged;
+
+		toaster.success({
+			title: 'Paradas de abastecimento',
+			description: missedPoints > 0
+				? `${fuelStops.length} posto(s) adicionado(s). ${missedPoints} ponto(s) sem posto por perto.`
+				: `${fuelStops.length} posto(s) adicionado(s) ao trajeto.`
+		});
+		await executeRoute(true);
+	}
+
 	function clearCurrentRoute() {
 		resetWeather();
 		stops = [];
@@ -273,6 +300,7 @@ export function useRouteSearch() {
 		handleSearch,
 		addStop,
 		removeStop,
+		suggestFuelStops,
 		clearCurrentRoute,
 		handleSelectExploreRoute,
 		handleSelectSavedRoute,
