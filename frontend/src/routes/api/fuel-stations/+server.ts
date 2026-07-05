@@ -2,8 +2,11 @@ import { parseLatLon } from '$lib/server/coords';
 import type { RequestHandler } from './$types';
 
 const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
-const SEARCH_RADIUS_M = 10000;
-const MAX_RESULTS = 10;
+const DEFAULT_RADIUS_M = 10000;
+const MIN_RADIUS_M = 100;
+const MAX_RADIUS_M = 10000;
+const MAX_PATH_POINTS = 80;
+const MAX_RESULTS = 20;
 const RETRIES = 2;
 
 interface OverpassElement {
@@ -11,6 +14,25 @@ interface OverpassElement {
 	lon?: number;
 	center?: { lat: number; lon: number };
 	tags?: Record<string, string>;
+}
+
+function parseRadius(url: URL): number {
+	const radius = Number(url.searchParams.get('radius') ?? DEFAULT_RADIUS_M);
+	if (!Number.isFinite(radius)) return DEFAULT_RADIUS_M;
+	return Math.max(MIN_RADIUS_M, Math.min(MAX_RADIUS_M, Math.round(radius)));
+}
+
+function parsePath(url: URL): number[] | null {
+	const raw = url.searchParams.get('path');
+	if (!raw) return null;
+
+	const pairs = raw.split(';', MAX_PATH_POINTS).map((pair) => pair.split(',').map(Number));
+	const valid = pairs.length >= 2 && pairs.every(
+		([lat, lon]) =>
+			Number.isFinite(lat) && Number.isFinite(lon) &&
+			lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180
+	);
+	return valid ? pairs.flat() : null;
 }
 
 async function queryOverpass(query: string): Promise<{ elements: OverpassElement[] } | null> {
@@ -35,15 +57,23 @@ async function queryOverpass(query: string): Promise<{ elements: OverpassElement
 }
 
 export const GET: RequestHandler = async ({ url }) => {
-	const coords = parseLatLon(url);
-	if (!coords) {
+	const radius = parseRadius(url);
+	const path = parsePath(url);
+	const point = parseLatLon(url);
+
+	let around: string;
+	if (path) {
+		around = `around:${radius},${path.join(',')}`;
+	} else if (point) {
+		around = `around:${radius},${point.lat},${point.lon}`;
+	} else {
 		return new Response(JSON.stringify([]), {
 			status: 400,
 			headers: { 'Content-Type': 'application/json' }
 		});
 	}
 
-	const query = `[out:json][timeout:15];nwr["amenity"="fuel"](around:${SEARCH_RADIUS_M},${coords.lat},${coords.lon});out center ${MAX_RESULTS};`;
+	const query = `[out:json][timeout:15];nwr["amenity"="fuel"](${around});out center ${MAX_RESULTS};`;
 
 	const data = await queryOverpass(query);
 	if (!data) {

@@ -1,6 +1,6 @@
 import type { LatLng } from '$lib/services/routing';
 import type { RouteStopEntry } from '$lib/types/routeStop';
-import { haversineM, closestRouteIndex } from '$lib/utils/mapHelpers';
+import { haversineM } from '$lib/utils/mapHelpers';
 
 interface FuelStation {
 	name: string;
@@ -15,6 +15,10 @@ export interface FuelStopSuggestion {
 
 const END_OF_ROUTE_MARGIN_M = 10000;
 const DUPLICATE_DISTANCE_M = 500;
+const ON_ROUTE_RADIUS_M = 1000;
+const DETOUR_RADIUS_M = 10000;
+const CORRIDOR_HALF_M = 15000;
+const CORRIDOR_STEP_M = 500;
 
 function cumulativeDistancesM(routeCoords: LatLng[]): number[] {
 	const distances = [0];
@@ -24,21 +28,21 @@ function cumulativeDistancesM(routeCoords: LatLng[]): number[] {
 	return distances;
 }
 
-function sampleRefuelPoints(
+function sampleRefuelIndexes(
 	routeCoords: LatLng[],
+	distances: number[],
 	intervalKm: number,
 	existingStops: RouteStopEntry[]
-): LatLng[] {
+): number[] {
 	const intervalM = intervalKm * 1000;
-	const distances = cumulativeDistancesM(routeCoords);
 	const totalM = distances[distances.length - 1];
 
 	const fuelAnchorsM = existingStops
 		.filter((stop) => stop.stopType === 'gas_station')
-		.map((stop) => distances[closestRouteIndex(routeCoords, stop.coords)])
+		.map((stop) => distances[closestIndex(routeCoords, stop.coords)])
 		.sort((a, b) => a - b);
 
-	const points: LatLng[] = [];
+	const indexes: number[] = [];
 	let lastRefuelM = 0;
 	let anchorIndex = 0;
 	for (let i = 1; i < routeCoords.length; i++) {
@@ -48,16 +52,44 @@ function sampleRefuelPoints(
 			anchorIndex++;
 		}
 		if (hereM - lastRefuelM >= intervalM) {
-			if (hereM <= totalM - END_OF_ROUTE_MARGIN_M) points.push(routeCoords[i]);
+			if (hereM <= totalM - END_OF_ROUTE_MARGIN_M) indexes.push(i);
 			lastRefuelM = hereM;
 		}
 	}
-	return points;
+	return indexes;
 }
 
-async function fetchStationsNear(point: LatLng): Promise<FuelStation[]> {
+function closestIndex(routeCoords: LatLng[], target: LatLng): number {
+	let bestIdx = 0;
+	let bestDist = Infinity;
+	for (let i = 0; i < routeCoords.length; i++) {
+		const dlat = routeCoords[i][0] - target[0];
+		const dlon = routeCoords[i][1] - target[1];
+		const dist = dlat * dlat + dlon * dlon;
+		if (dist < bestDist) { bestDist = dist; bestIdx = i; }
+	}
+	return bestIdx;
+}
+
+function corridorPath(routeCoords: LatLng[], distances: number[], centerIndex: number): LatLng[] {
+	const centerM = distances[centerIndex];
+	const path: LatLng[] = [];
+	let lastM = -Infinity;
+	for (let i = 0; i < routeCoords.length; i++) {
+		const hereM = distances[i];
+		if (hereM < centerM - CORRIDOR_HALF_M) continue;
+		if (hereM > centerM + CORRIDOR_HALF_M) break;
+		if (hereM - lastM >= CORRIDOR_STEP_M) {
+			path.push(routeCoords[i]);
+			lastM = hereM;
+		}
+	}
+	return path;
+}
+
+async function fetchStations(params: string): Promise<FuelStation[]> {
 	try {
-		const response = await fetch(`/api/fuel-stations?lat=${point[0]}&lon=${point[1]}`);
+		const response = await fetch(`/api/fuel-stations?${params}`);
 		if (!response.ok) return [];
 		return await response.json();
 	} catch {
@@ -65,9 +97,24 @@ async function fetchStationsNear(point: LatLng): Promise<FuelStation[]> {
 	}
 }
 
-function pickNearestStation(
+async function stationsForPoint(
+	routeCoords: LatLng[],
+	distances: number[],
+	sampleIndex: number
+): Promise<FuelStation[]> {
+	const corridor = corridorPath(routeCoords, distances, sampleIndex);
+	if (corridor.length >= 2) {
+		const path = corridor.map((c) => `${c[0].toFixed(5)},${c[1].toFixed(5)}`).join(';');
+		const onRoute = await fetchStations(`path=${path}&radius=${ON_ROUTE_RADIUS_M}`);
+		if (onRoute.length > 0) return onRoute;
+	}
+	const [lat, lon] = routeCoords[sampleIndex];
+	return fetchStations(`lat=${lat}&lon=${lon}&radius=${DETOUR_RADIUS_M}`);
+}
+
+function pickStation(
 	stations: FuelStation[],
-	point: LatLng,
+	samplePoint: LatLng,
 	existingStops: RouteStopEntry[]
 ): RouteStopEntry | null {
 	let best: RouteStopEntry | null = null;
@@ -80,7 +127,7 @@ function pickNearestStation(
 		);
 		if (isDuplicate) continue;
 
-		const distance = haversineM(point, coords);
+		const distance = haversineM(samplePoint, coords);
 		if (distance < bestDistance) {
 			bestDistance = distance;
 			best = { name: station.name, coords, stopType: 'gas_station' };
@@ -94,19 +141,22 @@ export async function findFuelStops(
 	intervalKm: number,
 	existingStops: RouteStopEntry[]
 ): Promise<FuelStopSuggestion> {
-	const refuelPoints = sampleRefuelPoints(routeCoords, intervalKm, existingStops);
+	const distances = cumulativeDistancesM(routeCoords);
+	const refuelIndexes = sampleRefuelIndexes(routeCoords, distances, intervalKm, existingStops);
+	const stationsPerPoint = await Promise.all(
+		refuelIndexes.map((index) => stationsForPoint(routeCoords, distances, index))
+	);
+
 	const stops: RouteStopEntry[] = [];
 	let missedPoints = 0;
-
-	for (const point of refuelPoints) {
-		const stations = await fetchStationsNear(point);
-		const nearest = pickNearestStation(stations, point, [...existingStops, ...stops]);
-		if (nearest) {
-			stops.push(nearest);
+	stationsPerPoint.forEach((stations, i) => {
+		const picked = pickStation(stations, routeCoords[refuelIndexes[i]], [...existingStops, ...stops]);
+		if (picked) {
+			stops.push(picked);
 		} else {
 			missedPoints++;
 		}
-	}
+	});
 
 	return { stops, missedPoints };
 }
