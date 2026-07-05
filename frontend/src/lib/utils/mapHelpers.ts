@@ -24,6 +24,30 @@ export function calculateBearing(from: LatLng, to: LatLng): number {
 	return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
 }
 
+export function haversineM(a: LatLng, b: LatLng): number {
+	const R = 6371000;
+	const dLat = ((b[0] - a[0]) * Math.PI) / 180;
+	const dLon = ((b[1] - a[1]) * Math.PI) / 180;
+	const lat1 = (a[0] * Math.PI) / 180;
+	const lat2 = (b[0] * Math.PI) / 180;
+	const s = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+	return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
+}
+
+export function bearingAlongPath(path: LatLng[], position: LatLng, aheadM = 80): number | null {
+	if (path.length < 2) return null;
+	const start = closestRouteIndex(path, position);
+	if (start >= path.length - 1) {
+		return calculateBearing(path[path.length - 2], path[path.length - 1]);
+	}
+	let accumulated = 0;
+	for (let i = start; i < path.length - 1; i++) {
+		accumulated += haversineM(path[i], path[i + 1]);
+		if (accumulated >= aheadM) return calculateBearing(path[start], path[i + 1]);
+	}
+	return calculateBearing(path[start], path[path.length - 1]);
+}
+
 export function closestRouteIndex(routeCoords: LatLng[], target: LatLng): number {
 	let bestIdx = 0;
 	let bestDist = Infinity;

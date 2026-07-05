@@ -1,10 +1,16 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { Toast } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '$lib/stores/toaster';
+	import { hideSystemBars } from '$lib/utils/systemBars';
 	import favicon from '$lib/assets/favicon.png';
 	import '../app.css';
 
 	let { children } = $props();
+
+	onMount(() => {
+		hideSystemBars();
+	});
 </script>
 
 <svelte:head>

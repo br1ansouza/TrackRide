@@ -1,7 +1,7 @@
 import type { WeatherPoint } from './weather';
 
 export type AlertSeverity = 'warning' | 'danger';
-export type AlertType = 'rain' | 'wind' | 'visibility' | 'night';
+export type AlertType = 'rain' | 'wind' | 'visibility' | 'night' | 'cold' | 'heat';
 
 export interface RouteAlert {
 	type: AlertType;
@@ -15,7 +15,9 @@ export interface RouteAlert {
 export const THRESHOLDS = {
 	rain: { warning: 2.5, danger: 7.5 },
 	wind: { warning: 10, danger: 17 },
-	visibility: { warning: 5000, danger: 1000 }
+	visibility: { warning: 5000, danger: 1000 },
+	cold: { warning: 12, danger: 5 },
+	heat: { warning: 33, danger: 38 }
 } as const;
 
 function classifyRain(rain: number): AlertSeverity | null {
@@ -36,6 +38,18 @@ function classifyVisibility(visibility: number): AlertSeverity | null {
 	return null;
 }
 
+export function classifyCold(feelsLike: number): AlertSeverity | null {
+	if (feelsLike <= THRESHOLDS.cold.danger) return 'danger';
+	if (feelsLike <= THRESHOLDS.cold.warning) return 'warning';
+	return null;
+}
+
+export function classifyHeat(feelsLike: number): AlertSeverity | null {
+	if (feelsLike >= THRESHOLDS.heat.danger) return 'danger';
+	if (feelsLike >= THRESHOLDS.heat.warning) return 'warning';
+	return null;
+}
+
 const MESSAGES: Record<AlertType, Record<AlertSeverity, { short: string; long: string }>> = {
 	rain: {
 		warning: { short: 'Chuva moderada', long: 'Chuva moderada em trechos da rota' },
@@ -52,6 +66,14 @@ const MESSAGES: Record<AlertType, Record<AlertSeverity, { short: string; long: s
 	night: {
 		warning: { short: 'Trecho noturno', long: 'Trechos noturnos na rota' },
 		danger: { short: 'Trecho noturno', long: 'Trechos noturnos na rota' }
+	},
+	cold: {
+		warning: { short: 'Frio intenso', long: 'Frio intenso em trechos da rota' },
+		danger: { short: 'Frio extremo', long: 'Frio extremo em trechos da rota' }
+	},
+	heat: {
+		warning: { short: 'Calor intenso', long: 'Calor intenso em trechos da rota' },
+		danger: { short: 'Calor extremo', long: 'Calor extremo em trechos da rota' }
 	}
 };
 
@@ -77,6 +99,10 @@ export function classifyPoint(point: WeatherPoint): PointAlert[] {
 	if (vis) result.push({ type: 'visibility', severity: vis, message: MESSAGES.visibility[vis].short });
 	const night = classifyNight(point.estimatedMinutes);
 	if (night) result.push({ type: 'night', severity: night, message: MESSAGES.night[night].short });
+	const cold = classifyCold(point.feelsLike);
+	if (cold) result.push({ type: 'cold', severity: cold, message: MESSAGES.cold[cold].short });
+	const heat = classifyHeat(point.feelsLike);
+	if (heat) result.push({ type: 'heat', severity: heat, message: MESSAGES.heat[heat].short });
 	return result;
 }
 
@@ -93,11 +119,13 @@ export function analyzeRoute(points: WeatherPoint[]): RouteAlert[] {
 		rain: (p) => classifyRain(p.rain),
 		wind: (p) => classifyWind(p.windSpeed),
 		visibility: (p) => classifyVisibility(p.visibility),
-		night: (p) => classifyNight(p.estimatedMinutes)
+		night: (p) => classifyNight(p.estimatedMinutes),
+		cold: (p) => classifyCold(p.feelsLike),
+		heat: (p) => classifyHeat(p.feelsLike)
 	};
 
 	const alerts: RouteAlert[] = [];
-	const types: AlertType[] = ['rain', 'wind', 'visibility', 'night'];
+	const types: AlertType[] = ['rain', 'wind', 'visibility', 'night', 'cold', 'heat'];
 
 	for (const type of types) {
 		const affected = points.filter((p) => classifiers[type](p) !== null);

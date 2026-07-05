@@ -1,4 +1,5 @@
 import type { LatLng } from '$lib/services/routing';
+import { haversineM } from '$lib/utils/mapHelpers';
 import { getLastPosition, startBackgroundWatch, stopBackgroundWatch } from '$lib/services/geolocation';
 
 const OFF_ROUTE_THRESHOLD_M = 25;
@@ -28,16 +29,6 @@ export function useTracking() {
 	let inApproach = $state(false);
 	let routeOrigin: LatLng | null = null;
 	let onApproachComplete: (() => void) | null = null;
-
-	function haversineM(a: LatLng, b: LatLng): number {
-		const R = 6371000;
-		const dLat = ((b[0] - a[0]) * Math.PI) / 180;
-		const dLon = ((b[1] - a[1]) * Math.PI) / 180;
-		const lat1 = (a[0] * Math.PI) / 180;
-		const lat2 = (b[0] * Math.PI) / 180;
-		const s = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
-		return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
-	}
 
 	function distanceToRoute(pos: LatLng): number {
 		if (plannedRoute.length < 2) return 0;
@@ -150,6 +141,8 @@ export function useTracking() {
 		get active() { return active; },
 		get trackedPath() { return trackedPath; },
 		get currentPosition() { return currentPosition; },
+		get plannedRoute() { return plannedRoute; },
+		get inApproach() { return inApproach; },
 		get distanceKm() { return distanceKm; },
 		get elapsedFormatted() { return elapsedFormatted; },
 		get speedFormatted() { return speedFormatted; },
