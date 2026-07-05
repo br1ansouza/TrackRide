@@ -155,10 +155,17 @@ export function useRouteSearch() {
 
 		const { stops: fuelStops, missedPoints } = await findFuelStops(routeCoords, intervalKm, stops);
 		if (fuelStops.length === 0) {
-			toaster.warning({
-				title: 'Nenhum posto encontrado',
-				description: 'Não há postos de combustível próximos aos pontos de abastecimento da rota.'
-			});
+			if (missedPoints === 0) {
+				toaster.info({
+					title: 'Rota já coberta',
+					description: `As paradas atuais já cobrem o trajeto a cada ${intervalKm} km.`
+				});
+			} else {
+				toaster.warning({
+					title: 'Nenhum posto encontrado',
+					description: 'Não há postos de combustível próximos aos pontos de abastecimento da rota.'
+				});
+			}
 			return;
 		}
 

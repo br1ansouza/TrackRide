@@ -1,6 +1,6 @@
 import type { LatLng } from '$lib/services/routing';
 import type { RouteStopEntry } from '$lib/types/routeStop';
-import { haversineM } from '$lib/utils/mapHelpers';
+import { haversineM, closestRouteIndex } from '$lib/utils/mapHelpers';
 
 interface FuelStation {
 	name: string;
@@ -16,21 +16,40 @@ export interface FuelStopSuggestion {
 const END_OF_ROUTE_MARGIN_M = 10000;
 const DUPLICATE_DISTANCE_M = 500;
 
-function sampleRefuelPoints(routeCoords: LatLng[], intervalKm: number): LatLng[] {
-	const intervalM = intervalKm * 1000;
-	let totalM = 0;
+function cumulativeDistancesM(routeCoords: LatLng[]): number[] {
+	const distances = [0];
 	for (let i = 1; i < routeCoords.length; i++) {
-		totalM += haversineM(routeCoords[i - 1], routeCoords[i]);
+		distances.push(distances[i - 1] + haversineM(routeCoords[i - 1], routeCoords[i]));
 	}
+	return distances;
+}
+
+function sampleRefuelPoints(
+	routeCoords: LatLng[],
+	intervalKm: number,
+	existingStops: RouteStopEntry[]
+): LatLng[] {
+	const intervalM = intervalKm * 1000;
+	const distances = cumulativeDistancesM(routeCoords);
+	const totalM = distances[distances.length - 1];
+
+	const fuelAnchorsM = existingStops
+		.filter((stop) => stop.stopType === 'gas_station')
+		.map((stop) => distances[closestRouteIndex(routeCoords, stop.coords)])
+		.sort((a, b) => a - b);
 
 	const points: LatLng[] = [];
-	let accumulated = 0;
-	let nextTarget = intervalM;
+	let lastRefuelM = 0;
+	let anchorIndex = 0;
 	for (let i = 1; i < routeCoords.length; i++) {
-		accumulated += haversineM(routeCoords[i - 1], routeCoords[i]);
-		if (accumulated >= nextTarget) {
-			if (nextTarget <= totalM - END_OF_ROUTE_MARGIN_M) points.push(routeCoords[i]);
-			nextTarget += intervalM;
+		const hereM = distances[i];
+		while (anchorIndex < fuelAnchorsM.length && fuelAnchorsM[anchorIndex] <= hereM) {
+			lastRefuelM = Math.max(lastRefuelM, fuelAnchorsM[anchorIndex]);
+			anchorIndex++;
+		}
+		if (hereM - lastRefuelM >= intervalM) {
+			if (hereM <= totalM - END_OF_ROUTE_MARGIN_M) points.push(routeCoords[i]);
+			lastRefuelM = hereM;
 		}
 	}
 	return points;
@@ -75,7 +94,7 @@ export async function findFuelStops(
 	intervalKm: number,
 	existingStops: RouteStopEntry[]
 ): Promise<FuelStopSuggestion> {
-	const refuelPoints = sampleRefuelPoints(routeCoords, intervalKm);
+	const refuelPoints = sampleRefuelPoints(routeCoords, intervalKm, existingStops);
 	const stops: RouteStopEntry[] = [];
 	let missedPoints = 0;
 

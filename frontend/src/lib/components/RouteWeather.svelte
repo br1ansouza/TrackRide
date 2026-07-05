@@ -141,7 +141,7 @@
 		</button>
 	{/if}
 
-	{#if loading}
+	{#if loading && points.length === 0}
 		<p class="text-sm text-surface-400" in:fade={transitions.quick}>Carregando clima…</p>
 	{:else if points.length === 0}
 		<p class="text-sm text-surface-400" in:fade={transitions.quick}>Trace uma rota para ver o clima.</p>
@@ -190,7 +190,7 @@
 					{#if point.stopType}
 					{@const StopIcon = STOP_ICONS[point.stopType] ?? MapPin}
 					{@const sc = stopColor(point.stopType)}
-					<div bind:this={cardEls[i]} class="flex items-center gap-3 rounded-lg bg-surface-700 p-3" in:fly={{ ...transitions.card, delay: i * 50 }}>
+					<div bind:this={cardEls[i]} class="flex items-center gap-3 rounded-lg bg-surface-700 p-3" in:fly|global={{ ...transitions.card, delay: i * 50 }}>
 						<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg" style="background-color: var({sc.bg});">
 							<StopIcon size={20} style="color: var({sc.fg});" />
 						</div>
@@ -224,7 +224,7 @@
 							{@render alertBadges(pointAlerts)}
 						</button>
 					{:else}
-						<div bind:this={cardEls[i]} class="flex flex-col gap-2 rounded-lg bg-surface-700 p-3" in:fly={{ ...transitions.card, delay: i * 50 }}>
+						<div bind:this={cardEls[i]} class="flex flex-col gap-2 rounded-lg bg-surface-700 p-3" in:fly|global={{ ...transitions.card, delay: i * 50 }}>
 							<div class="flex items-center justify-between pl-1">
 								<p class="text-xs text-surface-400">
 									{formatArrival(point.estimatedMinutes)}{point.locationName ? ` — ${point.locationName}` : ''}
