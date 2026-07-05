@@ -5,6 +5,7 @@ Rails.application.configure do
   config.eager_load = false
   config.consider_all_requests_local = true
   config.server_timing = true
+  config.hosts << /[a-z0-9-]+\.[a-z0-9-]+\.ts\.net/
 
   if Rails.root.join("tmp/caching-dev.txt").exist?
     config.public_file_server.headers = { "cache-control" => "public, max-age=#{2.days.to_i}" }
