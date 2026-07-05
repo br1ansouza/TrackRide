@@ -168,27 +168,29 @@
 			<SearchInput placeholder="Buscar local da parada" onselect={handleSelect} />
 
 			{#if selectedType === 'gas_station' && onSuggestFuel}
-				<div class="flex items-center gap-2" transition:slide={transitions.quick}>
-					<span class="shrink-0 text-xs text-surface-400">ou a cada</span>
-					<input
-						type="number"
-						bind:value={fuelIntervalKm}
-						min={FUEL_INTERVAL_MIN}
-						max={FUEL_INTERVAL_MAX}
-						disabled={suggestingFuel}
-						class="w-16 rounded-md bg-surface-800 px-2 py-1 text-center text-sm text-white outline-none"
-					/>
-					<span class="shrink-0 text-xs text-surface-400">km</span>
+				<div class="flex flex-col gap-2" transition:slide={transitions.quick}>
+					<div class="flex items-center justify-center gap-2">
+						<span class="text-xs text-surface-400">ou a cada</span>
+						<input
+							type="number"
+							bind:value={fuelIntervalKm}
+							min={FUEL_INTERVAL_MIN}
+							max={FUEL_INTERVAL_MAX}
+							disabled={suggestingFuel}
+							class="w-16 rounded-md bg-surface-800 px-2 py-1 text-center text-sm text-white outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+						/>
+						<span class="text-xs text-surface-400">km</span>
+					</div>
 					<button
 						type="button"
 						onclick={applyFuelSuggestion}
 						disabled={suggestingFuel}
-						class="ml-auto flex shrink-0 items-center gap-1 rounded-md px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+						class="flex w-full items-center justify-center gap-1.5 rounded-md py-2 text-xs font-semibold text-white disabled:opacity-60"
 						style="background-color: var(--color-ride-alert-500);"
 					>
 						{#if suggestingFuel}
 							<span class="h-3 w-3 animate-spin rounded-full border border-white/40 border-t-white"></span>
-							Buscando…
+							Buscando postos…
 						{:else}
 							<Fuel size={12} />
 							Sugerir postos

@@ -16,6 +16,36 @@ interface OverpassElement {
 	tags?: Record<string, string>;
 }
 
+interface CacheEntry {
+	body: string;
+	expiresAt: number;
+}
+
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const CACHE_MAX_ENTRIES = 200;
+const cache = new Map<string, CacheEntry>();
+
+function readCache(key: string): string | null {
+	const entry = cache.get(key);
+	if (!entry) return null;
+	if (Date.now() > entry.expiresAt) {
+		cache.delete(key);
+		return null;
+	}
+	return entry.body;
+}
+
+function writeCache(key: string, body: string): void {
+	if (cache.size >= CACHE_MAX_ENTRIES) {
+		const now = Date.now();
+		for (const [k, v] of cache) {
+			if (now > v.expiresAt) cache.delete(k);
+		}
+		if (cache.size >= CACHE_MAX_ENTRIES) cache.clear();
+	}
+	cache.set(key, { body, expiresAt: Date.now() + CACHE_TTL_MS });
+}
+
 function parseRadius(url: URL): number {
 	const radius = Number(url.searchParams.get('radius') ?? DEFAULT_RADIUS_M);
 	if (!Number.isFinite(radius)) return DEFAULT_RADIUS_M;
@@ -65,12 +95,17 @@ export const GET: RequestHandler = async ({ url }) => {
 	if (path) {
 		around = `around:${radius},${path.join(',')}`;
 	} else if (point) {
-		around = `around:${radius},${point.lat},${point.lon}`;
+		around = `around:${radius},${point.lat.toFixed(3)},${point.lon.toFixed(3)}`;
 	} else {
 		return new Response(JSON.stringify([]), {
 			status: 400,
 			headers: { 'Content-Type': 'application/json' }
 		});
+	}
+
+	const cached = readCache(around);
+	if (cached) {
+		return new Response(cached, { headers: { 'Content-Type': 'application/json' } });
 	}
 
 	const query = `[out:json][timeout:15];nwr["amenity"="fuel"](${around});out center ${MAX_RESULTS};`;
@@ -93,7 +128,9 @@ export const GET: RequestHandler = async ({ url }) => {
 			station.lat !== undefined && station.lon !== undefined
 		);
 
-	return new Response(JSON.stringify(results), {
+	const body = JSON.stringify(results);
+	writeCache(around, body);
+	return new Response(body, {
 		headers: { 'Content-Type': 'application/json' }
 	});
 };
