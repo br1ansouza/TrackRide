@@ -1,4 +1,5 @@
 import { request } from './api';
+import type { RouteStopEntry, StopType } from '$lib/types/routeStop';
 
 export interface SavedRouteStop {
 	id: number;
@@ -32,6 +33,14 @@ interface RoutesResponse {
 
 export async function fetchSavedRoutes(limit = 20, offset = 0): Promise<RoutesResponse> {
 	return request<RoutesResponse>(`/routes?limit=${limit}&offset=${offset}`);
+}
+
+export function toStopEntries(stops: SavedRouteStop[]): RouteStopEntry[] {
+	return stops.map((stop) => ({
+		name: stop.name,
+		coords: [stop.position[1], stop.position[0]],
+		stopType: stop.stop_type as StopType
+	}));
 }
 
 export interface RouteStopParams {

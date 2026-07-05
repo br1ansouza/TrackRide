@@ -26,6 +26,7 @@
 		mobile?: boolean;
 		onSave?: () => void;
 		saving?: boolean;
+		editing?: boolean;
 		stops?: RouteStopEntry[];
 		onAddStop?: (stop: RouteStopEntry) => void;
 		onRemoveStop?: (index: number) => void;
@@ -33,7 +34,7 @@
 		approachRoute?: ApproachRoute | null;
 	}
 
-	let { points, loading, alerts, score, mobile = false, onSave, saving = false, stops = [], onAddStop, onRemoveStop, onClear, approachRoute = null }: Props = $props();
+	let { points, loading, alerts, score, mobile = false, onSave, saving = false, editing = false, stops = [], onAddStop, onRemoveStop, onClear, approachRoute = null }: Props = $props();
 
 	let collapsed = $state<Set<number>>(new Set());
 
@@ -271,7 +272,7 @@
 					{/if}
 				</div>
 				<div class="flex flex-col">
-					<span class="text-sm font-semibold text-white">{saving ? 'Salvando rota…' : 'Salvar no histórico'}</span>
+					<span class="text-sm font-semibold text-white">{saving ? 'Salvando rota…' : editing ? 'Atualizar rota' : 'Salvar no histórico'}</span>
 					<span class="text-xs text-surface-400">Acesse depois no seu perfil</span>
 				</div>
 			</button>

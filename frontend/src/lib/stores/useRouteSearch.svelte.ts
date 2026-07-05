@@ -4,7 +4,7 @@ import { analyzeRoute, type RouteAlert } from '$lib/services/alerts';
 import { fetchRoute, type LatLng, type RouteData } from '$lib/services/routing';
 import { calculateRouteScore, type RouteScore, type RidingPreference } from '$lib/services/routeScore';
 import { fetchRouteWeather, type WeatherPoint } from '$lib/services/weather';
-import { createRoute, type ExploreRoute } from '$lib/services/routes';
+import { createRoute, updateRoute, toStopEntries, type ExploreRoute, type SavedRoute } from '$lib/services/routes';
 import { getLastPosition } from '$lib/services/geolocation';
 import { toaster } from '$lib/stores/toaster';
 import { useMobile } from '$lib/stores/mobile.svelte';
@@ -38,6 +38,7 @@ export function useRouteSearch() {
 	let routeCoords = $state<LatLng[]>([]);
 	let approachRoute = $state<ApproachRoute | null>(null);
 	let exploreRouteId = $state<number | null>(null);
+	let editingRouteId = $state<number | null>(null);
 
 	let canSearch = $derived(!!originCoords && !!destCoords);
 	let hasRoute = $derived(weatherPoints.length > 0);
@@ -131,6 +132,7 @@ export function useRouteSearch() {
 	async function handleSearch() {
 		if (!originCoords || !destCoords || !mapRef) return;
 		stops = [];
+		editingRouteId = null;
 		resetWeather();
 		if (mobile.isMobile) mobile.setTab('weather');
 		await executeRoute();
@@ -154,29 +156,47 @@ export function useRouteSearch() {
 		originLabel = '';
 		destLabel = '';
 		exploreRouteId = null;
+		editingRouteId = null;
 		mapRef?.clearApproachRoute();
 	}
 
-	async function handleSelectExploreRoute(route: ExploreRoute) {
-		if (!mapRef) return;
+	async function loadSavedRoute(saved: SavedRoute): Promise<RouteData | null> {
+		if (!mapRef) return null;
 
-		exploreRouteId = route.id;
-		const origin: LatLng = [route.origin_coords[1], route.origin_coords[0]];
-		const dest: LatLng = [route.destination_coords[1], route.destination_coords[0]];
+		const origin: LatLng = [saved.origin_coords[1], saved.origin_coords[0]];
+		const dest: LatLng = [saved.destination_coords[1], saved.destination_coords[0]];
 		originCoords = origin;
 		destCoords = dest;
-		originLabel = route.origin_name;
-		destLabel = route.destination_name;
-		stops = [];
+		originLabel = saved.origin_name;
+		destLabel = saved.destination_name;
+		stops = toStopEntries(saved.stops);
 		resetWeather();
 
-		const routeData = await mapRef.drawRoute(origin, dest);
+		const routeData = await mapRef.drawRoute(origin, dest, stops.map((s) => s.coords));
 		if (!routeData) {
 			toaster.error({ title: 'Rota indisponível', description: 'Não foi possível traçar a rota.' });
-			return;
+			return null;
 		}
-		await computeApproach(origin);
+		if (stops.length > 0) mapRef.showStopMarkers(stops);
+		return routeData;
+	}
+
+	async function handleSelectExploreRoute(route: ExploreRoute) {
+		exploreRouteId = route.id;
+		editingRouteId = null;
+		const routeData = await loadSavedRoute(route);
+		if (!routeData || !originCoords) return;
+		await computeApproach(originCoords);
 		if (mobile.isMobile) mobile.setTab('map');
+		await processWeather(routeData);
+	}
+
+	async function handleSelectSavedRoute(saved: SavedRoute) {
+		editingRouteId = saved.id;
+		exploreRouteId = null;
+		const routeData = await loadSavedRoute(saved);
+		if (!routeData) return;
+		if (mobile.isMobile) mobile.setTab('weather');
 		await processWeather(routeData);
 	}
 
@@ -191,19 +211,27 @@ export function useRouteSearch() {
 				position: [s.coords[1], s.coords[0]] as [number, number]
 			}));
 
-			await createRoute({
+			const routeParams = {
 				name: `${originLabel} → ${destLabel}`,
 				origin_name: originLabel,
 				destination_name: destLabel,
-				origin_coords: [originCoords[1], originCoords[0]],
-				destination_coords: [destCoords[1], destCoords[0]],
+				origin_coords: [originCoords[1], originCoords[0]] as [number, number],
+				destination_coords: [destCoords[1], destCoords[0]] as [number, number],
 				distance_km: weatherPoints.length > 0 ? weatherPoints[weatherPoints.length - 1].distanceKm : undefined,
 				duration_minutes: weatherPoints.length > 0 ? weatherPoints[weatherPoints.length - 1].estimatedMinutes : undefined,
 				score: score.value,
 				route_stops_attributes: stopsAttributes
-			});
-			routeSaved = true;
-			toaster.success({ title: 'Rota salva', description: 'A rota foi adicionada ao seu histórico.' });
+			};
+
+			if (editingRouteId) {
+				await updateRoute(editingRouteId, routeParams);
+				routeSaved = true;
+				toaster.success({ title: 'Rota atualizada', description: 'As alterações foram salvas no histórico.' });
+			} else {
+				await createRoute(routeParams);
+				routeSaved = true;
+				toaster.success({ title: 'Rota salva', description: 'A rota foi adicionada ao seu histórico.' });
+			}
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : '';
 			if (msg.includes('já existe')) {
@@ -241,11 +269,13 @@ export function useRouteSearch() {
 		get routeCoords() { return routeCoords; },
 		get approachRoute() { return approachRoute; },
 		get exploreRouteId() { return exploreRouteId; },
+		get editingRouteId() { return editingRouteId; },
 		handleSearch,
 		addStop,
 		removeStop,
 		clearCurrentRoute,
 		handleSelectExploreRoute,
+		handleSelectSavedRoute,
 		handleSaveRoute
 	};
 }

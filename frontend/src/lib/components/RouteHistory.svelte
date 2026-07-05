@@ -9,9 +9,10 @@
 		limit?: number;
 		showViewAll?: boolean;
 		onViewAll?: () => void;
+		onSelect?: (route: SavedRoute) => void;
 	}
 
-	let { limit = 0, showViewAll = false, onViewAll }: Props = $props();
+	let { limit = 0, showViewAll = false, onViewAll, onSelect }: Props = $props();
 
 	let routes = $state<SavedRoute[]>([]);
 	let total = $state(0);
@@ -115,7 +116,13 @@
 		<p class="text-sm text-surface-400">Nenhuma rota salva.</p>
 	{:else}
 		{#each routes as route}
-			<div class="flex items-center gap-3 rounded-lg bg-surface-700 p-3">
+			<div
+				role="button"
+				tabindex="0"
+				onclick={() => onSelect?.(route)}
+				onkeydown={(e) => { if (e.key === 'Enter') onSelect?.(route); }}
+				class="flex items-center gap-3 rounded-lg bg-surface-700 p-3 text-left transition-colors {onSelect ? 'hover:bg-surface-600' : ''}"
+			>
 				<div class="flex flex-1 flex-col gap-1">
 					<div class="flex flex-col text-sm font-medium text-white">
 						<span>{route.origin_name}</span>
@@ -153,7 +160,7 @@
 				{/if}
 				<button
 					type="button"
-					onclick={() => togglePublic(route)}
+					onclick={(e) => { e.stopPropagation(); togglePublic(route); }}
 					class="text-surface-500 hover:text-surface-300"
 					title={route.public ? 'Tornar privada' : 'Tornar pública'}
 				>
@@ -165,7 +172,7 @@
 				</button>
 				<button
 					type="button"
-					onclick={() => handleDelete(route.id)}
+					onclick={(e) => { e.stopPropagation(); handleDelete(route.id); }}
 					class="text-surface-500 hover:text-surface-300"
 				>
 					<Trash2 size={16} />
