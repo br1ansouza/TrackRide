@@ -18,7 +18,7 @@
 	let { canSearch, loading, onOriginSelect, onDestSelect, onSearch, onClose }: Props = $props();
 </script>
 
-<div class="absolute inset-x-3 z-[900] flex flex-col gap-3 rounded-xl bg-surface-900/95 p-4 shadow-xl backdrop-blur-sm" style="bottom: {safeBottomNav};" transition:fly={transitions.popup}>
+<div class="absolute z-[900] flex flex-col gap-3 rounded-xl bg-surface-900/95 p-4 shadow-xl backdrop-blur-sm" style="bottom: {safeBottomNav}; left: calc(12px + env(safe-area-inset-left)); right: calc(12px + env(safe-area-inset-right));" transition:fly={transitions.popup}>
 	<div class="flex items-center justify-between">
 		<span class="text-sm font-semibold text-white">Planejar rota</span>
 		<button type="button" onclick={onClose} class="text-surface-400">

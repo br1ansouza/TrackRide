@@ -12,6 +12,9 @@ cd ..
 
 echo "Subindo backend (porta 3000)..."
 cd backend
+if [ -f tmp/pids/server.pid ] && ! kill -0 "$(cat tmp/pids/server.pid)" 2>/dev/null; then
+  rm -f tmp/pids/server.pid
+fi
 rails s -p 3000 -b 0.0.0.0 &
 BACKEND_PID=$!
 cd ..

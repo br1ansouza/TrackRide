@@ -1,4 +1,4 @@
-import { THRESHOLDS, classifyNight } from './alerts';
+import { THRESHOLDS, classifyNight, classifyCold, classifyHeat } from './alerts';
 import type { WeatherPoint } from './weather';
 
 export type RidingPreference = 'calm' | 'mixed' | 'sport';
@@ -26,6 +26,14 @@ function weatherPenalty(point: WeatherPoint): number {
 
 	if (point.visibility <= THRESHOLDS.visibility.danger) penalty += 30;
 	else if (point.visibility <= THRESHOLDS.visibility.warning) penalty += 15;
+
+	const cold = classifyCold(point.feelsLike);
+	if (cold === 'danger') penalty += 30;
+	else if (cold === 'warning') penalty += 15;
+
+	const heat = classifyHeat(point.feelsLike);
+	if (heat === 'danger') penalty += 25;
+	else if (heat === 'warning') penalty += 12;
 
 	return Math.min(penalty, 100);
 }
