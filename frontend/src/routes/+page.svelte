@@ -18,7 +18,7 @@
 	import { useTracking } from '$lib/stores/useTracking.svelte';
 	import { createRoute, completeRoute } from '$lib/services/routes';
 	import type { LatLng } from '$lib/services/routing';
-	import { safeTop, safeBottom, safeBottomNav } from '$lib/utils/safeArea';
+	import { safeTop, safeBottom, safeBottomNav, safeLeft, safeRight } from '$lib/utils/safeArea';
 	import { bearingAlongPath, haversineM } from '$lib/utils/mapHelpers';
 	import { vibrateHeavy } from '$lib/utils/haptics';
 	import { toaster } from '$lib/stores/toaster';
@@ -207,15 +207,15 @@
 				<button
 					type="button"
 					onclick={openExplore}
-					class="absolute left-4 z-[500] flex h-11 w-11 items-center justify-center rounded-full shadow-lg"
-					style="bottom: {safeBottom}; background-color: var(--color-ride-route-500);"
+					class="absolute z-[500] flex h-11 w-11 items-center justify-center rounded-full shadow-lg"
+					style="bottom: {safeBottom}; left: {safeLeft}; background-color: var(--color-ride-route-500);"
 					title="Explorar rotas próximas"
 				>
 					<Compass size={22} class="text-white" />
 				</button>
 			{/if}
 			{#if route.hasRoute || tracking.active}
-				<div class="absolute right-4 z-[500] flex flex-col gap-2" style="bottom: {safeBottom};">
+				<div class="absolute z-[500] flex flex-col gap-2" style="bottom: {safeBottom}; right: {safeRight};">
 					<button
 						type="button"
 						onclick={showRouteOverview}
@@ -265,19 +265,19 @@
 			{/if}
 
 			{#if mobile.activeTab === 'weather'}
-				<div class="absolute inset-0 z-[500] overflow-y-auto bg-surface-800" style="bottom: calc(52px + env(safe-area-inset-bottom))" transition:fly={transitions.panel}>
+				<div class="absolute inset-0 z-[500] overflow-y-auto bg-surface-800" style="bottom: calc(52px + env(safe-area-inset-bottom)); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right)" transition:fly={transitions.panel}>
 					<RouteWeather points={route.weatherPoints} loading={route.weatherLoading} alerts={route.alerts} score={route.score} mobile onSave={!route.routeSaved ? route.handleSaveRoute : undefined} saving={route.saving} stops={route.stops} onAddStop={route.addStop} onRemoveStop={route.removeStop} onClear={route.clearCurrentRoute} approachRoute={route.approachRoute} />
 				</div>
 			{/if}
 
 			{#if mobile.activeTab === 'profile' && auth.user}
-				<div class="absolute inset-0 bottom-[52px] z-[500]" transition:fly={transitions.panel}>
+				<div class="absolute inset-0 bottom-[52px] z-[500]" style="padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right)" transition:fly={transitions.panel}>
 					<ProfilePanel user={auth.user} onLogout={() => auth.logout()} onUserUpdate={(u) => auth.setUser(u)} onViewAllRoutes={openHistory} />
 				</div>
 			{/if}
 
 			{#if historyOpen}
-				<div class="absolute inset-0 z-[600] flex flex-col overflow-y-auto bg-surface-800 p-4" style="padding-top: {safeTop}; bottom: calc(52px + env(safe-area-inset-bottom))" transition:fly={transitions.panel}>
+				<div class="absolute inset-0 z-[600] flex flex-col overflow-y-auto bg-surface-800 p-4" style="padding-top: {safeTop}; bottom: calc(52px + env(safe-area-inset-bottom)); padding-left: {safeLeft}; padding-right: {safeRight}" transition:fly={transitions.panel}>
 					<div class="flex items-center justify-between pb-3">
 						<h2 class="text-lg font-semibold text-white">Histórico de viagens</h2>
 						<button type="button" onclick={() => historyOpen = false} class="text-surface-400 hover:text-surface-200"><X size={18} /></button>
@@ -287,7 +287,7 @@
 			{/if}
 
 			{#if exploreOpen}
-				<div class="absolute inset-0 z-[600] flex flex-col overflow-y-auto bg-surface-800 p-4" style="padding-top: {safeTop}; bottom: calc(52px + env(safe-area-inset-bottom))" transition:fly={transitions.panel}>
+				<div class="absolute inset-0 z-[600] flex flex-col overflow-y-auto bg-surface-800 p-4" style="padding-top: {safeTop}; bottom: calc(52px + env(safe-area-inset-bottom)); padding-left: {safeLeft}; padding-right: {safeRight}" transition:fly={transitions.panel}>
 					<ExplorePanel onSelect={(r) => { exploreOpen = false; route.handleSelectExploreRoute(r); }} onClose={() => exploreOpen = false} />
 				</div>
 			{/if}

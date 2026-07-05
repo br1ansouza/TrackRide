@@ -13,7 +13,7 @@
 	let { activeTab, searchOpen, onTabChange, onSearchToggle, hasWeather = false }: Props = $props();
 </script>
 
-<nav class="fixed bottom-0 left-0 right-0 z-[1000] flex border-t border-surface-700 bg-surface-900" style="padding-bottom: env(safe-area-inset-bottom);">
+<nav class="fixed bottom-0 left-0 right-0 z-[1000] flex border-t border-surface-700 bg-surface-900" style="padding-bottom: env(safe-area-inset-bottom); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right);">
 	<button
 		type="button"
 		onclick={() => onTabChange('map')}
