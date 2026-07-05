@@ -250,7 +250,7 @@
 					<RouteHistory onSelect={(r) => { historyOpen = false; route.handleSelectSavedRoute(r); }} />
 				</aside>
 			{:else}
-				<RouteWeather points={route.weatherPoints} loading={route.weatherLoading} alerts={route.alerts} score={route.score} onSave={!route.routeSaved ? route.handleSaveRoute : undefined} saving={route.saving} editing={route.editingRouteId !== null} stops={route.stops} onAddStop={route.addStop} onRemoveStop={route.removeStop} onSuggestFuel={route.suggestFuelStops} onClear={route.clearCurrentRoute} approachRoute={route.approachRoute} />
+				<RouteWeather points={route.weatherPoints} loading={route.weatherLoading} alerts={route.alerts} score={route.score} onSave={!route.routeSaved ? route.handleSaveRoute : undefined} saving={route.saving} editing={route.editingRouteId !== null} stops={route.stops} onAddStop={route.addStop} onRemoveStop={route.removeStop} onSuggestFuel={route.suggestFuelStops} fuelRangeKm={auth.user?.fuel_range_km ?? null} onClear={route.clearCurrentRoute} approachRoute={route.approachRoute} />
 			{/if}
 		{/if}
 
@@ -266,7 +266,7 @@
 
 			{#if mobile.activeTab === 'weather'}
 				<div class="absolute inset-0 z-[500] overflow-y-auto bg-surface-800" style="bottom: calc(52px + env(safe-area-inset-bottom)); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right)" transition:fly={transitions.panel}>
-					<RouteWeather points={route.weatherPoints} loading={route.weatherLoading} alerts={route.alerts} score={route.score} mobile onSave={!route.routeSaved ? route.handleSaveRoute : undefined} saving={route.saving} editing={route.editingRouteId !== null} stops={route.stops} onAddStop={route.addStop} onRemoveStop={route.removeStop} onSuggestFuel={route.suggestFuelStops} onClear={route.clearCurrentRoute} approachRoute={route.approachRoute} />
+					<RouteWeather points={route.weatherPoints} loading={route.weatherLoading} alerts={route.alerts} score={route.score} mobile onSave={!route.routeSaved ? route.handleSaveRoute : undefined} saving={route.saving} editing={route.editingRouteId !== null} stops={route.stops} onAddStop={route.addStop} onRemoveStop={route.removeStop} onSuggestFuel={route.suggestFuelStops} fuelRangeKm={auth.user?.fuel_range_km ?? null} onClear={route.clearCurrentRoute} approachRoute={route.approachRoute} />
 				</div>
 			{/if}
 

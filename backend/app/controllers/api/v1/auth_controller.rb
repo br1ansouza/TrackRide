@@ -76,7 +76,7 @@ module Api
       end
 
       def profile_params
-        params.permit(:name, :riding_preference)
+        params.permit(:name, :riding_preference, :fuel_range_km)
       end
 
       def user_response(user)
@@ -85,6 +85,7 @@ module Api
           name: user.name,
           email: user.email,
           riding_preference: user.riding_preference,
+          fuel_range_km: user.fuel_range_km,
           created_at: user.created_at
         }
       end

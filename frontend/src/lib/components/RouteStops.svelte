@@ -16,9 +16,10 @@
 		onAdd: (stop: RouteStopEntry) => void;
 		onRemove: (index: number) => void;
 		onSuggestFuel?: (intervalKm: number) => Promise<void>;
+		fuelRangeKm?: number | null;
 	}
 
-	let { stops, onAdd, onRemove, onSuggestFuel }: Props = $props();
+	let { stops, onAdd, onRemove, onSuggestFuel, fuelRangeKm = null }: Props = $props();
 
 	const FUEL_INTERVAL_KEY = 'trackride:fuel-interval-km';
 	const FUEL_INTERVAL_MIN = 30;
@@ -28,10 +29,13 @@
 	let selectedIndex = $state(0);
 	let dragging = $state(false);
 	let trackEl = $state<HTMLDivElement>();
-	let fuelIntervalKm = $state(loadFuelInterval());
+	let fuelIntervalKm = $state(200);
 	let suggestingFuel = $state(false);
 
-	function loadFuelInterval(): number {
+	function loadFuelInterval(profileRangeKm: number | null): number {
+		if (profileRangeKm && profileRangeKm >= FUEL_INTERVAL_MIN && profileRangeKm <= FUEL_INTERVAL_MAX) {
+			return profileRangeKm;
+		}
 		if (typeof localStorage === 'undefined') return 200;
 		const saved = Number(localStorage.getItem(FUEL_INTERVAL_KEY));
 		return Number.isFinite(saved) && saved >= FUEL_INTERVAL_MIN && saved <= FUEL_INTERVAL_MAX ? saved : 200;
@@ -200,7 +204,7 @@
 	{:else}
 		<button
 			type="button"
-			onclick={() => adding = true}
+			onclick={() => { fuelIntervalKm = loadFuelInterval(fuelRangeKm); adding = true; }}
 			class="flex items-center gap-2 rounded-lg border border-dashed border-surface-600 px-3 py-2 text-sm text-surface-400 transition-colors hover:border-surface-400 hover:text-surface-200"
 		>
 			<Plus size={14} />
