@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Route, Clock, Trash2, ChevronRight, Globe, Lock, ArrowDown, Fuel, UtensilsCrossed, BedDouble, Mountain, MapPin } from 'lucide-svelte';
+	import { Route, Clock, Trash2, ChevronRight, Globe, Lock, ArrowDown } from 'lucide-svelte';
 	import { fetchSavedRoutes, deleteRoute, updateRoute, type SavedRoute } from '$lib/services/routes';
 	import { toaster } from '$lib/stores/toaster';
 	import { stopColor } from '$lib/utils/stopColors';
+	import { stopIcon } from '$lib/utils/stopIcons';
 
 	interface Props {
 		limit?: number;
@@ -98,13 +99,6 @@
 		return m > 0 ? `${h}h ${m}min` : `${h}h`;
 	}
 
-	const STOP_ICONS: Record<string, typeof MapPin> = {
-		gas_station: Fuel,
-		restaurant: UtensilsCrossed,
-		rest: BedDouble,
-		viewpoint: Mountain,
-		other: MapPin
-	};
 </script>
 
 <div class="flex flex-col gap-2">
@@ -144,7 +138,7 @@
 					{#if route.stops?.length > 0}
 						<div class="flex flex-wrap gap-1">
 							{#each route.stops as stop}
-								{@const Icon = STOP_ICONS[stop.stop_type] ?? MapPin}
+								{@const Icon = stopIcon(stop.stop_type)}
 								{@const sc = stopColor(stop.stop_type)}
 								<span class="flex items-center gap-1 rounded-md bg-surface-600 px-2 py-0.5 text-xs" style="color: var({sc.fg});">
 									<Icon size={10} /> {stop.name}

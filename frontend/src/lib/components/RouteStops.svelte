@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { Plus, X, Fuel, UtensilsCrossed, BedDouble, Mountain, MapPin } from 'lucide-svelte';
+	import { Plus, X, Fuel } from 'lucide-svelte';
 	import { slide } from 'svelte/transition';
 	import { flip } from 'svelte/animate';
 	import { transitions } from '$lib/utils/transitions';
+	import { STOP_ICONS, stopIcon } from '$lib/utils/stopIcons';
 	import SearchInput from '$lib/components/SearchInput.svelte';
 	import type { LatLng } from '$lib/services/routing';
 	import { stopColor } from '$lib/utils/stopColors';
@@ -57,12 +58,12 @@
 		}
 	}
 
-	const STOP_TYPES: { value: StopType; label: string; icon: typeof MapPin }[] = [
-		{ value: 'gas_station', label: 'Posto', icon: Fuel },
-		{ value: 'restaurant', label: 'Restaurante', icon: UtensilsCrossed },
-		{ value: 'rest', label: 'Descanso', icon: BedDouble },
-		{ value: 'viewpoint', label: 'Mirante', icon: Mountain },
-		{ value: 'other', label: 'Outro', icon: MapPin }
+	const STOP_TYPES: { value: StopType; label: string; icon: typeof STOP_ICONS.other }[] = [
+		{ value: 'gas_station', label: 'Posto', icon: STOP_ICONS.gas_station },
+		{ value: 'restaurant', label: 'Restaurante', icon: STOP_ICONS.restaurant },
+		{ value: 'rest', label: 'Descanso', icon: STOP_ICONS.rest },
+		{ value: 'viewpoint', label: 'Mirante', icon: STOP_ICONS.viewpoint },
+		{ value: 'other', label: 'Outro', icon: STOP_ICONS.other }
 	];
 
 	let selectedType = $derived(STOP_TYPES[selectedIndex].value);
@@ -99,9 +100,6 @@
 		selectedIndex = 0;
 	}
 
-	export function stopIcon(type: StopType) {
-		return STOP_TYPES.find((t) => t.value === type)?.icon ?? MapPin;
-	}
 </script>
 
 <div class="mt-4 flex flex-col gap-2">

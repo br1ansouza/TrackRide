@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Droplets, Wind, Thermometer, ChevronDown, Clock, Route, ChevronsDownUp, ChevronsUpDown, Save, Fuel, UtensilsCrossed, BedDouble, Mountain, MapPin, Navigation } from 'lucide-svelte';
+	import { Droplets, Wind, Thermometer, ChevronDown, Clock, Route, ChevronsDownUp, ChevronsUpDown, Save, Navigation } from 'lucide-svelte';
 	import { fade, fly } from 'svelte/transition';
 	import { transitions } from '$lib/utils/transitions';
 	import { Tooltip } from '@skeletonlabs/skeleton-svelte';
@@ -13,10 +13,7 @@
 	import { ALERT_ICONS, alertColor } from '$lib/utils/alertIcons';
 	import { formatTime, formatArrival } from '$lib/utils/routeFormat';
 	import { stopColor } from '$lib/utils/stopColors';
-
-	const STOP_ICONS: Record<string, typeof MapPin> = {
-		gas_station: Fuel, restaurant: UtensilsCrossed, rest: BedDouble, viewpoint: Mountain, other: MapPin
-	};
+	import { stopIcon } from '$lib/utils/stopIcons';
 
 	interface Props {
 		points: WeatherPoint[];
@@ -189,7 +186,7 @@
 					{/if}
 
 					{#if point.stopType}
-					{@const StopIcon = STOP_ICONS[point.stopType] ?? MapPin}
+					{@const StopIcon = stopIcon(point.stopType)}
 					{@const sc = stopColor(point.stopType)}
 					<div bind:this={cardEls[i]} class="flex items-center gap-3 rounded-lg bg-surface-700 p-3" in:fly|global={{ ...transitions.card, delay: i * 50 }}>
 						<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg" style="background-color: var({sc.bg});">
