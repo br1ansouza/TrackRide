@@ -10,6 +10,7 @@ pt-BR:
         password: Senha
         password_confirmation: Confirmação de senha
         riding_preference: Preferência de pilotagem
+        fuel_range_km: Autonomia da moto
       route:
         name: Nome
         origin_name: Origem
@@ -30,3 +31,7 @@ pt-BR:
       taken: já está em uso
       too_short: é muito curto (mínimo %{count} caracteres)
       invalid: não é válido
+      not_a_number: não é um número
+      not_an_integer: precisa ser um número inteiro
+      greater_than_or_equal_to: precisa ser maior ou igual a %{count}
+      less_than_or_equal_to: precisa ser menor ou igual a %{count}

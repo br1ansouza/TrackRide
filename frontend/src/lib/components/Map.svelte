@@ -1,12 +1,14 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, mount } from 'svelte';
 	import maplibregl from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
+	import { Flag, MapPin, Navigation2 } from 'lucide-svelte';
+	import { stopIcon } from '$lib/utils/stopIcons';
 	import type { RouteStopEntry } from '$lib/types/routeStop';
 	import { cssVar } from '$lib/utils/color';
 	import { stopColor } from '$lib/utils/stopColors';
 	import { safeTop } from '$lib/utils/safeArea';
-	import { toLngLat, toLineCoords, boundsFromCoords, calculateBearing, closestRouteIndex } from '$lib/utils/mapHelpers';
+	import { toLngLat, toLineCoords, boundsFromCoords, calculateBearing, closestRouteIndex, haversineM } from '$lib/utils/mapHelpers';
 	import { fetchRoute, type LatLng, type RouteData } from '$lib/services/routing';
 	import type { WeatherPoint } from '$lib/services/weather';
 	import { classifyPoint } from '$lib/services/alerts';
@@ -22,16 +24,35 @@
 	let hasInitialPosition = false;
 	let gpsLoading = $state(true);
 	let locationMarker: maplibregl.Marker | null = null;
+	let originMarker: maplibregl.Marker | null = null;
+	let originPoint: LatLng | null = null;
 	let routeMarkers: maplibregl.Marker[] = [];
+
+	const ORIGIN_HIDE_RADIUS_M = 50;
+
+	function updateOriginVisibility(userPosition: LatLng) {
+		if (!originMarker || !originPoint) return;
+		const near = haversineM(userPosition, originPoint) < ORIGIN_HIDE_RADIUS_M;
+		originMarker.getElement().style.display = near ? 'none' : '';
+	}
 	let weatherMarkerEls: maplibregl.Marker[] = [];
 	let stopMarkerEls: maplibregl.Marker[] = [];
 	let trackedSourceAdded = false;
 
 	const emptyLine = () => ({ type: 'Feature' as const, properties: {}, geometry: { type: 'LineString' as const, coordinates: [] as [number, number][] } });
 
-	function createCircleMarker(color: string, borderColor: string, size = 16): HTMLDivElement {
+	function createIconMarker(icon: typeof Flag, background: string, size = 26, iconSize = 14, solid = false): HTMLDivElement {
 		const el = document.createElement('div');
-		el.style.cssText = `width:${size}px;height:${size}px;border-radius:50%;background:${color || '#888'};border:2px solid ${borderColor || '#555'};`;
+		const iconColor = cssVar('--color-surface-50');
+		el.style.cssText = `display:flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:50%;background:${background};border:2px solid ${iconColor};box-shadow:0 1px 4px rgba(0,0,0,0.4);`;
+		mount(icon, { target: el, props: { size: iconSize, color: iconColor, fill: solid ? iconColor : 'none' } });
+		return el;
+	}
+
+	function createDestinationMarker(): HTMLDivElement {
+		const el = document.createElement('div');
+		el.style.cssText = 'filter:drop-shadow(0 1px 3px rgba(0,0,0,0.5));';
+		mount(MapPin, { target: el, props: { size: 34, color: cssVar('--color-surface-50'), fill: cssVar('--color-ride-danger-500'), strokeWidth: 1.5 } });
 		return el;
 	}
 
@@ -58,9 +79,11 @@
 				const lngLat = toLngLat(coords);
 				if (locationMarker) { locationMarker.setLngLat(lngLat); }
 				else {
-					const el = createCircleMarker(cssVar('--color-ride-location-500'), cssVar('--color-ride-location-700'));
+					const el = createIconMarker(Navigation2, cssVar('--color-ride-location-500'), 28, 15, true);
+					el.classList.add('user-position-marker');
 					locationMarker = new maplibregl.Marker({ element: el }).setLngLat(lngLat).addTo(map!);
 				}
+				updateOriginVisibility(coords);
 				if (!hasInitialPosition) { map.flyTo({ center: lngLat, zoom: 13 }); hasInitialPosition = true; }
 			},
 			onError(msg) { gpsLoading = false; toaster.warning({ title: 'Localização indisponível', description: msg }); }
@@ -90,16 +113,22 @@
 		routeMarkers.forEach((m) => m.remove()); routeMarkers = [];
 		weatherMarkerEls.forEach((m) => m.remove()); weatherMarkerEls = [];
 		stopMarkerEls.forEach((m) => m.remove()); stopMarkerEls = [];
+		originMarker = null;
+		originPoint = null;
 	}
 
 	export async function drawRoute(originCoords: LatLng, destCoords: LatLng, waypoints: LatLng[] = [], skipFit = false): Promise<RouteData | null> {
 		if (!map) return null;
 		await mapReady;
 		clearRoute();
+		originMarker = new maplibregl.Marker({ element: createIconMarker(Flag, cssVar('--color-ride-safe-500')) }).setLngLat(toLngLat(originCoords)).setPopup(new maplibregl.Popup().setText('Origem')).addTo(map);
+		originPoint = originCoords;
 		routeMarkers.push(
-			new maplibregl.Marker({ element: createCircleMarker(cssVar('--color-ride-safe-500'), cssVar('--color-ride-safe-700')) }).setLngLat(toLngLat(originCoords)).setPopup(new maplibregl.Popup().setText('Origem')).addTo(map),
-			new maplibregl.Marker({ element: createCircleMarker(cssVar('--color-ride-danger-500'), cssVar('--color-ride-danger-700')) }).setLngLat(toLngLat(destCoords)).setPopup(new maplibregl.Popup().setText('Destino')).addTo(map)
+			originMarker,
+			new maplibregl.Marker({ element: createDestinationMarker(), anchor: 'bottom' }).setLngLat(toLngLat(destCoords)).setPopup(new maplibregl.Popup().setText('Destino')).addTo(map)
 		);
+		const lastPosition = getLastPosition();
+		if (lastPosition) updateOriginVisibility(lastPosition);
 		const routeData = await fetchRoute(originCoords, destCoords, waypoints);
 		if (!routeData || !map) return null;
 		const src = map.getSource('route') as maplibregl.GeoJSONSource | undefined;
@@ -114,7 +143,7 @@
 		stopMarkerEls.forEach((m) => m.remove());
 		stopMarkerEls = stops.map((s) => {
 			const sc = stopColor(s.stopType);
-			return new maplibregl.Marker({ element: createCircleMarker(cssVar(sc.marker), cssVar(sc.bg), 14) }).setLngLat(toLngLat(s.coords)).setPopup(new maplibregl.Popup().setText(s.name)).addTo(map!);
+			return new maplibregl.Marker({ element: createIconMarker(stopIcon(s.stopType), cssVar(sc.marker), 24, 13) }).setLngLat(toLngLat(s.coords)).setPopup(new maplibregl.Popup().setText(s.name)).addTo(map!);
 		});
 	}
 
@@ -215,6 +244,25 @@
 </div>
 
 <style>
+	:global(.user-position-marker) {
+		position: relative;
+	}
+
+	:global(.user-position-marker)::before {
+		content: '';
+		position: absolute;
+		inset: -6px;
+		border-radius: 50%;
+		background: var(--color-ride-location-500);
+		animation: user-pulse 2s ease-out infinite;
+		z-index: -1;
+	}
+
+	@keyframes user-pulse {
+		0% { transform: scale(0.6); opacity: 0.4; }
+		70%, 100% { transform: scale(1.3); opacity: 0; }
+	}
+
 	.hide-controls :global(.maplibregl-ctrl-attrib),
 	.hide-controls :global(.maplibregl-ctrl) { display: none; }
 </style>
