@@ -7,6 +7,7 @@ export interface AuthUser {
 	name: string;
 	email: string;
 	riding_preference: 'calm' | 'mixed' | 'sport';
+	fuel_range_km: number | null;
 	created_at: string;
 }
 
@@ -38,7 +39,7 @@ export async function fetchMe(): Promise<AuthUser> {
 	return data.user;
 }
 
-export async function updateProfile(params: { name?: string; riding_preference?: string }): Promise<AuthUser> {
+export async function updateProfile(params: { name?: string; riding_preference?: string; fuel_range_km?: number }): Promise<AuthUser> {
 	const data = await request<{ user: AuthUser }>('/auth/profile', {
 		method: 'PATCH',
 		body: JSON.stringify(params)

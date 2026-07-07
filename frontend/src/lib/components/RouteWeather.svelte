@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Droplets, Wind, Thermometer, ChevronDown, Clock, Route, ChevronsDownUp, ChevronsUpDown, Save, Fuel, UtensilsCrossed, BedDouble, Mountain, MapPin, Navigation } from 'lucide-svelte';
+	import { Droplets, Wind, Thermometer, ChevronDown, Clock, Route, ChevronsDownUp, ChevronsUpDown, Save, Navigation } from 'lucide-svelte';
 	import { fade, fly } from 'svelte/transition';
 	import { transitions } from '$lib/utils/transitions';
 	import { Tooltip } from '@skeletonlabs/skeleton-svelte';
@@ -13,10 +13,7 @@
 	import { ALERT_ICONS, alertColor } from '$lib/utils/alertIcons';
 	import { formatTime, formatArrival } from '$lib/utils/routeFormat';
 	import { stopColor } from '$lib/utils/stopColors';
-
-	const STOP_ICONS: Record<string, typeof MapPin> = {
-		gas_station: Fuel, restaurant: UtensilsCrossed, rest: BedDouble, viewpoint: Mountain, other: MapPin
-	};
+	import { stopIcon } from '$lib/utils/stopIcons';
 
 	interface Props {
 		points: WeatherPoint[];
@@ -26,14 +23,17 @@
 		mobile?: boolean;
 		onSave?: () => void;
 		saving?: boolean;
+		editing?: boolean;
 		stops?: RouteStopEntry[];
 		onAddStop?: (stop: RouteStopEntry) => void;
 		onRemoveStop?: (index: number) => void;
+		onSuggestFuel?: (intervalKm: number) => Promise<void>;
+		fuelRangeKm?: number | null;
 		onClear?: () => void;
 		approachRoute?: ApproachRoute | null;
 	}
 
-	let { points, loading, alerts, score, mobile = false, onSave, saving = false, stops = [], onAddStop, onRemoveStop, onClear, approachRoute = null }: Props = $props();
+	let { points, loading, alerts, score, mobile = false, onSave, saving = false, editing = false, stops = [], onAddStop, onRemoveStop, onSuggestFuel, fuelRangeKm = null, onClear, approachRoute = null }: Props = $props();
 
 	let collapsed = $state<Set<number>>(new Set());
 
@@ -139,7 +139,7 @@
 		</button>
 	{/if}
 
-	{#if loading}
+	{#if loading && points.length === 0}
 		<p class="text-sm text-surface-400" in:fade={transitions.quick}>Carregando clima…</p>
 	{:else if points.length === 0}
 		<p class="text-sm text-surface-400" in:fade={transitions.quick}>Trace uma rota para ver o clima.</p>
@@ -172,7 +172,7 @@
 			</svg>
 
 			<div class="relative flex flex-col gap-1" style="z-index: 1;">
-				{#each points as point, i}
+				{#each points as point, i (point)}
 					{@const pointAlerts = classifyPoint(point)}
 					{#if i > 0}
 						<button
@@ -186,9 +186,9 @@
 					{/if}
 
 					{#if point.stopType}
-					{@const StopIcon = STOP_ICONS[point.stopType] ?? MapPin}
+					{@const StopIcon = stopIcon(point.stopType)}
 					{@const sc = stopColor(point.stopType)}
-					<div bind:this={cardEls[i]} class="flex items-center gap-3 rounded-lg bg-surface-700 p-3" in:fly={{ ...transitions.card, delay: i * 50 }}>
+					<div bind:this={cardEls[i]} class="flex items-center gap-3 rounded-lg bg-surface-700 p-3" in:fly|global={{ ...transitions.card, delay: i * 50 }}>
 						<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg" style="background-color: var({sc.bg});">
 							<StopIcon size={20} style="color: var({sc.fg});" />
 						</div>
@@ -222,7 +222,7 @@
 							{@render alertBadges(pointAlerts)}
 						</button>
 					{:else}
-						<div bind:this={cardEls[i]} class="flex flex-col gap-2 rounded-lg bg-surface-700 p-3" in:fly={{ ...transitions.card, delay: i * 50 }}>
+						<div bind:this={cardEls[i]} class="flex flex-col gap-2 rounded-lg bg-surface-700 p-3" in:fly|global={{ ...transitions.card, delay: i * 50 }}>
 							<div class="flex items-center justify-between pl-1">
 								<p class="text-xs text-surface-400">
 									{formatArrival(point.estimatedMinutes)}{point.locationName ? ` — ${point.locationName}` : ''}
@@ -254,7 +254,7 @@
 		</div>
 
 		{#if onAddStop && onRemoveStop}
-			<RouteStops {stops} onAdd={onAddStop} onRemove={onRemoveStop} />
+			<RouteStops {stops} onAdd={onAddStop} onRemove={onRemoveStop} {onSuggestFuel} {fuelRangeKm} />
 		{/if}
 		{#if onSave}
 			<button
@@ -271,7 +271,7 @@
 					{/if}
 				</div>
 				<div class="flex flex-col">
-					<span class="text-sm font-semibold text-white">{saving ? 'Salvando rota…' : 'Salvar no histórico'}</span>
+					<span class="text-sm font-semibold text-white">{saving ? 'Salvando rota…' : editing ? 'Atualizar rota' : 'Salvar no histórico'}</span>
 					<span class="text-xs text-surface-400">Acesse depois no seu perfil</span>
 				</div>
 			</button>

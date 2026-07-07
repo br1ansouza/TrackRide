@@ -75,8 +75,15 @@ module Api
           end
         end
 
-        if @route.update(route_params)
-          render json: { route: route_response(@route) }
+        replacing_stops = params.key?(:route_stops_attributes)
+        updated = ActiveRecord::Base.transaction do
+          @route.route_stops.destroy_all if replacing_stops
+          @route.update(route_params) || raise(ActiveRecord::Rollback)
+          true
+        end
+
+        if updated
+          render json: { route: route_response(@route.reload) }
         else
           render json: { errors: @route.errors.full_messages }, status: :unprocessable_entity
         end

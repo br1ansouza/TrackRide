@@ -1,17 +1,19 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Route, Clock, Trash2, ChevronRight, Globe, Lock, ArrowDown, Fuel, UtensilsCrossed, BedDouble, Mountain, MapPin } from 'lucide-svelte';
+	import { Route, Clock, Trash2, ChevronRight, Globe, Lock, ArrowDown } from 'lucide-svelte';
 	import { fetchSavedRoutes, deleteRoute, updateRoute, type SavedRoute } from '$lib/services/routes';
 	import { toaster } from '$lib/stores/toaster';
 	import { stopColor } from '$lib/utils/stopColors';
+	import { stopIcon } from '$lib/utils/stopIcons';
 
 	interface Props {
 		limit?: number;
 		showViewAll?: boolean;
 		onViewAll?: () => void;
+		onSelect?: (route: SavedRoute) => void;
 	}
 
-	let { limit = 0, showViewAll = false, onViewAll }: Props = $props();
+	let { limit = 0, showViewAll = false, onViewAll, onSelect }: Props = $props();
 
 	let routes = $state<SavedRoute[]>([]);
 	let total = $state(0);
@@ -97,13 +99,6 @@
 		return m > 0 ? `${h}h ${m}min` : `${h}h`;
 	}
 
-	const STOP_ICONS: Record<string, typeof MapPin> = {
-		gas_station: Fuel,
-		restaurant: UtensilsCrossed,
-		rest: BedDouble,
-		viewpoint: Mountain,
-		other: MapPin
-	};
 </script>
 
 <div class="flex flex-col gap-2">
@@ -115,7 +110,13 @@
 		<p class="text-sm text-surface-400">Nenhuma rota salva.</p>
 	{:else}
 		{#each routes as route}
-			<div class="flex items-center gap-3 rounded-lg bg-surface-700 p-3">
+			<div
+				role="button"
+				tabindex="0"
+				onclick={() => onSelect?.(route)}
+				onkeydown={(e) => { if (e.key === 'Enter') onSelect?.(route); }}
+				class="flex items-center gap-3 rounded-lg bg-surface-700 p-3 text-left transition-colors {onSelect ? 'hover:bg-surface-600' : ''}"
+			>
 				<div class="flex flex-1 flex-col gap-1">
 					<div class="flex flex-col text-sm font-medium text-white">
 						<span>{route.origin_name}</span>
@@ -137,7 +138,7 @@
 					{#if route.stops?.length > 0}
 						<div class="flex flex-wrap gap-1">
 							{#each route.stops as stop}
-								{@const Icon = STOP_ICONS[stop.stop_type] ?? MapPin}
+								{@const Icon = stopIcon(stop.stop_type)}
 								{@const sc = stopColor(stop.stop_type)}
 								<span class="flex items-center gap-1 rounded-md bg-surface-600 px-2 py-0.5 text-xs" style="color: var({sc.fg});">
 									<Icon size={10} /> {stop.name}
@@ -153,7 +154,7 @@
 				{/if}
 				<button
 					type="button"
-					onclick={() => togglePublic(route)}
+					onclick={(e) => { e.stopPropagation(); togglePublic(route); }}
 					class="text-surface-500 hover:text-surface-300"
 					title={route.public ? 'Tornar privada' : 'Tornar pública'}
 				>
@@ -165,7 +166,7 @@
 				</button>
 				<button
 					type="button"
-					onclick={() => handleDelete(route.id)}
+					onclick={(e) => { e.stopPropagation(); handleDelete(route.id); }}
 					class="text-surface-500 hover:text-surface-300"
 				>
 					<Trash2 size={16} />

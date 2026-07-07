@@ -7,6 +7,7 @@ class User < ApplicationRecord
   validates :name, presence: true
   validates :email, presence: true, uniqueness: true, format: { with: URI::MailTo::EMAIL_REGEXP }
   validates :password, length: { minimum: 6 }, if: :password_digest_changed?
+  validates :fuel_range_km, numericality: { only_integer: true, greater_than_or_equal_to: 30, less_than_or_equal_to: 1000 }, allow_nil: true
 
   def self.find_by_reset_token(raw_token)
     return nil if raw_token.blank?

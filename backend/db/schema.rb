@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_09_020503) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_05_184041) do
   create_schema "tiger"
   create_schema "topology"
 
@@ -73,6 +73,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_09_020503) do
   create_table "public.users", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "email", null: false
+    t.integer "fuel_range_km"
     t.string "name", null: false
     t.string "password_digest", null: false
     t.datetime "reset_password_sent_at"
