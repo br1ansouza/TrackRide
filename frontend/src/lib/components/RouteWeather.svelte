@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Droplets, Wind, Thermometer, ChevronDown, Clock, Route, ChevronsDownUp, ChevronsUpDown, Save, Navigation, CloudOff } from 'lucide-svelte';
+	import { Droplets, Wind, Thermometer, ChevronDown, Clock, Route, ChevronsDownUp, ChevronsUpDown, Save, Navigation, CloudOff, HardDriveDownload } from 'lucide-svelte';
 	import { fade, fly } from 'svelte/transition';
 	import { transitions } from '$lib/utils/transitions';
 	import { Tooltip } from '@skeletonlabs/skeleton-svelte';
@@ -32,9 +32,12 @@
 		onClear?: () => void;
 		approachRoute?: ApproachRoute | null;
 		weatherStale?: boolean;
+		onDownloadTiles?: () => void;
+		downloadingTiles?: boolean;
+		tileProgress?: number;
 	}
 
-	let { points, loading, alerts, score, mobile = false, onSave, saving = false, editing = false, stops = [], onAddStop, onRemoveStop, onSuggestFuel, fuelRangeKm = null, onClear, approachRoute = null, weatherStale = false }: Props = $props();
+	let { points, loading, alerts, score, mobile = false, onSave, saving = false, editing = false, stops = [], onAddStop, onRemoveStop, onSuggestFuel, fuelRangeKm = null, onClear, approachRoute = null, weatherStale = false, onDownloadTiles, downloadingTiles = false, tileProgress = 0 }: Props = $props();
 
 	let collapsed = $state<Set<number>>(new Set());
 
@@ -281,6 +284,26 @@
 				<div class="flex flex-col">
 					<span class="text-sm font-semibold text-white">{saving ? 'Salvando rota…' : editing ? 'Atualizar rota' : 'Salvar no histórico'}</span>
 					<span class="text-xs text-surface-400">Acesse depois no seu perfil</span>
+				</div>
+			</button>
+		{/if}
+		{#if onDownloadTiles}
+			<button
+				type="button"
+				onclick={onDownloadTiles}
+				disabled={downloadingTiles}
+				class="group mt-2 flex w-full items-center gap-3 rounded-xl border border-surface-600 bg-surface-700 p-3 text-left transition-all hover:border-primary-500/50 hover:bg-surface-600 disabled:opacity-70"
+			>
+				<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg" style="background-color: var(--color-ride-location-500);">
+					{#if downloadingTiles}
+						<div class="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
+					{:else}
+						<HardDriveDownload size={18} class="text-white" />
+					{/if}
+				</div>
+				<div class="flex flex-col">
+					<span class="text-sm font-semibold text-white">{downloadingTiles ? `Baixando mapa… ${tileProgress}%` : 'Baixar mapa offline'}</span>
+					<span class="text-xs text-surface-400">Mapa ao longo da rota pra usar sem sinal</span>
 				</div>
 			</button>
 		{/if}

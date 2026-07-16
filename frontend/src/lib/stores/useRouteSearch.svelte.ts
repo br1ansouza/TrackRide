@@ -7,11 +7,13 @@ import { fetchRouteWeather, type WeatherPoint } from '$lib/services/weather';
 import { createRoute, updateRoute, toStopEntries, type ExploreRoute, type SavedRoute } from '$lib/services/routes';
 import { findFuelStops } from '$lib/services/fuelStops';
 import { savePack, loadPack, WEATHER_TTL_MS } from '$lib/services/offlinePack';
+import { prefetchRouteTiles } from '$lib/services/offlineTiles';
 import { closestRouteIndex, haversineM } from '$lib/utils/mapHelpers';
 import { getLastPosition } from '$lib/services/geolocation';
 import { toaster } from '$lib/stores/toaster';
 import { useMobile } from '$lib/stores/mobile.svelte';
 import { useAuth } from '$lib/stores/auth.svelte';
+import { useSettings } from '$lib/stores/settings.svelte';
 
 export interface ApproachRoute {
 	coords: LatLng[];
@@ -24,6 +26,7 @@ const APPROACH_MIN_M = 200;
 export function useRouteSearch() {
 	const mobile = useMobile();
 	const auth = useAuth();
+	const settings = useSettings();
 
 	let originCoords = $state<LatLng | null>(null);
 	let destCoords = $state<LatLng | null>(null);
@@ -44,6 +47,8 @@ export function useRouteSearch() {
 	let editingRouteId = $state<number | null>(null);
 	let weatherSavedAt = $state<number | null>(null);
 	let approachEntry = $state<LatLng | null>(null);
+	let downloadingTiles = $state(false);
+	let tileProgress = $state(0);
 
 	let canSearch = $derived(!!originCoords && !!destCoords);
 	let hasRoute = $derived(weatherPoints.length > 0);
@@ -119,6 +124,7 @@ export function useRouteSearch() {
 			routeSaved = false;
 			weatherSavedAt = Date.now();
 			persistPack(routeData);
+			if (settings.autoOfflineMaps) downloadOfflineTiles(false);
 		} catch {
 			toaster.error({ title: 'Erro ao buscar clima', description: 'Falha na comunicação com o serviço de clima.' });
 		} finally {
@@ -301,6 +307,34 @@ export function useRouteSearch() {
 		mapRef.drawApproachRoute([pos, entry]);
 	}
 
+	async function downloadOfflineTiles(notify: boolean = true) {
+		if (routeCoords.length < 2 || downloadingTiles) return;
+		downloadingTiles = true;
+		tileProgress = 0;
+		try {
+			const result = await prefetchRouteTiles($state.snapshot(routeCoords), (done, total) => {
+				tileProgress = Math.round((done / total) * 100);
+			});
+			if (result.failed > 0) {
+				toaster.warning({
+					title: 'Mapa offline incompleto',
+					description: `${result.failed} de ${result.total} blocos falharam. Tente novamente com conexão estável.`
+				});
+			} else if (notify) {
+				toaster.success({
+					title: 'Mapa offline pronto',
+					description: 'O mapa ao longo da rota foi salvo no aparelho.'
+				});
+			}
+		} catch {
+			if (notify) {
+				toaster.error({ title: 'Falha no download', description: 'Não foi possível baixar o mapa da rota.' });
+			}
+		} finally {
+			downloadingTiles = false;
+		}
+	}
+
 	async function handleSaveRoute() {
 		if (!originCoords || !destCoords || !score) return;
 		saving = true;
@@ -373,6 +407,9 @@ export function useRouteSearch() {
 		get editingRouteId() { return editingRouteId; },
 		get weatherStale() { return weatherStale; },
 		get approachEntry() { return approachEntry; },
+		get downloadingTiles() { return downloadingTiles; },
+		get tileProgress() { return tileProgress; },
+		downloadOfflineTiles,
 		restoreOfflinePack,
 		handleSearch,
 		addStop,

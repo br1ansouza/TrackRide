@@ -14,6 +14,7 @@
 	import { classifyPoint } from '$lib/services/alerts';
 	import { toaster } from '$lib/stores/toaster';
 	import { watchPosition, clearWatch, getLastPosition } from '$lib/services/geolocation';
+	import { registerOfflineProtocol, prepareMapStyle } from '$lib/services/offlineTiles';
 
 	let { controlsVisible = true }: { controlsVisible?: boolean } = $props();
 
@@ -59,40 +60,52 @@
 
 	onMount(() => {
 		mapReady = new Promise((r) => { resolveReady = r; });
-		const lastPos = getLastPosition();
-		map = new maplibregl.Map({
-			container: mapContainer,
-			style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
-			center: lastPos ? toLngLat(lastPos) : [-51.9253, -14.235],
-			zoom: lastPos ? 13 : 4,
-			attributionControl: false
-		});
-		map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
-		map.on('load', () => { addEmptySources(); resolveReady(); });
+		registerOfflineProtocol();
 
-		const resizeObserver = new ResizeObserver(() => map?.resize());
-		resizeObserver.observe(mapContainer);
+		let disposed = false;
+		let cleanup: (() => void) | null = null;
 
-		const gpsTimeout = setTimeout(() => { gpsLoading = false; }, GPS_LOADING_TIMEOUT_MS);
-		watchPosition({
-			onPosition(coords) {
-				if (!map) return;
-				gpsLoading = false;
-				clearTimeout(gpsTimeout);
-				const lngLat = toLngLat(coords);
-				if (locationMarker) { locationMarker.setLngLat(lngLat); }
-				else {
-					const el = createIconMarker(Navigation2, cssVar('--color-ride-location-500'), 28, 15, true);
-					el.classList.add('user-position-marker');
-					locationMarker = new maplibregl.Marker({ element: el }).setLngLat(lngLat).addTo(map!);
-				}
-				updateOriginVisibility(coords);
-				if (!hasInitialPosition) { map.flyTo({ center: lngLat, zoom: 13 }); hasInitialPosition = true; }
-			},
-			onError(msg) { gpsLoading = false; toaster.warning({ title: 'Localização indisponível', description: msg }); }
-		});
+		(async () => {
+			const style = await prepareMapStyle();
+			if (disposed) return;
 
-		return () => { clearTimeout(gpsTimeout); resizeObserver.disconnect(); clearWatch(); map?.remove(); };
+			const lastPos = getLastPosition();
+			map = new maplibregl.Map({
+				container: mapContainer,
+				style,
+				center: lastPos ? toLngLat(lastPos) : [-51.9253, -14.235],
+				zoom: lastPos ? 13 : 4,
+				attributionControl: false
+			});
+			map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
+			map.on('load', () => { addEmptySources(); resolveReady(); });
+
+			const resizeObserver = new ResizeObserver(() => map?.resize());
+			resizeObserver.observe(mapContainer);
+
+			const gpsTimeout = setTimeout(() => { gpsLoading = false; }, GPS_LOADING_TIMEOUT_MS);
+			watchPosition({
+				onPosition(coords) {
+					if (!map) return;
+					gpsLoading = false;
+					clearTimeout(gpsTimeout);
+					const lngLat = toLngLat(coords);
+					if (locationMarker) { locationMarker.setLngLat(lngLat); }
+					else {
+						const el = createIconMarker(Navigation2, cssVar('--color-ride-location-500'), 28, 15, true);
+						el.classList.add('user-position-marker');
+						locationMarker = new maplibregl.Marker({ element: el }).setLngLat(lngLat).addTo(map!);
+					}
+					updateOriginVisibility(coords);
+					if (!hasInitialPosition) { map.flyTo({ center: lngLat, zoom: 13 }); hasInitialPosition = true; }
+				},
+				onError(msg) { gpsLoading = false; toaster.warning({ title: 'Localização indisponível', description: msg }); }
+			});
+
+			cleanup = () => { clearTimeout(gpsTimeout); resizeObserver.disconnect(); clearWatch(); map?.remove(); };
+		})();
+
+		return () => { disposed = true; cleanup?.(); };
 	});
 
 	function addEmptySources() {
