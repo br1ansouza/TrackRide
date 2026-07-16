@@ -1,7 +1,7 @@
 import type { LatLng, RouteData } from './routing';
 import type { WeatherPoint } from './weather';
 import type { RouteStopEntry } from '$lib/types/routeStop';
-import { idbGet, idbPut, idbDelete } from '$lib/utils/idb';
+import { idbGet, idbPut, idbDelete, idbClear } from '$lib/utils/idb';
 
 export interface RoutePack {
 	originLabel: string;
@@ -42,5 +42,17 @@ export async function clearPack(): Promise<void> {
 		await idbDelete('route-packs', PACK_KEY);
 	} catch (error) {
 		console.error('Falha ao limpar pacote offline:', error);
+	}
+}
+
+export async function clearOfflineUserData(): Promise<void> {
+	try {
+		await Promise.all([
+			idbClear('route-packs'),
+			idbClear('sync-queue'),
+			idbDelete('cache', 'saved-routes')
+		]);
+	} catch (error) {
+		console.error('Falha ao limpar dados offline do usuário:', error);
 	}
 }

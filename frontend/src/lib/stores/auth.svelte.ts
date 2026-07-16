@@ -1,6 +1,7 @@
 import { onMount } from 'svelte';
 import { goto } from '$app/navigation';
 import { type AuthUser, fetchMe, clearToken, isAuthenticated, getCachedUser, clearCachedUser } from '$lib/services/auth';
+import { clearOfflineUserData } from '$lib/services/offlinePack';
 import { useConnectivity } from '$lib/stores/connectivity.svelte';
 
 let user = $state<AuthUser | null>(null);
@@ -32,6 +33,7 @@ export function useAuth() {
 		logout() {
 			clearToken();
 			clearCachedUser();
+			clearOfflineUserData();
 			user = null;
 			goto('/login');
 		}

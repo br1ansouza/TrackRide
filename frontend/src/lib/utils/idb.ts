@@ -50,3 +50,8 @@ export async function idbGetAll<T>(store: StoreName): Promise<T[]> {
 	const db = await openDb();
 	return requestToPromise(db.transaction(store).objectStore(store).getAll());
 }
+
+export async function idbClear(store: StoreName): Promise<void> {
+	const db = await openDb();
+	await requestToPromise(db.transaction(store, 'readwrite').objectStore(store).clear());
+}
