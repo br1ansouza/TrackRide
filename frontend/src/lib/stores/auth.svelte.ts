@@ -1,6 +1,6 @@
 import { onMount } from 'svelte';
 import { goto } from '$app/navigation';
-import { type AuthUser, fetchMe, clearToken, isAuthenticated } from '$lib/services/auth';
+import { type AuthUser, fetchMe, clearToken, isAuthenticated, getCachedUser, clearCachedUser } from '$lib/services/auth';
 
 let user = $state<AuthUser | null>(null);
 let loading = $state(true);
@@ -14,7 +14,9 @@ export function useAuth() {
 		try {
 			user = await fetchMe();
 		} catch {
-			clearToken();
+			if (isAuthenticated()) {
+				user = getCachedUser();
+			}
 		} finally {
 			loading = false;
 		}
@@ -27,6 +29,7 @@ export function useAuth() {
 		setUser(u: AuthUser) { user = u; },
 		logout() {
 			clearToken();
+			clearCachedUser();
 			user = null;
 			goto('/login');
 		}
