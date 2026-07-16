@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Droplets, Wind, Thermometer, ChevronDown, Clock, Route, ChevronsDownUp, ChevronsUpDown, Save, Navigation } from 'lucide-svelte';
+	import { Droplets, Wind, Thermometer, ChevronDown, Clock, Route, ChevronsDownUp, ChevronsUpDown, Save, Navigation, CloudOff } from 'lucide-svelte';
 	import { fade, fly } from 'svelte/transition';
 	import { transitions } from '$lib/utils/transitions';
 	import { Tooltip } from '@skeletonlabs/skeleton-svelte';
@@ -31,9 +31,10 @@
 		fuelRangeKm?: number | null;
 		onClear?: () => void;
 		approachRoute?: ApproachRoute | null;
+		weatherStale?: boolean;
 	}
 
-	let { points, loading, alerts, score, mobile = false, onSave, saving = false, editing = false, stops = [], onAddStop, onRemoveStop, onSuggestFuel, fuelRangeKm = null, onClear, approachRoute = null }: Props = $props();
+	let { points, loading, alerts, score, mobile = false, onSave, saving = false, editing = false, stops = [], onAddStop, onRemoveStop, onSuggestFuel, fuelRangeKm = null, onClear, approachRoute = null, weatherStale = false }: Props = $props();
 
 	let collapsed = $state<Set<number>>(new Set());
 
@@ -146,6 +147,13 @@
 	{:else}
 		{#if score}
 			<RouteScoreBadge {score} {alerts} />
+		{/if}
+
+		{#if weatherStale}
+			<div class="my-1 flex items-center gap-2 rounded-lg p-2" style="background-color: var(--color-ride-alert-900);" in:fade={transitions.quick}>
+				<CloudOff size={14} style="color: var(--color-ride-alert-300);" />
+				<span class="text-xs" style="color: var(--color-ride-alert-300);">Clima desatualizado — snapshot com mais de 3h.</span>
+			</div>
 		{/if}
 
 		{#if approachRoute}

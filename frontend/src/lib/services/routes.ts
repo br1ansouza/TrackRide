@@ -1,5 +1,6 @@
 import { request } from './api';
 import type { RouteStopEntry, StopType } from '$lib/types/routeStop';
+import { idbGet, idbPut } from '$lib/utils/idb';
 
 export interface SavedRouteStop {
 	id: number;
@@ -32,7 +33,19 @@ interface RoutesResponse {
 }
 
 export async function fetchSavedRoutes(limit = 20, offset = 0): Promise<RoutesResponse> {
-	return request<RoutesResponse>(`/routes?limit=${limit}&offset=${offset}`);
+	try {
+		const data = await request<RoutesResponse>(`/routes?limit=${limit}&offset=${offset}`);
+		if (offset === 0) {
+			idbPut('cache', 'saved-routes', data).catch((error) => console.error('Falha ao cachear histórico:', error));
+		}
+		return data;
+	} catch (error) {
+		if (error instanceof TypeError && offset === 0) {
+			const cached = await idbGet<RoutesResponse>('cache', 'saved-routes').catch(() => undefined);
+			if (cached) return cached;
+		}
+		throw error;
+	}
 }
 
 export function toStopEntries(stops: SavedRouteStop[]): RouteStopEntry[] {

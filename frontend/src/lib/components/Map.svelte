@@ -29,6 +29,7 @@
 	let routeMarkers: maplibregl.Marker[] = [];
 
 	const ORIGIN_HIDE_RADIUS_M = 50;
+	const GPS_LOADING_TIMEOUT_MS = 20000;
 
 	function updateOriginVisibility(userPosition: LatLng) {
 		if (!originMarker || !originPoint) return;
@@ -72,10 +73,12 @@
 		const resizeObserver = new ResizeObserver(() => map?.resize());
 		resizeObserver.observe(mapContainer);
 
+		const gpsTimeout = setTimeout(() => { gpsLoading = false; }, GPS_LOADING_TIMEOUT_MS);
 		watchPosition({
 			onPosition(coords) {
 				if (!map) return;
 				gpsLoading = false;
+				clearTimeout(gpsTimeout);
 				const lngLat = toLngLat(coords);
 				if (locationMarker) { locationMarker.setLngLat(lngLat); }
 				else {
@@ -89,7 +92,7 @@
 			onError(msg) { gpsLoading = false; toaster.warning({ title: 'Localização indisponível', description: msg }); }
 		});
 
-		return () => { resizeObserver.disconnect(); clearWatch(); map?.remove(); };
+		return () => { clearTimeout(gpsTimeout); resizeObserver.disconnect(); clearWatch(); map?.remove(); };
 	});
 
 	function addEmptySources() {
@@ -117,25 +120,41 @@
 		originPoint = null;
 	}
 
+	function placeRouteMarkers(originCoords: LatLng, destCoords: LatLng) {
+		originMarker = new maplibregl.Marker({ element: createIconMarker(Flag, cssVar('--color-ride-safe-500')) }).setLngLat(toLngLat(originCoords)).setPopup(new maplibregl.Popup().setText('Origem')).addTo(map!);
+		originPoint = originCoords;
+		routeMarkers.push(
+			originMarker,
+			new maplibregl.Marker({ element: createDestinationMarker(), anchor: 'bottom' }).setLngLat(toLngLat(destCoords)).setPopup(new maplibregl.Popup().setText('Destino')).addTo(map!)
+		);
+		const lastPosition = getLastPosition();
+		if (lastPosition) updateOriginVisibility(lastPosition);
+	}
+
+	function renderRouteLine(originCoords: LatLng, destCoords: LatLng, routeData: RouteData, skipFit: boolean): boolean {
+		const src = map?.getSource('route') as maplibregl.GeoJSONSource | undefined;
+		if (!map || !src) return false;
+		src.setData({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: toLineCoords(routeData.coords) } });
+		if (!skipFit) map.fitBounds(boundsFromCoords([originCoords, destCoords, ...routeData.coords]), { padding: 40 });
+		return true;
+	}
+
 	export async function drawRoute(originCoords: LatLng, destCoords: LatLng, waypoints: LatLng[] = [], skipFit = false): Promise<RouteData | null> {
 		if (!map) return null;
 		await mapReady;
 		clearRoute();
-		originMarker = new maplibregl.Marker({ element: createIconMarker(Flag, cssVar('--color-ride-safe-500')) }).setLngLat(toLngLat(originCoords)).setPopup(new maplibregl.Popup().setText('Origem')).addTo(map);
-		originPoint = originCoords;
-		routeMarkers.push(
-			originMarker,
-			new maplibregl.Marker({ element: createDestinationMarker(), anchor: 'bottom' }).setLngLat(toLngLat(destCoords)).setPopup(new maplibregl.Popup().setText('Destino')).addTo(map)
-		);
-		const lastPosition = getLastPosition();
-		if (lastPosition) updateOriginVisibility(lastPosition);
+		placeRouteMarkers(originCoords, destCoords);
 		const routeData = await fetchRoute(originCoords, destCoords, waypoints);
-		if (!routeData || !map) return null;
-		const src = map.getSource('route') as maplibregl.GeoJSONSource | undefined;
-		if (!src) return null;
-		src.setData({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: toLineCoords(routeData.coords) } });
-		if (!skipFit) map.fitBounds(boundsFromCoords([originCoords, destCoords, ...routeData.coords]), { padding: 40 });
-		return routeData;
+		if (!routeData) return null;
+		return renderRouteLine(originCoords, destCoords, routeData, skipFit) ? routeData : null;
+	}
+
+	export async function drawStoredRoute(originCoords: LatLng, destCoords: LatLng, routeData: RouteData): Promise<void> {
+		if (!map) return;
+		await mapReady;
+		clearRoute();
+		placeRouteMarkers(originCoords, destCoords);
+		renderRouteLine(originCoords, destCoords, routeData, false);
 	}
 
 	export function showStopMarkers(stops: RouteStopEntry[]) {
@@ -222,6 +241,14 @@
 	export function clearApproachRoute() {
 		if (!map) return;
 		(map.getSource('approach') as maplibregl.GeoJSONSource | undefined)?.setData(emptyLine());
+	}
+
+	export function reloadBaseTiles() {
+		if (!map) return;
+		for (const cache of Object.values(map.style.sourceCaches)) {
+			cache.reload();
+		}
+		map.triggerRepaint();
 	}
 
 	export function clearTracking() {

@@ -6,7 +6,8 @@ import { calculateRouteScore, type RouteScore, type RidingPreference } from '$li
 import { fetchRouteWeather, type WeatherPoint } from '$lib/services/weather';
 import { createRoute, updateRoute, toStopEntries, type ExploreRoute, type SavedRoute } from '$lib/services/routes';
 import { findFuelStops } from '$lib/services/fuelStops';
-import { closestRouteIndex } from '$lib/utils/mapHelpers';
+import { savePack, loadPack, WEATHER_TTL_MS } from '$lib/services/offlinePack';
+import { closestRouteIndex, haversineM } from '$lib/utils/mapHelpers';
 import { getLastPosition } from '$lib/services/geolocation';
 import { toaster } from '$lib/stores/toaster';
 import { useMobile } from '$lib/stores/mobile.svelte';
@@ -41,9 +42,12 @@ export function useRouteSearch() {
 	let approachRoute = $state<ApproachRoute | null>(null);
 	let exploreRouteId = $state<number | null>(null);
 	let editingRouteId = $state<number | null>(null);
+	let weatherSavedAt = $state<number | null>(null);
+	let approachEntry = $state<LatLng | null>(null);
 
 	let canSearch = $derived(!!originCoords && !!destCoords);
 	let hasRoute = $derived(weatherPoints.length > 0);
+	let weatherStale = $derived(weatherSavedAt !== null && Date.now() - weatherSavedAt > WEATHER_TTL_MS);
 
 	$effect(() => {
 		const pref = auth.user?.riding_preference;
@@ -59,6 +63,24 @@ export function useRouteSearch() {
 		score = null;
 		routeSaved = false;
 		approachRoute = null;
+		approachEntry = null;
+		weatherSavedAt = null;
+	}
+
+	function persistPack(routeData: RouteData) {
+		if (!originCoords || !destCoords) return;
+		savePack({
+			originLabel,
+			destLabel,
+			originCoords: $state.snapshot(originCoords),
+			destCoords: $state.snapshot(destCoords),
+			stops: $state.snapshot(stops),
+			routeData,
+			weatherPoints: $state.snapshot(weatherPoints),
+			editingRouteId,
+			exploreRouteId,
+			savedAt: Date.now()
+		});
 	}
 
 	async function computeApproach(routeOrigin: LatLng): Promise<void> {
@@ -95,6 +117,8 @@ export function useRouteSearch() {
 			alerts = analyzeRoute(weatherPoints);
 			score = calculateRouteScore(weatherPoints, (auth.user?.riding_preference ?? 'mixed') as RidingPreference);
 			routeSaved = false;
+			weatherSavedAt = Date.now();
+			persistPack(routeData);
 		} catch {
 			toaster.error({ title: 'Erro ao buscar clima', description: 'Falha na comunicação com o serviço de clima.' });
 		} finally {
@@ -234,6 +258,49 @@ export function useRouteSearch() {
 		await processWeather(routeData);
 	}
 
+	async function restoreOfflinePack(): Promise<boolean> {
+		if (!mapRef) return false;
+		const pack = await loadPack();
+		if (!pack) return false;
+
+		originCoords = pack.originCoords;
+		destCoords = pack.destCoords;
+		originLabel = pack.originLabel;
+		destLabel = pack.destLabel;
+		stops = pack.stops;
+		editingRouteId = pack.editingRouteId;
+		exploreRouteId = pack.exploreRouteId;
+
+		await mapRef.drawStoredRoute(pack.originCoords, pack.destCoords, pack.routeData);
+		if (pack.stops.length > 0) mapRef.showStopMarkers(pack.stops);
+
+		weatherPoints = pack.weatherPoints;
+		routeCoords = pack.routeData.coords;
+		mapRef.showWeatherMarkers(pack.weatherPoints);
+		mapRef.showRouteConditions(pack.routeData.coords, pack.weatherPoints);
+		alerts = analyzeRoute(pack.weatherPoints);
+		score = calculateRouteScore(pack.weatherPoints, (auth.user?.riding_preference ?? 'mixed') as RidingPreference);
+		weatherSavedAt = pack.savedAt;
+		routeSaved = true;
+		drawStraightApproach(pack.routeData.coords);
+		return true;
+	}
+
+	function drawStraightApproach(coords: LatLng[]) {
+		const pos = getLastPosition();
+		if (!pos || !mapRef || coords.length === 0) return;
+		const entry = coords[closestRouteIndex(coords, pos)];
+		const distM = haversineM(pos, entry);
+		if (distM < APPROACH_MIN_M) return;
+		approachEntry = entry;
+		approachRoute = {
+			coords: [pos, entry],
+			distanceKm: Math.round(distM / 100) / 10,
+			durationMinutes: Math.round((distM / 1000 / 40) * 60)
+		};
+		mapRef.drawApproachRoute([pos, entry]);
+	}
+
 	async function handleSaveRoute() {
 		if (!originCoords || !destCoords || !score) return;
 		saving = true;
@@ -304,6 +371,9 @@ export function useRouteSearch() {
 		get approachRoute() { return approachRoute; },
 		get exploreRouteId() { return exploreRouteId; },
 		get editingRouteId() { return editingRouteId; },
+		get weatherStale() { return weatherStale; },
+		get approachEntry() { return approachEntry; },
+		restoreOfflinePack,
 		handleSearch,
 		addStop,
 		removeStop,
