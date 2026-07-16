@@ -19,7 +19,7 @@
 	import { createRoute, completeRoute } from '$lib/services/routes';
 	import type { LatLng } from '$lib/services/routing';
 	import { safeTop, safeBottom, safeBottomNav, safeLeft, safeRight } from '$lib/utils/safeArea';
-	import { bearingAlongPath, haversineM } from '$lib/utils/mapHelpers';
+	import { bearingAlongPath, haversineM, closestRouteIndex } from '$lib/utils/mapHelpers';
 	import { vibrateHeavy } from '$lib/utils/haptics';
 	import { toaster } from '$lib/stores/toaster';
 
@@ -101,7 +101,10 @@
 	async function handleReroute(position: LatLng) {
 		if (!route.mapRef || !route.destCoords) return;
 		toaster.info({ title: 'Recalculando rota', description: 'Você saiu do trajeto planejado.' });
-		const routeData = await route.mapRef.drawRoute(position, route.destCoords, [], true);
+		const planned = tracking.plannedRoute.length >= 2 ? tracking.plannedRoute : route.routeCoords;
+		const riderIndex = closestRouteIndex(planned, position);
+		const pendingStops = route.stops.filter((s) => closestRouteIndex(planned, s.coords) >= riderIndex);
+		const routeData = await route.mapRef.drawRoute(position, route.destCoords, pendingStops.map((s) => s.coords), true);
 		if (routeData) {
 			tracking.updatePlannedRoute(routeData.coords);
 		}
