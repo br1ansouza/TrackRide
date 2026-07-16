@@ -3,13 +3,10 @@ import type { CapacitorConfig } from '@capacitor/cli';
 const config: CapacitorConfig = {
 	appId: 'com.trackride.app',
 	appName: 'TrackRide',
-	webDir: 'build/client',
+	webDir: 'build-standalone',
 	server: {
-		url: 'http://YOUR_LOCAL_IP:4173',
+		androidScheme: 'http',
 		cleartext: true
-	},
-	android: {
-		useLegacyBridge: true
 	}
 };
 

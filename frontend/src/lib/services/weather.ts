@@ -1,4 +1,5 @@
 import type { LatLng, RouteData } from './routing';
+import { fetchForecast } from './gateway';
 
 export interface WeatherPoint {
 	coords: LatLng;
@@ -99,27 +100,13 @@ export function sampleRoutePoints(
 	return points;
 }
 
-async function fetchWithRetry(url: string, retries = 2): Promise<Response | null> {
-	for (let i = 0; i <= retries; i++) {
-		try {
-			const res = await fetch(url);
-			if (res.ok) return res;
-		} catch {
-			if (i === retries) return null;
-			await new Promise((r) => setTimeout(r, 1000 * (i + 1)));
-		}
-	}
-	return null;
-}
-
 async function fetchWeatherAt(
 	point: SamplePoint
 ): Promise<WeatherPoint | null> {
 	const arrivalTime = Math.floor(Date.now() / 1000) + point.estimatedMinutes * 60;
 
-	const response = await fetchWithRetry(`/api/forecast?lat=${point.coords[0]}&lon=${point.coords[1]}`);
-	if (!response) return null;
-	const data = await response.json();
+	const data = await fetchForecast(point.coords[0], point.coords[1]);
+	if (!data) return null;
 
 	const forecasts = data.list as {
 		dt: number;

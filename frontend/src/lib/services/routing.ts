@@ -1,3 +1,5 @@
+import { fetchOsrmRoute } from './gateway';
+
 export type LatLng = [number, number];
 
 export interface RouteData {
@@ -8,16 +10,6 @@ export interface RouteData {
 	segmentDistances: number[];
 }
 
-export async function geocode(query: string): Promise<LatLng | null> {
-	if (!query.trim()) return null;
-	const response = await fetch(`/api/geocode?q=${encodeURIComponent(query)}`);
-	const data = await response.json();
-	const feature = data.features?.[0];
-	if (!feature) return null;
-	const [lon, lat] = feature.geometry.coordinates;
-	return [lat, lon];
-}
-
 export async function fetchRoute(
 	origin: LatLng,
 	destination: LatLng,
@@ -26,14 +18,11 @@ export async function fetchRoute(
 	const points = [origin, ...waypoints, destination];
 	const coords = points.map((p) => `${p[1]},${p[0]}`).join(';');
 
-	const response = await fetch(`/api/route?coords=${coords}`);
-	if (!response.ok) return null;
-
-	const data = await response.json();
-	if (data.code !== 'Ok' || !data.routes.length) return null;
+	const data = await fetchOsrmRoute(coords);
+	if (!data || data.code !== 'Ok' || !data.routes.length) return null;
 
 	const route = data.routes[0];
-	const routeCoords: LatLng[] = route.geometry.coordinates.map((c: [number, number]) => [c[1], c[0]]);
+	const routeCoords: LatLng[] = route.geometry.coordinates.map((c) => [c[1], c[0]]);
 
 	const segmentDurations: number[] = [];
 	const segmentDistances: number[] = [];
