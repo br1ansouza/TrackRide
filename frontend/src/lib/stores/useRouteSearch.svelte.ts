@@ -49,6 +49,7 @@ export function useRouteSearch() {
 	let approachEntry = $state<LatLng | null>(null);
 	let downloadingTiles = $state(false);
 	let tileProgress = $state(0);
+	let tilesDownloaded = $state(false);
 
 	let canSearch = $derived(!!originCoords && !!destCoords);
 	let hasRoute = $derived(weatherPoints.length > 0);
@@ -70,6 +71,7 @@ export function useRouteSearch() {
 		approachRoute = null;
 		approachEntry = null;
 		weatherSavedAt = null;
+		tilesDownloaded = false;
 	}
 
 	function persistPack(routeData: RouteData) {
@@ -124,6 +126,7 @@ export function useRouteSearch() {
 			routeSaved = false;
 			weatherSavedAt = Date.now();
 			persistPack(routeData);
+			tilesDownloaded = false;
 			if (settings.autoOfflineMaps) downloadOfflineTiles(false);
 		} catch {
 			toaster.error({ title: 'Erro ao buscar clima', description: 'Falha na comunicação com o serviço de clima.' });
@@ -320,11 +323,14 @@ export function useRouteSearch() {
 					title: 'Mapa offline incompleto',
 					description: `${result.failed} de ${result.total} blocos falharam. Tente novamente com conexão estável.`
 				});
-			} else if (notify) {
-				toaster.success({
-					title: 'Mapa offline pronto',
-					description: 'O mapa ao longo da rota foi salvo no aparelho.'
-				});
+			} else {
+				tilesDownloaded = true;
+				if (notify) {
+					toaster.success({
+						title: 'Mapa offline pronto',
+						description: 'O mapa ao longo da rota foi salvo no aparelho.'
+					});
+				}
 			}
 		} catch {
 			if (notify) {
@@ -409,6 +415,7 @@ export function useRouteSearch() {
 		get approachEntry() { return approachEntry; },
 		get downloadingTiles() { return downloadingTiles; },
 		get tileProgress() { return tileProgress; },
+		get tilesDownloaded() { return tilesDownloaded; },
 		downloadOfflineTiles,
 		restoreOfflinePack,
 		handleSearch,
