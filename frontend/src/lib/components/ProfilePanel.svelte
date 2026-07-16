@@ -3,6 +3,7 @@
 	import type { AuthUser } from '$lib/services/auth';
 	import PreferenceSelector from '$lib/components/PreferenceSelector.svelte';
 	import FuelRangeEditor from '$lib/components/FuelRangeEditor.svelte';
+	import OfflineMapToggle from '$lib/components/OfflineMapToggle.svelte';
 	import { vibrate } from '$lib/utils/haptics';
 	import backgroundImg from '$lib/assets/background-trackride.png';
 
@@ -35,6 +36,8 @@
 	<PreferenceSelector {user} {onUserUpdate} />
 
 	<FuelRangeEditor {user} {onUserUpdate} />
+
+	<OfflineMapToggle />
 
 	<hr class="border-surface-700" />
 
