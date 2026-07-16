@@ -125,7 +125,7 @@
 	{/if}
 {/snippet}
 
-<aside class="flex flex-col gap-1 overflow-y-auto p-4 {mobile ? 'w-full pt-[calc(16px+env(safe-area-inset-top))]' : 'w-80 bg-surface-800'}" style={mobile ? 'padding-bottom: calc(24px + env(safe-area-inset-bottom))' : ''}>
+<aside class="flex flex-col gap-1 overflow-y-auto p-4 {mobile ? 'w-full pt-[calc(16px+env(safe-area-inset-top))]' : 'w-80 bg-surface-800'}" style={mobile ? `padding-bottom: calc(${onDownloadTiles && points.length > 0 ? '120px' : '24px'} + env(safe-area-inset-bottom))` : ''}>
 	<div class="flex items-center justify-between">
 		<h2 class="text-lg font-semibold text-white">Clima na rota</h2>
 		{#if points.length > 2}
