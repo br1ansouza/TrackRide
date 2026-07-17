@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { Route, Clock, Trash2, ChevronRight, Globe, Lock, ArrowDown } from 'lucide-svelte';
 	import { fetchSavedRoutes, deleteRoute, updateRoute, type SavedRoute } from '$lib/services/routes';
+	import { reverseDistrict } from '$lib/services/gateway';
 	import { toaster } from '$lib/stores/toaster';
 	import { stopColor } from '$lib/utils/stopColors';
 	import { stopIcon } from '$lib/utils/stopIcons';
@@ -24,19 +25,14 @@
 	async function enrichName(route: SavedRoute): Promise<void> {
 		if (!route.origin_name.startsWith('Minha localização')) return;
 		if (route.origin_name.includes('(')) return;
-		try {
-			const [lon, lat] = route.origin_coords;
-			const res = await fetch(`/api/geocode/reverse?lat=${lat}&lon=${lon}`);
-			const data = await res.json();
-			if (data.district) {
-				const enriched = `Minha localização (${data.district})`;
-				route.origin_name = enriched;
-				routes = [...routes];
-				updateRoute(route.id, { name: `${enriched} → ${route.destination_name}`, origin_name: enriched })
-					.catch(() => toaster.warning({ title: 'Aviso', description: 'Não foi possível atualizar o nome da rota.' }));
-			}
-		} catch {
-			toaster.warning({ title: 'Aviso', description: 'Não foi possível identificar sua localização.' });
+		const [lon, lat] = route.origin_coords;
+		const district = await reverseDistrict(lat, lon);
+		if (district) {
+			const enriched = `Minha localização (${district})`;
+			route.origin_name = enriched;
+			routes = [...routes];
+			updateRoute(route.id, { name: `${enriched} → ${route.destination_name}`, origin_name: enriched })
+				.catch(() => toaster.warning({ title: 'Aviso', description: 'Não foi possível atualizar o nome da rota.' }));
 		}
 	}
 

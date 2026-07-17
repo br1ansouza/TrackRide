@@ -11,6 +11,25 @@ export interface AuthUser {
 	created_at: string;
 }
 
+const USER_KEY = 'trackride:user';
+
+export function cacheUser(user: AuthUser): void {
+	localStorage.setItem(USER_KEY, JSON.stringify(user));
+}
+
+export function getCachedUser(): AuthUser | null {
+	try {
+		const raw = localStorage.getItem(USER_KEY);
+		return raw ? JSON.parse(raw) : null;
+	} catch {
+		return null;
+	}
+}
+
+export function clearCachedUser(): void {
+	localStorage.removeItem(USER_KEY);
+}
+
 interface AuthResponse {
 	token: string;
 	user: AuthUser;
@@ -22,6 +41,7 @@ export async function register(name: string, email: string, password: string, pa
 		body: JSON.stringify({ name, email, password, password_confirmation: passwordConfirmation })
 	});
 	setToken(data.token);
+	cacheUser(data.user);
 	return data.user;
 }
 
@@ -31,11 +51,13 @@ export async function login(email: string, password: string): Promise<AuthUser> 
 		body: JSON.stringify({ email, password })
 	});
 	setToken(data.token);
+	cacheUser(data.user);
 	return data.user;
 }
 
 export async function fetchMe(): Promise<AuthUser> {
 	const data = await request<{ user: AuthUser }>('/auth/me');
+	cacheUser(data.user);
 	return data.user;
 }
 
@@ -44,6 +66,7 @@ export async function updateProfile(params: { name?: string; riding_preference?:
 		method: 'PATCH',
 		body: JSON.stringify(params)
 	});
+	cacheUser(data.user);
 	return data.user;
 }
 

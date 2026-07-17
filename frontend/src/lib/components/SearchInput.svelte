@@ -2,6 +2,7 @@
 	import { MapPin } from 'lucide-svelte';
 	import type { LatLng } from '$lib/services/routing';
 	import { getCurrentPosition, getLastPosition } from '$lib/services/geolocation';
+	import { searchPlaces, reverseDistrict } from '$lib/services/gateway';
 	import { toaster } from '$lib/stores/toaster';
 
 	export type SearchResult = {
@@ -43,9 +44,7 @@
 	async function search(q: string) {
 		loading = true;
 		const pos = getLastPosition();
-		const proximity = pos ? `&lat=${pos[0]}&lon=${pos[1]}` : '';
-		const response = await fetch(`/api/geocode?q=${encodeURIComponent(q)}${proximity}`);
-		results = await response.json();
+		results = await searchPlaces(q, pos ? { lat: pos[0], lon: pos[1] } : undefined);
 		loading = false;
 		open = results.length > 0;
 	}
@@ -59,12 +58,8 @@
 	}
 
 	async function resolveLocationLabel(coords: LatLng): Promise<string> {
-		try {
-			const res = await fetch(`/api/geocode/reverse?lat=${coords[0]}&lon=${coords[1]}`);
-			const data = await res.json();
-			if (data.district) return `Minha localização (${data.district})`;
-		} catch {}
-		return 'Minha localização';
+		const district = await reverseDistrict(coords[0], coords[1]);
+		return district ? `Minha localização (${district})` : 'Minha localização';
 	}
 
 	async function selectMyLocation() {

@@ -3,6 +3,7 @@
 	import type { AuthUser } from '$lib/services/auth';
 	import PreferenceSelector from '$lib/components/PreferenceSelector.svelte';
 	import FuelRangeEditor from '$lib/components/FuelRangeEditor.svelte';
+	import OfflineMapToggle from '$lib/components/OfflineMapToggle.svelte';
 	import { vibrate } from '$lib/utils/haptics';
 	import backgroundImg from '$lib/assets/background-trackride.png';
 
@@ -17,11 +18,11 @@
 	let { user, onLogout, onUserUpdate, onViewAllRoutes, compact = false }: Props = $props();
 </script>
 
-<div class="relative flex flex-col gap-4 {compact ? '' : 'h-full overflow-y-auto bg-surface-800 p-5 pb-20 pt-[calc(20px+env(safe-area-inset-top))]'}">
+<div class="relative {compact ? '' : 'h-full overflow-hidden bg-surface-800'}">
 	{#if !compact}
 		<div class="absolute inset-0 scale-110 bg-cover bg-center opacity-5" style="background-image: url({backgroundImg});"></div>
 	{/if}
-	<div class="relative flex flex-col gap-4">
+	<div class="relative flex flex-col gap-4 {compact ? '' : 'h-full overflow-y-auto p-5 pb-20 pt-[calc(20px+env(safe-area-inset-top))]'}">
 	{#if !compact}
 		<div class="flex flex-col items-center gap-2 py-4">
 			<div class="flex h-16 w-16 items-center justify-center rounded-full" style="background-color: var(--color-ride-alert-500);">
@@ -35,6 +36,8 @@
 	<PreferenceSelector {user} {onUserUpdate} />
 
 	<FuelRangeEditor {user} {onUserUpdate} />
+
+	<OfflineMapToggle />
 
 	<hr class="border-surface-700" />
 

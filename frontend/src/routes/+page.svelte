@@ -1,8 +1,9 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { scale, fade, fly } from 'svelte/transition';
 	import { transitions } from '$lib/utils/transitions';
-	import { X, Compass, Play, Maximize2, LocateFixed } from 'lucide-svelte';
+	import { X, Compass, Play, Maximize2, LocateFixed, WifiOff } from 'lucide-svelte';
 	import Map from '$lib/components/Map.svelte';
 	import RouteWeather from '$lib/components/RouteWeather.svelte';
 	import TrackingOverlay from '$lib/components/TrackingOverlay.svelte';
@@ -14,23 +15,71 @@
 	import DesktopHeader from '$lib/components/DesktopHeader.svelte';
 	import { useMobile } from '$lib/stores/mobile.svelte';
 	import { useAuth } from '$lib/stores/auth.svelte';
+	import { useConnectivity } from '$lib/stores/connectivity.svelte';
 	import { useRouteSearch } from '$lib/stores/useRouteSearch.svelte';
 	import { useTracking } from '$lib/stores/useTracking.svelte';
-	import { createRoute, completeRoute } from '$lib/services/routes';
+	import { createRoute, completeRoute, type CreateRouteParams } from '$lib/services/routes';
+	import { enqueueRide, flushRides } from '$lib/services/syncQueue';
 	import type { LatLng } from '$lib/services/routing';
 	import { safeTop, safeBottom, safeBottomNav, safeLeft, safeRight } from '$lib/utils/safeArea';
-	import { bearingAlongPath, haversineM } from '$lib/utils/mapHelpers';
+	import { bearingAlongPath, haversineM, closestRouteIndex } from '$lib/utils/mapHelpers';
 	import { vibrateHeavy } from '$lib/utils/haptics';
 	import { toaster } from '$lib/stores/toaster';
 
 	const mobile = useMobile();
 	const auth = useAuth();
+	const connectivity = useConnectivity();
 	const route = useRouteSearch();
 	const tracking = useTracking();
 
 	$effect(() => {
 		if (!auth.loading && !auth.isLoggedIn) goto('/login');
 	});
+
+	onMount(() => {
+		syncPendingRides();
+	});
+
+	let offlineRestoreAttempted = false;
+	let wasOffline = false;
+
+	$effect(() => {
+		if (offlineRestoreAttempted || connectivity.online) return;
+		if (auth.loading || !auth.isLoggedIn || !route.mapRef || route.hasRoute) return;
+		offlineRestoreAttempted = true;
+		route.restoreOfflinePack().then((restored) => {
+			if (restored) {
+				toaster.info({
+					title: 'Modo offline',
+					description: route.weatherStale
+						? 'Rota carregada do pacote salvo. O clima está desatualizado.'
+						: 'Rota carregada do pacote salvo.'
+				});
+			}
+		});
+	});
+
+	$effect(() => {
+		if (!connectivity.online) {
+			wasOffline = true;
+			return;
+		}
+		if (wasOffline) {
+			wasOffline = false;
+			route.mapRef?.reloadBaseTiles();
+			syncPendingRides();
+		}
+	});
+
+	async function syncPendingRides() {
+		const synced = await flushRides();
+		if (synced > 0) {
+			toaster.success({
+				title: 'Percursos sincronizados',
+				description: `${synced} percurso(s) offline enviado(s) ao histórico.`
+			});
+		}
+	}
 
 	let following = $state(true);
 
@@ -101,9 +150,14 @@
 	async function handleReroute(position: LatLng) {
 		if (!route.mapRef || !route.destCoords) return;
 		toaster.info({ title: 'Recalculando rota', description: 'Você saiu do trajeto planejado.' });
-		const routeData = await route.mapRef.drawRoute(position, route.destCoords, [], true);
+		const planned = tracking.plannedRoute.length >= 2 ? tracking.plannedRoute : route.routeCoords;
+		const riderIndex = closestRouteIndex(planned, position);
+		const pendingStops = route.stops.filter((s) => closestRouteIndex(planned, s.coords) >= riderIndex);
+		const routeData = await route.mapRef.drawRoute(position, route.destCoords, pendingStops.map((s) => s.coords), true);
 		if (routeData) {
 			tracking.updatePlannedRoute(routeData.coords);
+		} else {
+			toaster.warning({ title: 'Fora da rota', description: 'Sem conexão para recalcular. Siga em direção ao trajeto planejado.' });
 		}
 	}
 
@@ -113,7 +167,7 @@
 		tracking.start({
 			plannedRoute: route.routeCoords,
 			approachRoute: route.approachRoute?.coords,
-			routeOrigin: route.originCoords ?? undefined,
+			routeOrigin: route.approachEntry ?? route.originCoords ?? undefined,
 			onReroute: handleReroute,
 			onApproachComplete() {
 				route.mapRef?.clearApproachRoute();
@@ -135,25 +189,31 @@
 			return;
 		}
 
+		const rideParams: CreateRouteParams = {
+			name: `${route.originLabel} → ${route.destLabel}`,
+			origin_name: route.originLabel,
+			destination_name: route.destLabel,
+			origin_coords: [route.originCoords![1], route.originCoords![0]],
+			destination_coords: [route.destCoords![1], route.destCoords![0]],
+			path_coords: result.path.flatMap((p) => [p[1], p[0]]),
+			distance_km: result.distanceKm,
+			duration_minutes: result.durationMinutes,
+			score: route.score?.value
+		};
+
 		try {
-			const pathFlat = result.path.flatMap((p) => [p[1], p[0]]);
-			await createRoute({
-				name: `${route.originLabel} → ${route.destLabel}`,
-				origin_name: route.originLabel,
-				destination_name: route.destLabel,
-				origin_coords: [route.originCoords![1], route.originCoords![0]],
-				destination_coords: [route.destCoords![1], route.destCoords![0]],
-				path_coords: pathFlat,
-				distance_km: result.distanceKm,
-				duration_minutes: result.durationMinutes,
-				score: route.score?.value
-			});
+			await createRoute(rideParams);
 			toaster.success({ title: 'Percurso salvo', description: `${result.distanceKm} km registrados no histórico.` });
 			if (route.exploreRouteId) {
 				completeRoute(route.exploreRouteId).catch(() => {});
 			}
-		} catch {
-			toaster.error({ title: 'Erro ao salvar', description: 'Não foi possível salvar o percurso.' });
+		} catch (err) {
+			if (err instanceof TypeError) {
+				await enqueueRide(rideParams, route.exploreRouteId);
+				toaster.info({ title: 'Sem conexão', description: 'Percurso salvo no aparelho. Sincroniza quando houver rede.' });
+			} else {
+				toaster.error({ title: 'Erro ao salvar', description: 'Não foi possível salvar o percurso.' });
+			}
 		}
 	}
 
@@ -199,6 +259,14 @@
 				<div class="pointer-events-none absolute inset-x-0 z-[600] flex justify-center" style="top: {safeTop};" transition:fade={transitions.quick}>					<div class="flex items-center gap-2 rounded-full bg-surface-900/90 px-4 py-2 shadow-lg backdrop-blur-sm">
 						<div class="h-4 w-4 animate-spin rounded-full border-2 border-surface-400 border-t-primary-400"></div>
 						<span class="text-sm text-surface-300">Recalculando rota…</span>
+					</div>
+				</div>
+			{/if}
+
+			{#if !connectivity.online}
+				<div class="pointer-events-none absolute z-[650]" style="top: {safeTop}; right: {safeRight};" transition:fade={transitions.quick}>
+					<div class="flex h-8 w-8 items-center justify-center rounded-full bg-surface-900/90 shadow-lg backdrop-blur-sm" title="Sem conexão">
+						<WifiOff size={15} style="color: var(--color-ride-alert-300);" />
 					</div>
 				</div>
 			{/if}
@@ -250,7 +318,7 @@
 					<RouteHistory onSelect={(r) => { historyOpen = false; route.handleSelectSavedRoute(r); }} />
 				</aside>
 			{:else}
-				<RouteWeather points={route.weatherPoints} loading={route.weatherLoading} alerts={route.alerts} score={route.score} onSave={!route.routeSaved ? route.handleSaveRoute : undefined} saving={route.saving} editing={route.editingRouteId !== null} stops={route.stops} onAddStop={route.addStop} onRemoveStop={route.removeStop} onSuggestFuel={route.suggestFuelStops} fuelRangeKm={auth.user?.fuel_range_km ?? null} onClear={route.clearCurrentRoute} approachRoute={route.approachRoute} />
+				<RouteWeather points={route.weatherPoints} loading={route.weatherLoading} alerts={route.alerts} score={route.score} onSave={!route.routeSaved ? route.handleSaveRoute : undefined} saving={route.saving} editing={route.editingRouteId !== null} stops={route.stops} onAddStop={route.addStop} onRemoveStop={route.removeStop} onSuggestFuel={route.suggestFuelStops} fuelRangeKm={auth.user?.fuel_range_km ?? null} onClear={route.clearCurrentRoute} approachRoute={route.approachRoute} weatherStale={route.weatherStale} onDownloadTiles={connectivity.online ? () => route.downloadOfflineTiles() : undefined} downloadingTiles={route.downloadingTiles} tileProgress={route.tileProgress} tilesDownloaded={route.tilesDownloaded} />
 			{/if}
 		{/if}
 
@@ -266,7 +334,7 @@
 
 			{#if mobile.activeTab === 'weather'}
 				<div class="absolute inset-0 z-[500] overflow-y-auto bg-surface-800" style="bottom: calc(52px + env(safe-area-inset-bottom)); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right)" transition:fly={transitions.panel}>
-					<RouteWeather points={route.weatherPoints} loading={route.weatherLoading} alerts={route.alerts} score={route.score} mobile onSave={!route.routeSaved ? route.handleSaveRoute : undefined} saving={route.saving} editing={route.editingRouteId !== null} stops={route.stops} onAddStop={route.addStop} onRemoveStop={route.removeStop} onSuggestFuel={route.suggestFuelStops} fuelRangeKm={auth.user?.fuel_range_km ?? null} onClear={route.clearCurrentRoute} approachRoute={route.approachRoute} />
+					<RouteWeather points={route.weatherPoints} loading={route.weatherLoading} alerts={route.alerts} score={route.score} mobile onSave={!route.routeSaved ? route.handleSaveRoute : undefined} saving={route.saving} editing={route.editingRouteId !== null} stops={route.stops} onAddStop={route.addStop} onRemoveStop={route.removeStop} onSuggestFuel={route.suggestFuelStops} fuelRangeKm={auth.user?.fuel_range_km ?? null} onClear={route.clearCurrentRoute} approachRoute={route.approachRoute} weatherStale={route.weatherStale} onDownloadTiles={connectivity.online ? () => route.downloadOfflineTiles() : undefined} downloadingTiles={route.downloadingTiles} tileProgress={route.tileProgress} tilesDownloaded={route.tilesDownloaded} />
 				</div>
 			{/if}
 
