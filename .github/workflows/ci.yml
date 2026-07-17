@@ -3,11 +3,14 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [ main ]
+    branches: [main, dev]
 
 jobs:
   scan_ruby:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
 
     steps:
       - name: Checkout code
@@ -16,18 +19,22 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
+          working-directory: backend
           bundler-cache: true
 
       - name: Scan for common Rails security vulnerabilities using static analysis
         run: bin/brakeman --no-pager
-      
+
       - name: Scan for known security vulnerabilities in gems used
         run: bin/bundler-audit
-      
+
   lint:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
     env:
-      RUBOCOP_CACHE_ROOT: tmp/rubocop
+      RUBOCOP_CACHE_ROOT: ${{ github.workspace }}/backend/tmp/rubocop
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -35,12 +42,13 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
+          working-directory: backend
           bundler-cache: true
 
       - name: Prepare RuboCop cache
         uses: actions/cache@v4
         env:
-          DEPENDENCIES_HASH: ${{ hashFiles('.ruby-version', '**/.rubocop.yml', '**/.rubocop_todo.yml', 'Gemfile.lock') }}
+          DEPENDENCIES_HASH: ${{ hashFiles('backend/.ruby-version', 'backend/**/.rubocop.yml', 'backend/Gemfile.lock') }}
         with:
           path: ${{ env.RUBOCOP_CACHE_ROOT }}
           key: rubocop-${{ runner.os }}-${{ env.DEPENDENCIES_HASH }}-${{ github.ref_name == github.event.repository.default_branch && github.run_id || 'default' }}
@@ -50,3 +58,28 @@ jobs:
       - name: Lint code for consistent style
         run: bin/rubocop -f github
 
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check with svelte-check
+        run: npm run check
+
+      - name: Build
+        run: npm run build
