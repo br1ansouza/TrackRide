@@ -6,6 +6,6 @@ class CreateRouteLikes < ActiveRecord::Migration[8.1]
 
       t.timestamps
     end
-    add_index :route_likes, [:user_id, :route_id], unique: true
+    add_index :route_likes, [ :user_id, :route_id ], unique: true
   end
 end

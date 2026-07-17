@@ -1,8 +1,8 @@
 module Api
   module V1
     class RoutesController < BaseController
-      before_action :set_route, only: [:show, :update, :destroy]
-      before_action :set_public_route, only: [:like, :unlike, :complete]
+      before_action :set_route, only: [ :show, :update, :destroy ]
+      before_action :set_public_route, only: [ :like, :unlike, :complete ]
 
       def index
         routes = current_user.routes.includes(:route_stops).recent
@@ -19,7 +19,7 @@ module Api
       def explore
         lat = params[:lat].to_f
         lon = params[:lon].to_f
-        radius = [(params[:radius] || 80).to_i, 200].min * 1000
+        radius = [ (params[:radius] || 80).to_i, 200 ].min * 1000
 
         routes = Route.publicly_visible
           .includes(:user, :route_stops, :route_likes, :route_completions)
@@ -136,7 +136,7 @@ module Api
           :name, :origin_name, :destination_name,
           :distance_km, :duration_minutes, :score, :public,
           origin_coords: [], destination_coords: [], path_coords: [],
-          route_stops_attributes: [:name, :stop_type, :sort_order, position: []]
+          route_stops_attributes: [ :name, :stop_type, :sort_order, position: [] ]
         )
 
         build_geo_params(permitted)
@@ -218,12 +218,12 @@ module Api
 
       def coords_to_array(point)
         return nil unless point
-        [point.x, point.y]
+        [ point.x, point.y ]
       end
 
       def linestring_to_array(line)
         return nil unless line
-        line.points.map { |p| [p.x, p.y] }
+        line.points.map { |p| [ p.x, p.y ] }
       end
     end
   end
