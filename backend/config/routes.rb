@@ -10,7 +10,7 @@ Rails.application.routes.draw do
       post "auth/forgot_password", to: "auth#forgot_password"
       post "auth/reset_password", to: "auth#reset_password"
 
-      resources :routes, only: [:index, :show, :create, :update, :destroy] do
+      resources :routes, only: [ :index, :show, :create, :update, :destroy ] do
         collection do
           get :explore
         end
