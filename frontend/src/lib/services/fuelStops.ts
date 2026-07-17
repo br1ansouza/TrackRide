@@ -1,12 +1,8 @@
 import type { LatLng } from '$lib/services/routing';
 import type { RouteStopEntry } from '$lib/types/routeStop';
+import type { FuelStation } from '$lib/services/external/overpass';
+import { fetchFuelStations } from '$lib/services/gateway';
 import { haversineM } from '$lib/utils/mapHelpers';
-
-interface FuelStation {
-	name: string;
-	lat: number;
-	lon: number;
-}
 
 export interface FuelStopSuggestion {
 	stops: RouteStopEntry[];
@@ -87,16 +83,6 @@ function corridorPath(routeCoords: LatLng[], distances: number[], centerIndex: n
 	return path;
 }
 
-async function fetchStations(params: string): Promise<FuelStation[]> {
-	try {
-		const response = await fetch(`/api/fuel-stations?${params}`);
-		if (!response.ok) return [];
-		return await response.json();
-	} catch {
-		return [];
-	}
-}
-
 async function stationsForPoint(
 	routeCoords: LatLng[],
 	distances: number[],
@@ -104,12 +90,10 @@ async function stationsForPoint(
 ): Promise<FuelStation[]> {
 	const corridor = corridorPath(routeCoords, distances, sampleIndex);
 	if (corridor.length >= 2) {
-		const path = corridor.map((c) => `${c[0].toFixed(5)},${c[1].toFixed(5)}`).join(';');
-		const onRoute = await fetchStations(`path=${path}&radius=${ON_ROUTE_RADIUS_M}`);
+		const onRoute = await fetchFuelStations({ path: corridor, radius: ON_ROUTE_RADIUS_M });
 		if (onRoute.length > 0) return onRoute;
 	}
-	const [lat, lon] = routeCoords[sampleIndex];
-	return fetchStations(`lat=${lat}&lon=${lon}&radius=${DETOUR_RADIUS_M}`);
+	return fetchFuelStations({ point: routeCoords[sampleIndex], radius: DETOUR_RADIUS_M });
 }
 
 function pickStation(

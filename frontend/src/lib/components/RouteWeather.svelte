@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Droplets, Wind, Thermometer, ChevronDown, Clock, Route, ChevronsDownUp, ChevronsUpDown, Save, Navigation } from 'lucide-svelte';
+	import { Droplets, Wind, Thermometer, ChevronDown, Clock, Route, ChevronsDownUp, ChevronsUpDown, Save, Navigation, CloudOff, HardDriveDownload, Check } from 'lucide-svelte';
 	import { fade, fly } from 'svelte/transition';
 	import { transitions } from '$lib/utils/transitions';
 	import { Tooltip } from '@skeletonlabs/skeleton-svelte';
@@ -31,9 +31,14 @@
 		fuelRangeKm?: number | null;
 		onClear?: () => void;
 		approachRoute?: ApproachRoute | null;
+		weatherStale?: boolean;
+		onDownloadTiles?: () => void;
+		downloadingTiles?: boolean;
+		tileProgress?: number;
+		tilesDownloaded?: boolean;
 	}
 
-	let { points, loading, alerts, score, mobile = false, onSave, saving = false, editing = false, stops = [], onAddStop, onRemoveStop, onSuggestFuel, fuelRangeKm = null, onClear, approachRoute = null }: Props = $props();
+	let { points, loading, alerts, score, mobile = false, onSave, saving = false, editing = false, stops = [], onAddStop, onRemoveStop, onSuggestFuel, fuelRangeKm = null, onClear, approachRoute = null, weatherStale = false, onDownloadTiles, downloadingTiles = false, tileProgress = 0, tilesDownloaded = false }: Props = $props();
 
 	let collapsed = $state<Set<number>>(new Set());
 
@@ -120,7 +125,7 @@
 	{/if}
 {/snippet}
 
-<aside class="flex flex-col gap-1 overflow-y-auto p-4 {mobile ? 'w-full pt-[calc(16px+env(safe-area-inset-top))]' : 'w-80 bg-surface-800'}" style={mobile ? 'padding-bottom: calc(24px + env(safe-area-inset-bottom))' : ''}>
+<aside class="flex flex-col gap-1 overflow-y-auto p-4 {mobile ? 'w-full pt-[calc(16px+env(safe-area-inset-top))]' : 'w-80 bg-surface-800'}" style={mobile ? `padding-bottom: calc(${onDownloadTiles && points.length > 0 ? '72px' : '24px'} + env(safe-area-inset-bottom))` : ''}>
 	<div class="flex items-center justify-between">
 		<h2 class="text-lg font-semibold text-white">Clima na rota</h2>
 		{#if points.length > 2}
@@ -146,6 +151,13 @@
 	{:else}
 		{#if score}
 			<RouteScoreBadge {score} {alerts} />
+		{/if}
+
+		{#if weatherStale}
+			<div class="my-1 flex items-center gap-2 rounded-lg p-2" style="background-color: var(--color-ride-alert-900);" in:fade={transitions.quick}>
+				<CloudOff size={14} style="color: var(--color-ride-alert-300);" />
+				<span class="text-xs" style="color: var(--color-ride-alert-300);">Clima desatualizado — snapshot com mais de 3h.</span>
+			</div>
 		{/if}
 
 		{#if approachRoute}
@@ -273,6 +285,28 @@
 				<div class="flex flex-col">
 					<span class="text-sm font-semibold text-white">{saving ? 'Salvando rota…' : editing ? 'Atualizar rota' : 'Salvar no histórico'}</span>
 					<span class="text-xs text-surface-400">Acesse depois no seu perfil</span>
+				</div>
+			</button>
+		{/if}
+		{#if onDownloadTiles}
+			<button
+				type="button"
+				onclick={onDownloadTiles}
+				disabled={downloadingTiles || tilesDownloaded}
+				class="group mt-2 flex w-full items-center gap-3 rounded-xl border border-surface-600 bg-surface-700 p-3 text-left transition-all hover:border-primary-500/50 hover:bg-surface-600 {tilesDownloaded ? 'disabled:opacity-60' : 'disabled:opacity-70'}"
+			>
+				<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg" style="background-color: {tilesDownloaded ? 'var(--color-ride-safe-500)' : 'var(--color-ride-location-500)'};">
+					{#if downloadingTiles}
+						<div class="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
+					{:else if tilesDownloaded}
+						<span in:fade={transitions.quick}><Check size={18} class="text-white" /></span>
+					{:else}
+						<HardDriveDownload size={18} class="text-white" />
+					{/if}
+				</div>
+				<div class="flex flex-col">
+					<span class="text-sm font-semibold text-white">{downloadingTiles ? `Baixando mapa… ${tileProgress}%` : tilesDownloaded ? 'Mapa offline salvo' : 'Baixar mapa offline'}</span>
+					<span class="text-xs text-surface-400">{tilesDownloaded ? 'Disponível pra usar sem sinal' : 'Mapa ao longo da rota pra usar sem sinal'}</span>
 				</div>
 			</button>
 		{/if}

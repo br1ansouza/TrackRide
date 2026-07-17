@@ -1,4 +1,5 @@
 import { parseCoord } from '$lib/server/coords';
+import { searchUrl, shapePlaces, type PhotonResponse } from '$lib/services/external/photon';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ url }) => {
@@ -7,13 +8,11 @@ export const GET: RequestHandler = async ({ url }) => {
 
 	const lat = parseCoord(url.searchParams.get('lat'));
 	const lon = parseCoord(url.searchParams.get('lon'));
-	const proximity = Number.isFinite(lat) && Number.isFinite(lon) ? `&lat=${lat}&lon=${lon}` : '';
+	const proximity = Number.isFinite(lat) && Number.isFinite(lon) ? { lat, lon } : undefined;
 
-	let data: { features: { properties: Record<string, string>; geometry: { coordinates: [number, number] } }[] };
+	let data: PhotonResponse;
 	try {
-		const response = await fetch(
-			`https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=15${proximity}`
-		);
+		const response = await fetch(searchUrl(query, proximity));
 		if (!response.ok) throw new Error(`Photon respondeu ${response.status}`);
 		data = await response.json();
 	} catch (error) {
@@ -24,26 +23,7 @@ export const GET: RequestHandler = async ({ url }) => {
 		});
 	}
 
-	const seen = new Set<string>();
-	const results = data.features
-		.filter((f: { properties: { countrycode?: string } }) => f.properties.countrycode === 'BR')
-		.map((f: { properties: Record<string, string>; geometry: { coordinates: [number, number] } }) => {
-			const p = f.properties;
-			const parts = [p.name, p.city, p.state].filter(Boolean);
-			return {
-				label: [...new Set(parts)].join(', '),
-				lat: f.geometry.coordinates[1],
-				lon: f.geometry.coordinates[0]
-			};
-		})
-		.filter((r: { label: string }) => {
-			if (seen.has(r.label)) return false;
-			seen.add(r.label);
-			return true;
-		})
-		.slice(0, 5);
-
-	return new Response(JSON.stringify(results), {
+	return new Response(JSON.stringify(shapePlaces(data)), {
 		headers: { 'Content-Type': 'application/json' }
 	});
 };

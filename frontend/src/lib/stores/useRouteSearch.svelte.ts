@@ -6,11 +6,14 @@ import { calculateRouteScore, type RouteScore, type RidingPreference } from '$li
 import { fetchRouteWeather, type WeatherPoint } from '$lib/services/weather';
 import { createRoute, updateRoute, toStopEntries, type ExploreRoute, type SavedRoute } from '$lib/services/routes';
 import { findFuelStops } from '$lib/services/fuelStops';
-import { closestRouteIndex } from '$lib/utils/mapHelpers';
+import { savePack, loadPack, WEATHER_TTL_MS } from '$lib/services/offlinePack';
+import { prefetchRouteTiles } from '$lib/services/offlineTiles';
+import { closestRouteIndex, haversineM } from '$lib/utils/mapHelpers';
 import { getLastPosition } from '$lib/services/geolocation';
 import { toaster } from '$lib/stores/toaster';
 import { useMobile } from '$lib/stores/mobile.svelte';
 import { useAuth } from '$lib/stores/auth.svelte';
+import { useSettings } from '$lib/stores/settings.svelte';
 
 export interface ApproachRoute {
 	coords: LatLng[];
@@ -23,6 +26,7 @@ const APPROACH_MIN_M = 200;
 export function useRouteSearch() {
 	const mobile = useMobile();
 	const auth = useAuth();
+	const settings = useSettings();
 
 	let originCoords = $state<LatLng | null>(null);
 	let destCoords = $state<LatLng | null>(null);
@@ -41,9 +45,15 @@ export function useRouteSearch() {
 	let approachRoute = $state<ApproachRoute | null>(null);
 	let exploreRouteId = $state<number | null>(null);
 	let editingRouteId = $state<number | null>(null);
+	let weatherSavedAt = $state<number | null>(null);
+	let approachEntry = $state<LatLng | null>(null);
+	let downloadingTiles = $state(false);
+	let tileProgress = $state(0);
+	let tilesDownloaded = $state(false);
 
 	let canSearch = $derived(!!originCoords && !!destCoords);
 	let hasRoute = $derived(weatherPoints.length > 0);
+	let weatherStale = $derived(weatherSavedAt !== null && Date.now() - weatherSavedAt > WEATHER_TTL_MS);
 
 	$effect(() => {
 		const pref = auth.user?.riding_preference;
@@ -59,6 +69,25 @@ export function useRouteSearch() {
 		score = null;
 		routeSaved = false;
 		approachRoute = null;
+		approachEntry = null;
+		weatherSavedAt = null;
+		tilesDownloaded = false;
+	}
+
+	function persistPack(routeData: RouteData) {
+		if (!originCoords || !destCoords) return;
+		savePack({
+			originLabel,
+			destLabel,
+			originCoords: $state.snapshot(originCoords),
+			destCoords: $state.snapshot(destCoords),
+			stops: $state.snapshot(stops),
+			routeData,
+			weatherPoints: $state.snapshot(weatherPoints),
+			editingRouteId,
+			exploreRouteId,
+			savedAt: Date.now()
+		});
 	}
 
 	async function computeApproach(routeOrigin: LatLng): Promise<void> {
@@ -95,6 +124,10 @@ export function useRouteSearch() {
 			alerts = analyzeRoute(weatherPoints);
 			score = calculateRouteScore(weatherPoints, (auth.user?.riding_preference ?? 'mixed') as RidingPreference);
 			routeSaved = false;
+			weatherSavedAt = Date.now();
+			persistPack(routeData);
+			tilesDownloaded = false;
+			if (settings.autoOfflineMaps) downloadOfflineTiles(false);
 		} catch {
 			toaster.error({ title: 'Erro ao buscar clima', description: 'Falha na comunicação com o serviço de clima.' });
 		} finally {
@@ -234,6 +267,80 @@ export function useRouteSearch() {
 		await processWeather(routeData);
 	}
 
+	async function restoreOfflinePack(): Promise<boolean> {
+		if (!mapRef) return false;
+		const pack = await loadPack();
+		if (!pack) return false;
+
+		originCoords = pack.originCoords;
+		destCoords = pack.destCoords;
+		originLabel = pack.originLabel;
+		destLabel = pack.destLabel;
+		stops = pack.stops;
+		editingRouteId = pack.editingRouteId;
+		exploreRouteId = pack.exploreRouteId;
+
+		await mapRef.drawStoredRoute(pack.originCoords, pack.destCoords, pack.routeData);
+		if (pack.stops.length > 0) mapRef.showStopMarkers(pack.stops);
+
+		weatherPoints = pack.weatherPoints;
+		routeCoords = pack.routeData.coords;
+		mapRef.showWeatherMarkers(pack.weatherPoints);
+		mapRef.showRouteConditions(pack.routeData.coords, pack.weatherPoints);
+		alerts = analyzeRoute(pack.weatherPoints);
+		score = calculateRouteScore(pack.weatherPoints, (auth.user?.riding_preference ?? 'mixed') as RidingPreference);
+		weatherSavedAt = pack.savedAt;
+		routeSaved = true;
+		drawStraightApproach(pack.routeData.coords);
+		return true;
+	}
+
+	function drawStraightApproach(coords: LatLng[]) {
+		const pos = getLastPosition();
+		if (!pos || !mapRef || coords.length === 0) return;
+		const entry = coords[closestRouteIndex(coords, pos)];
+		const distM = haversineM(pos, entry);
+		if (distM < APPROACH_MIN_M) return;
+		approachEntry = entry;
+		approachRoute = {
+			coords: [pos, entry],
+			distanceKm: Math.round(distM / 100) / 10,
+			durationMinutes: Math.round((distM / 1000 / 40) * 60)
+		};
+		mapRef.drawApproachRoute([pos, entry]);
+	}
+
+	async function downloadOfflineTiles(notify: boolean = true) {
+		if (routeCoords.length < 2 || downloadingTiles) return;
+		downloadingTiles = true;
+		tileProgress = 0;
+		try {
+			const result = await prefetchRouteTiles($state.snapshot(routeCoords), (done, total) => {
+				tileProgress = Math.round((done / total) * 100);
+			});
+			if (result.failed > 0) {
+				toaster.warning({
+					title: 'Mapa offline incompleto',
+					description: `${result.failed} de ${result.total} blocos falharam. Tente novamente com conexão estável.`
+				});
+			} else {
+				tilesDownloaded = true;
+				if (notify) {
+					toaster.success({
+						title: 'Mapa offline pronto',
+						description: 'O mapa ao longo da rota foi salvo no aparelho.'
+					});
+				}
+			}
+		} catch {
+			if (notify) {
+				toaster.error({ title: 'Falha no download', description: 'Não foi possível baixar o mapa da rota.' });
+			}
+		} finally {
+			downloadingTiles = false;
+		}
+	}
+
 	async function handleSaveRoute() {
 		if (!originCoords || !destCoords || !score) return;
 		saving = true;
@@ -304,6 +411,13 @@ export function useRouteSearch() {
 		get approachRoute() { return approachRoute; },
 		get exploreRouteId() { return exploreRouteId; },
 		get editingRouteId() { return editingRouteId; },
+		get weatherStale() { return weatherStale; },
+		get approachEntry() { return approachEntry; },
+		get downloadingTiles() { return downloadingTiles; },
+		get tileProgress() { return tileProgress; },
+		get tilesDownloaded() { return tilesDownloaded; },
+		downloadOfflineTiles,
+		restoreOfflinePack,
 		handleSearch,
 		addStop,
 		removeStop,

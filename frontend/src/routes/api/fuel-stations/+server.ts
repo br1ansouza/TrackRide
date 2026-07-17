@@ -1,50 +1,14 @@
 import { parseLatLon } from '$lib/server/coords';
+import { fuelQuery, shapeStations, queryOverpass } from '$lib/services/external/overpass';
+import { TtlCache } from '$lib/utils/ttlCache';
 import type { RequestHandler } from './$types';
 
-const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 const DEFAULT_RADIUS_M = 10000;
 const MIN_RADIUS_M = 100;
 const MAX_RADIUS_M = 10000;
 const MAX_PATH_POINTS = 80;
-const MAX_RESULTS = 20;
-const RETRIES = 2;
 
-interface OverpassElement {
-	lat?: number;
-	lon?: number;
-	center?: { lat: number; lon: number };
-	tags?: Record<string, string>;
-}
-
-interface CacheEntry {
-	body: string;
-	expiresAt: number;
-}
-
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
-const CACHE_MAX_ENTRIES = 200;
-const cache = new Map<string, CacheEntry>();
-
-function readCache(key: string): string | null {
-	const entry = cache.get(key);
-	if (!entry) return null;
-	if (Date.now() > entry.expiresAt) {
-		cache.delete(key);
-		return null;
-	}
-	return entry.body;
-}
-
-function writeCache(key: string, body: string): void {
-	if (cache.size >= CACHE_MAX_ENTRIES) {
-		const now = Date.now();
-		for (const [k, v] of cache) {
-			if (now > v.expiresAt) cache.delete(k);
-		}
-		if (cache.size >= CACHE_MAX_ENTRIES) cache.clear();
-	}
-	cache.set(key, { body, expiresAt: Date.now() + CACHE_TTL_MS });
-}
+const cache = new TtlCache<string>(24 * 60 * 60 * 1000, 200);
 
 function parseRadius(url: URL): number {
 	const radius = Number(url.searchParams.get('radius') ?? DEFAULT_RADIUS_M);
@@ -65,27 +29,6 @@ function parsePath(url: URL): number[] | null {
 	return valid ? pairs.flat() : null;
 }
 
-async function queryOverpass(query: string): Promise<{ elements: OverpassElement[] } | null> {
-	for (let attempt = 0; attempt <= RETRIES; attempt++) {
-		try {
-			const response = await fetch(OVERPASS_URL, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/x-www-form-urlencoded',
-					'User-Agent': 'TrackRide/1.0'
-				},
-				body: `data=${encodeURIComponent(query)}`
-			});
-			if (response.ok) return await response.json();
-			console.error(`Overpass respondeu ${response.status} (tentativa ${attempt + 1})`);
-		} catch (error) {
-			console.error(`Overpass falhou (tentativa ${attempt + 1}):`, error);
-		}
-		if (attempt < RETRIES) await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
-	}
-	return null;
-}
-
 export const GET: RequestHandler = async ({ url }) => {
 	const radius = parseRadius(url);
 	const path = parsePath(url);
@@ -103,14 +46,12 @@ export const GET: RequestHandler = async ({ url }) => {
 		});
 	}
 
-	const cached = readCache(around);
+	const cached = cache.get(around);
 	if (cached) {
 		return new Response(cached, { headers: { 'Content-Type': 'application/json' } });
 	}
 
-	const query = `[out:json][timeout:15];nwr["amenity"="fuel"](${around});out center ${MAX_RESULTS};`;
-
-	const data = await queryOverpass(query);
+	const data = await queryOverpass(fuelQuery(around));
 	if (!data) {
 		return new Response(JSON.stringify([]), {
 			status: 502,
@@ -118,18 +59,8 @@ export const GET: RequestHandler = async ({ url }) => {
 		});
 	}
 
-	const results = data.elements
-		.map((element) => ({
-			name: element.tags?.name ?? element.tags?.brand ?? 'Posto de combustível',
-			lat: element.lat ?? element.center?.lat,
-			lon: element.lon ?? element.center?.lon
-		}))
-		.filter((station): station is { name: string; lat: number; lon: number } =>
-			station.lat !== undefined && station.lon !== undefined
-		);
-
-	const body = JSON.stringify(results);
-	writeCache(around, body);
+	const body = JSON.stringify(shapeStations(data.elements));
+	cache.set(around, body);
 	return new Response(body, {
 		headers: { 'Content-Type': 'application/json' }
 	});
