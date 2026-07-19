@@ -15,7 +15,7 @@
 		"cap:build": "npm run cap:sync && cd android && ./gradlew assembleDebug"
 	},
 	"devDependencies": {
-		"@capacitor/cli": "^6.2.0",
+		"@capacitor/cli": "^8.4.2",
 		"@skeletonlabs/skeleton": "^4.15.2",
 		"@skeletonlabs/skeleton-svelte": "^4.15.2",
 		"@sveltejs/adapter-node": "^5.5.7",
