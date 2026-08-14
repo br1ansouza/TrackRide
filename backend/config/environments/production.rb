@@ -16,7 +16,7 @@ Rails.application.configure do
   frontend = URI.parse(ENV.fetch("FRONTEND_URL", "http://localhost:4173"))
   config.action_mailer.default_url_options = { host: frontend.host, port: frontend.port, protocol: frontend.scheme }
   config.action_mailer.perform_deliveries = ENV["SMTP_ADDRESS"].present?
-  config.action_mailer.raise_delivery_errors = false
+  config.action_mailer.raise_delivery_errors = true
 
   if ENV["SMTP_ADDRESS"].present?
     config.action_mailer.delivery_method = :smtp
@@ -27,7 +27,9 @@ Rails.application.configure do
       user_name: ENV["SMTP_USERNAME"],
       password: ENV["SMTP_PASSWORD"],
       authentication: :plain,
-      enable_starttls_auto: true
+      enable_starttls_auto: true,
+      open_timeout: 10,
+      read_timeout: 10
     }
   end
   config.i18n.fallbacks = true
