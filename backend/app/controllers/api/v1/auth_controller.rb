@@ -50,9 +50,13 @@ module Api
           raw_token = user.generate_reset_token!
 
           if ActionMailer::Base.perform_deliveries
-            UserMailer.reset_password(user, raw_token).deliver_now
+            begin
+              UserMailer.reset_password(user, raw_token).deliver_now
+            rescue StandardError => e
+              Rails.logger.error("[forgot_password] falha no envio: #{e.class} #{e.message}")
+            end
           else
-            Rails.logger.warn("[forgot_password] envio desligado: SMTP_ADDRESS ausente")
+            Rails.logger.warn("[forgot_password] envio desligado: nenhum provedor configurado")
           end
         end
 
