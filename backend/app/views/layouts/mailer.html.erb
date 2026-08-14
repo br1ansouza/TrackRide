@@ -1,10 +1,44 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
   </head>
 
-  <body style="margin:0;padding:0;background-color:#111111;">
-    <%= yield %>
+  <body style="margin:0;padding:0;background-color:#0d0d0d;">
+    <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color:#0d0d0d;padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="max-width:460px;">
+            <tr>
+              <td align="center" style="padding-bottom:20px;">
+                <a href="<%= @app_url %>" style="text-decoration:none;">
+                  <span style="font-family:Helvetica,Arial,sans-serif;font-size:25px;font-weight:bold;color:#ffffff;letter-spacing:-0.5px;">Track<span style="color:#076fef;">Ride</span></span>
+                </a>
+              </td>
+            </tr>
+            <tr>
+              <td style="background-color:#1a1a1a;border:1px solid #292929;border-radius:14px;padding:32px 28px;">
+                <%= yield %>
+              </td>
+            </tr>
+            <tr>
+              <td align="center" style="padding-top:22px;">
+                <a href="<%= @app_url %>" style="font-family:Helvetica,Arial,sans-serif;font-size:13px;font-weight:bold;color:#076fef;text-decoration:none;">Abrir o TrackRide &rarr;</a>
+              </td>
+            </tr>
+            <tr>
+              <td align="center" style="padding-top:12px;">
+                <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#4d4d4d;line-height:1.6;">
+                  <%= @app_url %><br>
+                  Planejador de rotas de moto com clima por trecho.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
   </body>
 </html>
