@@ -19,7 +19,9 @@
 	let passwordsMatch = $derived(password === passwordConfirmation);
 	let canSubmit = $derived(name && email && password && passwordConfirmation && passwordsMatch && !submitting);
 
-	async function handleSubmit() {
+	async function handleSubmit(event: SubmitEvent) {
+		event.preventDefault();
+
 		if (!canSubmit) return;
 		submitting = true;
 		try {
