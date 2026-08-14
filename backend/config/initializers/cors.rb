@@ -1,7 +1,8 @@
 Rails.application.config.middleware.insert_before 0, Rack::Cors do
   allow do
     origins(
-      ENV.fetch("FRONTEND_URL", "http://localhost:5173"),
+      *ENV.fetch("FRONTEND_URL", "http://localhost:5173").split(",").map { |url| url.strip.chomp("/") },
+      "http://localhost:5173",
       "http://localhost:4173",
       "http://localhost",
       /\Ahttp:\/\/192\.168\.\d+\.\d+:\d+\z/,
