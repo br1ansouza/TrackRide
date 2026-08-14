@@ -1,5 +1,5 @@
 class JwtService
-  SECRET = Rails.application.credentials.secret_key_base
+  SECRET = Rails.application.secret_key_base
   ALGORITHM = "HS256"
   EXPIRATION = 7.days
 

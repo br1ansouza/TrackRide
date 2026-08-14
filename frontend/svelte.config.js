@@ -1,4 +1,4 @@
-import adapterNode from '@sveltejs/adapter-node';
+import adapterCloudflare from '@sveltejs/adapter-cloudflare';
 import adapterStatic from '@sveltejs/adapter-static';
 
 const standalone = process.env.VITE_STANDALONE === '1';
@@ -11,7 +11,7 @@ const config = {
 	kit: {
 		adapter: standalone
 			? adapterStatic({ pages: 'build-standalone', assets: 'build-standalone', fallback: 'index.html' })
-			: adapterNode()
+			: adapterCloudflare()
 	}
 };
 
