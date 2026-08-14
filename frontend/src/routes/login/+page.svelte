@@ -14,7 +14,9 @@
 	let password = $state('');
 	let submitting = $state(false);
 
-	async function handleSubmit() {
+	async function handleSubmit(event: SubmitEvent) {
+		event.preventDefault();
+
 		if (!email || !password) return;
 		submitting = true;
 		try {

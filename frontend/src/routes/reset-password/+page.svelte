@@ -15,7 +15,9 @@
 	let submitting = $state(false);
 	let done = $state(false);
 
-	async function handleSubmit() {
+	async function handleSubmit(event: SubmitEvent) {
+		event.preventDefault();
+
 		if (!password || !passwordConfirmation) return;
 		if (password !== passwordConfirmation) {
 			toaster.error({ title: 'Erro', description: 'As senhas não coincidem' });
