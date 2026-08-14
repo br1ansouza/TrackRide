@@ -1,12 +1,14 @@
-import { isStandaloneBuild, standaloneApiHost } from '$lib/utils/platform';
+import { configuredApiUrl, isStandaloneBuild, standaloneApiHost } from '$lib/utils/platform';
 
 const TOKEN_KEY = 'trackride:token';
 
-export const API_ORIGIN = isStandaloneBuild && standaloneApiHost
-	? `http://${standaloneApiHost}:3000`
-	: typeof window !== 'undefined'
-		? `${window.location.protocol}//${window.location.hostname}:3000`
-		: 'http://localhost:3000';
+export const API_ORIGIN = configuredApiUrl
+	? configuredApiUrl.replace(/\/$/, '')
+	: isStandaloneBuild && standaloneApiHost
+		? `http://${standaloneApiHost}:3000`
+		: typeof window !== 'undefined'
+			? `${window.location.protocol}//${window.location.hostname}:3000`
+			: 'http://localhost:3000';
 
 export const API_URL = `${API_ORIGIN}/api/v1`;
 
