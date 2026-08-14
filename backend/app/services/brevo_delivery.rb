@@ -1,3 +1,7 @@
+require "net/http"
+require "uri"
+require "json"
+
 class BrevoDelivery
   ENDPOINT = URI("https://api.brevo.com/v3/smtp/email")
 
