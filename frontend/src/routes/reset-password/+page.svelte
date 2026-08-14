@@ -13,6 +13,7 @@
 	let password = $state('');
 	let passwordConfirmation = $state('');
 	let submitting = $state(false);
+	let done = $state(false);
 
 	async function handleSubmit() {
 		if (!password || !passwordConfirmation) return;
@@ -23,11 +24,11 @@
 		submitting = true;
 		try {
 			await resetPassword(token, password, passwordConfirmation);
+			done = true;
 			toaster.success({ title: 'Senha redefinida', description: 'Faça login com sua nova senha' });
-			goto('/login');
+			await goto('/login');
 		} catch (e) {
 			toaster.error({ title: 'Erro', description: (e as Error).message });
-		} finally {
 			submitting = false;
 		}
 	}
@@ -41,7 +42,7 @@
 			<p class="text-sm text-surface-400">Crie uma nova senha para sua conta</p>
 		</div>
 
-		{#if !token}
+		{#if !token && !done}
 			<div class="flex flex-col items-center gap-3 rounded-lg bg-surface-800 p-6">
 				<p class="text-center text-sm text-surface-300">Link inválido. Solicite um novo link de recuperação.</p>
 			</div>

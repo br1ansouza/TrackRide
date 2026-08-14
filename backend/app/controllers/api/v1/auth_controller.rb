@@ -72,6 +72,7 @@ module Api
 
         if user.update(password: params[:password], password_confirmation: params[:password_confirmation])
           user.clear_reset_token!
+          notify_password_changed(user)
           render json: { message: "Senha redefinida com sucesso" }
         else
           render json: { errors: user.errors.full_messages }, status: :unprocessable_entity
@@ -79,6 +80,14 @@ module Api
       end
 
       private
+
+      def notify_password_changed(user)
+        return unless ActionMailer::Base.perform_deliveries
+
+        UserMailer.password_changed(user).deliver_now
+      rescue StandardError => e
+        Rails.logger.error("[reset_password] falha no aviso de troca: #{e.class} #{e.message}")
+      end
 
       def register_params
         params.permit(:name, :email, :password, :password_confirmation)
