@@ -9,8 +9,6 @@ class UserMailer < ApplicationMailer
   private
 
   def frontend_url
-    Rails.application.config.action_mailer.default_url_options.then do |opts|
-      "http://#{opts[:host]}:#{opts[:port]}"
-    end
+    ENV.fetch("FRONTEND_URL", "http://localhost:4173")
   end
 end
