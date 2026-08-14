@@ -15,10 +15,12 @@ Rails.application.configure do
   config.active_job.queue_adapter = :async
   frontend = URI.parse(ENV.fetch("FRONTEND_URL", "http://localhost:4173"))
   config.action_mailer.default_url_options = { host: frontend.host, port: frontend.port, protocol: frontend.scheme }
-  config.action_mailer.perform_deliveries = ENV["SMTP_ADDRESS"].present?
+  config.action_mailer.perform_deliveries = ENV["BREVO_API_KEY"].present? || ENV["SMTP_ADDRESS"].present?
   config.action_mailer.raise_delivery_errors = true
 
-  if ENV["SMTP_ADDRESS"].present?
+  if ENV["BREVO_API_KEY"].present?
+    config.action_mailer.delivery_method = :brevo
+  elsif ENV["SMTP_ADDRESS"].present?
     config.action_mailer.delivery_method = :smtp
     config.action_mailer.smtp_settings = {
       address: ENV["SMTP_ADDRESS"],
