@@ -23,6 +23,7 @@ Rails.application.configure do
     config.action_mailer.smtp_settings = {
       address: ENV["SMTP_ADDRESS"],
       port: ENV.fetch("SMTP_PORT", 587).to_i,
+      domain: ENV.fetch("SMTP_DOMAIN") { ENV["SMTP_USERNAME"].to_s.split("@").last },
       user_name: ENV["SMTP_USERNAME"],
       password: ENV["SMTP_PASSWORD"],
       authentication: :plain,
