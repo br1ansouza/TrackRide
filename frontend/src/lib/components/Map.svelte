@@ -11,6 +11,7 @@
 	import { toLngLat, toLineCoords, boundsFromCoords, calculateBearing, closestRouteIndex, haversineM } from '$lib/utils/mapHelpers';
 	import { fetchRoute, type LatLng, type RouteData } from '$lib/services/routing';
 	import type { WeatherPoint } from '$lib/services/weather';
+	import type { RoadPoi } from '$lib/services/external/overpass';
 	import { classifyPoint } from '$lib/services/alerts';
 	import { toaster } from '$lib/stores/toaster';
 	import { watchPosition, clearWatch, getLastPosition } from '$lib/services/geolocation';
@@ -173,6 +174,23 @@
 		map.addLayer({ id: 'conditions-line', type: 'line', source: 'conditions', layout: LINE_LAYOUT, paint: { 'line-color': ['get', 'color'], 'line-width': widthByZoom(5, 11, 18), 'line-opacity': ['get', 'opacity'] } });
 		map.addSource('approach', { type: 'geojson', data: emptyLine() });
 		map.addLayer({ id: 'approach-line', type: 'line', source: 'approach', layout: LINE_LAYOUT, paint: { 'line-color': cssVar('--color-ride-location-300'), 'line-width': widthByZoom(3, 7, 11), 'line-opacity': 0.8, 'line-dasharray': [2, 3] } });
+		map.addSource('road-pois', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+		map.addLayer({
+			id: 'road-pois-dot',
+			type: 'circle',
+			source: 'road-pois',
+			minzoom: 13,
+			paint: {
+				'circle-radius': ['interpolate', ['linear'], ['zoom'], 13, 3, 18, 7],
+				'circle-color': ['match', ['get', 'kind'],
+					'traffic_signals', cssVar('--color-ride-alert-300'),
+					'speed_camera', cssVar('--color-ride-danger-300'),
+					'traffic_calming', cssVar('--color-ride-location-300'),
+					cssVar('--color-surface-300')],
+				'circle-stroke-width': 1.5,
+				'circle-stroke-color': '#0b1220'
+			}
+		});
 		map.addSource('tracked', { type: 'geojson', data: emptyLine() });
 		map.addLayer({ id: 'tracked-line', type: 'line', source: 'tracked', layout: LINE_LAYOUT, paint: { 'line-color': cssVar('--color-ride-safe-500'), 'line-width': widthByZoom(3, 6, 9), 'line-opacity': 0.95 } });
 		trackedSourceAdded = true;
@@ -183,6 +201,7 @@
 		(map.getSource('route') as maplibregl.GeoJSONSource | undefined)?.setData(emptyLine());
 		(map.getSource('conditions') as maplibregl.GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features: [] });
 		(map.getSource('approach') as maplibregl.GeoJSONSource | undefined)?.setData(emptyLine());
+		(map.getSource('road-pois') as maplibregl.GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features: [] });
 		routeMarkers.forEach((m) => m.remove()); routeMarkers = [];
 		weatherMarkerEls.forEach((m) => m.remove()); weatherMarkerEls = [];
 		stopMarkerEls.forEach((m) => m.remove()); stopMarkerEls = [];
@@ -290,6 +309,19 @@
 		if (!map) return;
 		const last = getLastPosition();
 		map.easeTo({ center: last ? toLngLat(last) : map.getCenter().toArray() as [number, number], zoom: 18, duration: 500 });
+	}
+
+	export function showRoadPois(pois: RoadPoi[]) {
+		const source = map?.getSource('road-pois') as maplibregl.GeoJSONSource | undefined;
+		if (!source) return;
+		source.setData({
+			type: 'FeatureCollection',
+			features: pois.map((poi) => ({
+				type: 'Feature' as const,
+				properties: { kind: poi.kind },
+				geometry: { type: 'Point' as const, coordinates: [poi.lon, poi.lat] }
+			}))
+		});
 	}
 
 	export function drawTrackedPath(path: LatLng[]) {
