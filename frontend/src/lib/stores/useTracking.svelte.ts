@@ -45,6 +45,8 @@ export function useTracking() {
 	let plannedRoute: LatLng[] = [];
 	let onReroute: ((pos: LatLng, bearingDeg: number | null) => void) | null = null;
 	let snapIndex = 0;
+	let snappedPosition: LatLng | null = null;
+	let displayPath = $state<LatLng[]>([]);
 	let offRouteSince = 0;
 	let offRouteFixes = 0;
 	let offRouteAnchor: LatLng | null = null;
@@ -81,6 +83,7 @@ export function useTracking() {
 
 		const now = Date.now();
 		const threshold = offRouteThreshold(fix);
+		snappedPosition = snap.distanceM <= threshold ? snap.point : fix.coords;
 
 		if (snap.distanceM <= threshold) {
 			resetOffRoute();
@@ -146,6 +149,7 @@ export function useTracking() {
 		}
 
 		const last = trackedPath[trackedPath.length - 1];
+		let moved = !last;
 		if (!last) {
 			trackedPath = [fix.coords];
 		} else {
@@ -154,6 +158,7 @@ export function useTracking() {
 			if (d >= MIN_STEP_M && preciseEnough && targetSpeedMs >= STOPPED_MS) {
 				distanceM += d;
 				trackedPath = [...trackedPath, fix.coords];
+				moved = true;
 			}
 		}
 
@@ -161,6 +166,8 @@ export function useTracking() {
 		lastFix = fix;
 		lastFixAt = Date.now();
 		checkOffRoute(fix);
+
+		if (moved) displayPath = [...displayPath, snappedPosition ?? fix.coords];
 	}
 
 	function tickSpeed() {
@@ -173,6 +180,8 @@ export function useTracking() {
 	function start(options?: TrackingOptions) {
 		active = true;
 		trackedPath = [];
+		displayPath = [];
+		snappedPosition = null;
 		distanceM = 0;
 		speedMs = 0;
 		targetSpeedMs = 0;
@@ -220,6 +229,8 @@ export function useTracking() {
 		};
 		active = false;
 		trackedPath = [];
+		displayPath = [];
+		snappedPosition = null;
 		currentPosition = null;
 		distanceM = 0;
 		speedMs = 0;
@@ -247,6 +258,8 @@ export function useTracking() {
 	return {
 		get active() { return active; },
 		get trackedPath() { return trackedPath; },
+		get displayPath() { return displayPath; },
+		get snappedPosition() { return snappedPosition; },
 		get currentPosition() { return currentPosition; },
 		get plannedRoute() { return plannedRoute; },
 		get inApproach() { return inApproach; },

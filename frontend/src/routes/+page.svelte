@@ -98,15 +98,20 @@
 	}
 
 	$effect(() => {
-		if (tracking.active && tracking.trackedPath.length >= 2) {
-			route.mapRef?.drawTrackedPath(tracking.trackedPath);
+		route.mapRef?.setNavigating(tracking.active);
+	});
+
+	$effect(() => {
+		if (tracking.active && tracking.displayPath.length >= 2) {
+			route.mapRef?.drawTrackedPath(tracking.displayPath);
 			if (!following) return;
-			const path = tracking.trackedPath;
+			const path = tracking.displayPath;
 			const current = path[path.length - 1];
 			const prev = path[path.length - 2];
-			route.mapRef?.followPosition(current, prev, navigationBearing(current, prev));
+			route.mapRef?.followPosition(current, prev, navigationBearing(current, prev), tracking.speedKmh);
 		} else if (tracking.active && following && tracking.currentPosition) {
-			route.mapRef?.followPosition(tracking.currentPosition, undefined, routeAheadBearing(tracking.currentPosition));
+			const current = tracking.snappedPosition ?? tracking.currentPosition;
+			route.mapRef?.followPosition(current, undefined, routeAheadBearing(current), tracking.speedKmh);
 		}
 	});
 
@@ -118,13 +123,14 @@
 	function recenterOnPosition() {
 		if (tracking.active) {
 			following = true;
-			const path = tracking.trackedPath;
+			const path = tracking.displayPath;
 			if (path.length >= 2) {
 				const current = path[path.length - 1];
 				const prev = path[path.length - 2];
-				route.mapRef?.followPosition(current, prev, navigationBearing(current, prev));
+				route.mapRef?.followPosition(current, prev, navigationBearing(current, prev), tracking.speedKmh);
 			} else if (tracking.currentPosition) {
-				route.mapRef?.followPosition(tracking.currentPosition, undefined, routeAheadBearing(tracking.currentPosition));
+				const current = tracking.snappedPosition ?? tracking.currentPosition;
+				route.mapRef?.followPosition(current, undefined, routeAheadBearing(current), tracking.speedKmh);
 			}
 			return;
 		}
@@ -175,7 +181,7 @@
 		});
 		mobile.setTab('map');
 		if (tracking.currentPosition) {
-			route.mapRef?.followPosition(tracking.currentPosition, undefined, routeAheadBearing(tracking.currentPosition));
+			route.mapRef?.followPosition(tracking.currentPosition, undefined, routeAheadBearing(tracking.currentPosition), tracking.speedKmh);
 		}
 	}
 
