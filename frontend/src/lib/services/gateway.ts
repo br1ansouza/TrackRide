@@ -37,16 +37,17 @@ export async function fetchForecast(lat: number, lon: number): Promise<ForecastP
 	return payload;
 }
 
-export async function fetchOsrmRoute(coords: string): Promise<OsrmRouteResponse | null> {
+export async function fetchOsrmRoute(coords: string, bearings?: string): Promise<OsrmRouteResponse | null> {
 	if (!isStandaloneBuild) {
+		const query = bearings ? `&bearings=${bearings}` : '';
 		try {
-			const response = await fetch(`/api/route?coords=${coords}`);
+			const response = await fetch(`/api/route?coords=${coords}${query}`);
 			return response.ok ? response.json() : null;
 		} catch {
 			return null;
 		}
 	}
-	const response = await fetchWithRetry(routeUrl(coords), {}, { delayMs: 500, label: 'OSRM' });
+	const response = await fetchWithRetry(routeUrl(coords, bearings), {}, { delayMs: 500, label: 'OSRM' });
 	return response ? response.json() : null;
 }
 

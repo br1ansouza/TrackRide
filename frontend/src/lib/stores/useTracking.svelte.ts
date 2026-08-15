@@ -1,8 +1,15 @@
 import type { LatLng } from '$lib/services/routing';
-import { haversineM } from '$lib/utils/mapHelpers';
+import { calculateBearing, haversineM } from '$lib/utils/mapHelpers';
+import { snapToPath } from '$lib/utils/geoMath';
 import { getLastPosition, startBackgroundWatch, stopBackgroundWatch, type GeoFix } from '$lib/services/geolocation';
 
-const OFF_ROUTE_THRESHOLD_M = 25;
+const OFF_ROUTE_BASE_M = 40;
+const OFF_ROUTE_MAX_M = 90;
+const OFF_ROUTE_IMMEDIATE_RATIO = 3;
+const OFF_ROUTE_CONFIRM_TRAVEL_M = 25;
+const OFF_ROUTE_CONFIRM_MS = 5000;
+const OFF_ROUTE_RETURNING_M = 3;
+const REROUTE_COOLDOWN_MS = 10000;
 
 const ACCURACY_REJECT_M = 50;
 const ACCURACY_DISTANCE_M = 25;
@@ -16,7 +23,7 @@ export interface TrackingOptions {
 	plannedRoute: LatLng[];
 	approachRoute?: LatLng[];
 	routeOrigin?: LatLng;
-	onReroute: (position: LatLng) => void;
+	onReroute: (position: LatLng, bearingDeg: number | null) => void;
 	onApproachComplete?: () => void;
 }
 
@@ -36,39 +43,89 @@ export function useTracking() {
 	let lastFixAt = 0;
 	let targetSpeedMs = 0;
 	let plannedRoute: LatLng[] = [];
-	let onReroute: ((pos: LatLng) => void) | null = null;
-	let rerouteNotified = false;
+	let onReroute: ((pos: LatLng, bearingDeg: number | null) => void) | null = null;
+	let snapIndex = 0;
+	let offRouteSince = 0;
+	let offRouteFixes = 0;
+	let offRouteAnchor: LatLng | null = null;
+	let offRouteLastDistance = 0;
+	let lastRerouteAt = 0;
 	let inApproach = $state(false);
 	let routeOrigin: LatLng | null = null;
 	let onApproachComplete: (() => void) | null = null;
 
-	function distanceToRoute(pos: LatLng): number {
-		if (plannedRoute.length < 2) return 0;
-		let minDist = Infinity;
-		for (let i = 0; i < plannedRoute.length; i++) {
-			const d = haversineM(pos, plannedRoute[i]);
-			if (d < minDist) minDist = d;
-		}
-		return minDist;
+	function offRouteThreshold(fix: GeoFix): number {
+		const accuracy = fix.accuracyM ?? 15;
+		return Math.min(OFF_ROUTE_MAX_M, Math.max(OFF_ROUTE_BASE_M, accuracy * 2));
 	}
 
-	function checkOffRoute(pos: LatLng) {
+	function headingOf(fix: GeoFix): number | null {
+		if (fix.bearingDeg !== null) return fix.bearingDeg;
+		if (trackedPath.length < 2) return null;
+		return calculateBearing(trackedPath[trackedPath.length - 2], fix.coords);
+	}
+
+	function checkOffRoute(fix: GeoFix) {
 		if (inApproach && routeOrigin) {
-			if (haversineM(pos, routeOrigin) <= APPROACH_ARRIVAL_M) {
+			if (haversineM(fix.coords, routeOrigin) <= APPROACH_ARRIVAL_M) {
 				inApproach = false;
 				routeOrigin = null;
 				onApproachComplete?.();
 			}
 			return;
 		}
-		if (plannedRoute.length === 0 || !onReroute) return;
-		const dist = distanceToRoute(pos);
-		if (dist > OFF_ROUTE_THRESHOLD_M && !rerouteNotified) {
-			rerouteNotified = true;
-			onReroute(pos);
-		} else if (dist <= OFF_ROUTE_THRESHOLD_M) {
-			rerouteNotified = false;
+		if (plannedRoute.length < 2 || !onReroute) return;
+
+		const snap = snapToPath(plannedRoute, fix.coords, snapIndex);
+		snapIndex = snap.index;
+
+		const now = Date.now();
+		const threshold = offRouteThreshold(fix);
+
+		if (snap.distanceM <= threshold) {
+			resetOffRoute();
+			return;
 		}
+
+		if (snap.distanceM >= threshold * OFF_ROUTE_IMMEDIATE_RATIO) {
+			fireReroute(fix, now);
+			return;
+		}
+
+		if (!offRouteAnchor) {
+			offRouteAnchor = fix.coords;
+			offRouteSince = now;
+			offRouteLastDistance = snap.distanceM;
+			offRouteFixes = 1;
+			return;
+		}
+
+		const returning = snap.distanceM < offRouteLastDistance - OFF_ROUTE_RETURNING_M;
+		offRouteLastDistance = snap.distanceM;
+		if (returning) {
+			resetOffRoute();
+			return;
+		}
+
+		offRouteFixes++;
+		const traveledM = haversineM(offRouteAnchor, fix.coords);
+		const confirmed =
+			offRouteFixes >= 2 && (traveledM >= OFF_ROUTE_CONFIRM_TRAVEL_M || now - offRouteSince >= OFF_ROUTE_CONFIRM_MS);
+		if (confirmed) fireReroute(fix, now);
+	}
+
+	function resetOffRoute() {
+		offRouteAnchor = null;
+		offRouteSince = 0;
+		offRouteFixes = 0;
+		offRouteLastDistance = 0;
+	}
+
+	function fireReroute(fix: GeoFix, now: number) {
+		if (now - lastRerouteAt < REROUTE_COOLDOWN_MS) return;
+		lastRerouteAt = now;
+		resetOffRoute();
+		onReroute?.(fix.coords, headingOf(fix));
 	}
 
 	function instantSpeedMs(fix: GeoFix): number {
@@ -103,7 +160,7 @@ export function useTracking() {
 		currentPosition = fix.coords;
 		lastFix = fix;
 		lastFixAt = Date.now();
-		checkOffRoute(fix.coords);
+		checkOffRoute(fix);
 	}
 
 	function tickSpeed() {
@@ -123,7 +180,9 @@ export function useTracking() {
 		lastFixAt = Date.now();
 		startTime = Date.now();
 		elapsed = 0;
-		rerouteNotified = false;
+		snapIndex = 0;
+		lastRerouteAt = 0;
+		resetOffRoute();
 		plannedRoute = options?.plannedRoute ?? [];
 		onReroute = options?.onReroute ?? null;
 		inApproach = !!options?.approachRoute?.length;
@@ -146,7 +205,8 @@ export function useTracking() {
 
 	function updatePlannedRoute(route: LatLng[]) {
 		plannedRoute = route;
-		rerouteNotified = false;
+		snapIndex = 0;
+		resetOffRoute();
 	}
 
 	function stop(): { path: LatLng[]; distanceKm: number; durationMinutes: number } {

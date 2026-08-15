@@ -10,7 +10,10 @@ export const GET: RequestHandler = async ({ url }) => {
 	const waypoints = coords || (origin && destination ? `${origin};${destination}` : null);
 	if (!waypoints) return new Response(JSON.stringify({}), { status: 400 });
 
-	const response = await fetchWithRetry(routeUrl(waypoints), {}, { delayMs: 500, label: 'OSRM' });
+	const rawBearings = url.searchParams.get('bearings');
+	const bearings = rawBearings && /^[\d,;]+$/.test(rawBearings) ? rawBearings : undefined;
+
+	const response = await fetchWithRetry(routeUrl(waypoints, bearings), {}, { delayMs: 500, label: 'OSRM' });
 	if (!response) {
 		return new Response(JSON.stringify({ code: 'Error', message: 'Serviço de roteamento indisponível' }), {
 			status: 502,
