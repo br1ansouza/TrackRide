@@ -41,7 +41,9 @@ export const GET: RequestHandler = async ({ url }) => {
 
 	const data = await queryOverpass(roadPoiQuery(around));
 	if (!data) {
-		return new Response(JSON.stringify([]), { status: 502, headers: { 'Content-Type': 'application/json' } });
+		return new Response(JSON.stringify([]), {
+			headers: { 'Content-Type': 'application/json', 'X-TrackRide-Degraded': 'overpass' }
+		});
 	}
 
 	const body = JSON.stringify(shapeRoadPois(data.elements));
