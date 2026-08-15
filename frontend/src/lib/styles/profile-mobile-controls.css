@@ -1,0 +1,126 @@
+.profile-section,
+.profile-settings {
+	display: flex;
+	flex-direction: column;
+}
+
+.profile-section {
+	gap: 12px;
+}
+
+.profile-section-heading h3 {
+	color: var(--color-surface-100);
+	font-size: 15px;
+	font-weight: 650;
+}
+
+.profile-section-heading p {
+	margin-top: 3px;
+	color: var(--color-surface-500);
+	font-size: 12px;
+}
+
+.profile-settings,
+.profile-actions {
+	overflow: hidden;
+	border: 1px solid color-mix(in oklch, var(--color-surface-50) 8%, transparent);
+	border-radius: 16px;
+	background: color-mix(in oklch, var(--color-surface-900) 84%, transparent);
+}
+
+.profile-settings {
+	gap: 0;
+}
+
+.profile-settings > div {
+	gap: 10px;
+	padding: 15px;
+}
+
+.profile-settings > div + div,
+.profile-action + .profile-action {
+	border-top: 1px solid color-mix(in oklch, var(--color-surface-50) 7%, transparent);
+}
+
+.profile-page .profile-settings .bg-surface-700 {
+	border: 0;
+	background: transparent;
+	backdrop-filter: none;
+}
+
+.profile-settings > div > .bg-surface-700 {
+	padding: 0;
+}
+
+.profile-settings > div:first-child > div > div {
+	background: color-mix(in oklch, var(--color-surface-950) 66%, transparent);
+}
+
+.profile-settings > div:first-child .bg-surface-600 {
+	background: color-mix(in oklch, var(--color-ride-route-500) 48%, var(--color-ride-route-900));
+}
+
+.profile-settings > div:last-child .bg-surface-600 {
+	background: color-mix(in oklch, var(--color-surface-50) 22%, var(--color-surface-950));
+	filter: saturate(0);
+}
+
+.profile-action {
+	display: flex;
+	min-height: 68px;
+	width: 100%;
+	align-items: center;
+	gap: 12px;
+	padding: 12px 14px;
+	text-align: left;
+	transition: background 150ms ease;
+}
+
+.profile-action:active {
+	background: color-mix(in oklch, var(--color-surface-700) 55%, transparent);
+}
+
+.profile-action-icon {
+	display: grid;
+	height: 38px;
+	width: 38px;
+	flex: 0 0 auto;
+	place-items: center;
+	border-radius: 10px;
+	background: color-mix(in oklch, var(--color-ride-route-900) 65%, transparent);
+	color: var(--color-ride-route-100);
+}
+
+.profile-action-copy {
+	display: flex;
+	min-width: 0;
+	flex: 1;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.profile-action-copy strong {
+	color: var(--color-surface-100);
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.profile-action-copy small {
+	color: var(--color-surface-500);
+	font-size: 11px;
+}
+
+.profile-logout .profile-action-icon {
+	background: color-mix(in oklch, var(--color-ride-danger-900) 28%, transparent);
+	color: var(--color-ride-danger-300);
+}
+
+.profile-logout .profile-action-copy strong {
+	color: var(--color-ride-danger-300);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.profile-action {
+		transition: none;
+	}
+}
