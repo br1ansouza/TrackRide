@@ -31,6 +31,66 @@
 
 	const ORIGIN_HIDE_RADIUS_M = 50;
 	const GPS_LOADING_TIMEOUT_MS = 20000;
+	const LINE_LAYOUT = { 'line-cap': 'round', 'line-join': 'round' } as const;
+	const NAV_ZOOM_BY_KMH: [number, number][] = [[0, 18], [30, 17.2], [60, 16.4], [90, 15.8], [120, 15.2]];
+	const NAV_PITCH_BY_KMH: [number, number][] = [[0, 60], [60, 55], [120, 48]];
+
+	const FOLLOW_DURATION_MS = 1000;
+
+	let navigating = false;
+	let markerFrom: LatLng | null = null;
+	let markerTo: LatLng | null = null;
+	let markerStart = 0;
+	let markerDuration = FOLLOW_DURATION_MS;
+	let markerFrame = 0;
+
+	function ensureUserMarker(coords: LatLng) {
+		if (locationMarker || !map) return;
+		const el = createIconMarker(Navigation2, cssVar('--color-ride-location-500'), 28, 15, true);
+		el.classList.add('user-position-marker');
+		locationMarker = new maplibregl.Marker({ element: el, rotationAlignment: 'map', pitchAlignment: 'map' })
+			.setLngLat(toLngLat(coords))
+			.addTo(map);
+		markerTo = coords;
+	}
+
+	function moveUserMarker(coords: LatLng, bearing: number | null, durationMs: number) {
+		if (!locationMarker) return;
+		if (bearing !== null) locationMarker.setRotation(bearing);
+
+		markerFrom = markerTo ?? coords;
+		markerTo = coords;
+		markerStart = performance.now();
+		markerDuration = durationMs;
+
+		cancelAnimationFrame(markerFrame);
+		const step = (now: number) => {
+			if (!locationMarker || !markerFrom || !markerTo) return;
+			const t = markerDuration <= 0 ? 1 : Math.min(1, (now - markerStart) / markerDuration);
+			locationMarker.setLngLat([
+				markerFrom[1] + (markerTo[1] - markerFrom[1]) * t,
+				markerFrom[0] + (markerTo[0] - markerFrom[0]) * t
+			]);
+			if (t < 1) markerFrame = requestAnimationFrame(step);
+		};
+		markerFrame = requestAnimationFrame(step);
+	}
+
+	function widthByZoom(near: number, mid: number, far: number): maplibregl.DataDrivenPropertyValueSpecification<number> {
+		return ['interpolate', ['linear'], ['zoom'], 10, near, 15, mid, 18, far];
+	}
+
+	function interpolateBySpeed(table: [number, number][], kmh: number): number {
+		if (kmh <= table[0][0]) return table[0][1];
+		for (let i = 1; i < table.length; i++) {
+			const [speedAt, value] = table[i];
+			if (kmh > speedAt) continue;
+			const [prevSpeed, prevValue] = table[i - 1];
+			const t = (kmh - prevSpeed) / (speedAt - prevSpeed);
+			return prevValue + t * (value - prevValue);
+		}
+		return table[table.length - 1][1];
+	}
 
 	function updateOriginVisibility(userPosition: LatLng) {
 		if (!originMarker || !originPoint) return;
@@ -90,15 +150,10 @@
 					const coords = fix.coords;
 					gpsLoading = false;
 					clearTimeout(gpsTimeout);
-					const lngLat = toLngLat(coords);
-					if (locationMarker) { locationMarker.setLngLat(lngLat); }
-					else {
-						const el = createIconMarker(Navigation2, cssVar('--color-ride-location-500'), 28, 15, true);
-						el.classList.add('user-position-marker');
-						locationMarker = new maplibregl.Marker({ element: el }).setLngLat(lngLat).addTo(map!);
-					}
+					ensureUserMarker(coords);
+					if (!navigating) locationMarker?.setLngLat(toLngLat(coords));
 					updateOriginVisibility(coords);
-					if (!hasInitialPosition) { map.flyTo({ center: lngLat, zoom: 13 }); hasInitialPosition = true; }
+					if (!hasInitialPosition) { map.flyTo({ center: toLngLat(coords), zoom: 13 }); hasInitialPosition = true; }
 				},
 				onError(msg) { gpsLoading = false; toaster.warning({ title: 'Localização indisponível', description: msg }); }
 			});
@@ -112,13 +167,14 @@
 	function addEmptySources() {
 		if (!map) return;
 		map.addSource('route', { type: 'geojson', data: emptyLine() });
-		map.addLayer({ id: 'route-line', type: 'line', source: 'route', paint: { 'line-color': cssVar('--color-ride-route-300'), 'line-width': 5, 'line-opacity': 0.9 } });
+		map.addLayer({ id: 'route-casing', type: 'line', source: 'route', layout: LINE_LAYOUT, paint: { 'line-color': '#0b1220', 'line-width': widthByZoom(6, 15, 24), 'line-opacity': 0.85 } });
+		map.addLayer({ id: 'route-line', type: 'line', source: 'route', layout: LINE_LAYOUT, paint: { 'line-color': cssVar('--color-ride-route-300'), 'line-width': widthByZoom(4, 10, 17), 'line-opacity': 0.95 } });
 		map.addSource('conditions', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-		map.addLayer({ id: 'conditions-line', type: 'line', source: 'conditions', paint: { 'line-color': ['get', 'color'], 'line-width': 6, 'line-opacity': ['get', 'opacity'] } });
+		map.addLayer({ id: 'conditions-line', type: 'line', source: 'conditions', layout: LINE_LAYOUT, paint: { 'line-color': ['get', 'color'], 'line-width': widthByZoom(5, 11, 18), 'line-opacity': ['get', 'opacity'] } });
 		map.addSource('approach', { type: 'geojson', data: emptyLine() });
-		map.addLayer({ id: 'approach-line', type: 'line', source: 'approach', paint: { 'line-color': cssVar('--color-ride-location-300'), 'line-width': 4, 'line-opacity': 0.8, 'line-dasharray': [2, 3] } });
+		map.addLayer({ id: 'approach-line', type: 'line', source: 'approach', layout: LINE_LAYOUT, paint: { 'line-color': cssVar('--color-ride-location-300'), 'line-width': widthByZoom(3, 7, 11), 'line-opacity': 0.8, 'line-dasharray': [2, 3] } });
 		map.addSource('tracked', { type: 'geojson', data: emptyLine() });
-		map.addLayer({ id: 'tracked-line', type: 'line', source: 'tracked', paint: { 'line-color': cssVar('--color-ride-safe-500'), 'line-width': 4, 'line-opacity': 0.9 } });
+		map.addLayer({ id: 'tracked-line', type: 'line', source: 'tracked', layout: LINE_LAYOUT, paint: { 'line-color': cssVar('--color-ride-safe-500'), 'line-width': widthByZoom(3, 6, 9), 'line-opacity': 0.95 } });
 		trackedSourceAdded = true;
 	}
 
@@ -241,10 +297,25 @@
 		(map.getSource('tracked') as maplibregl.GeoJSONSource).setData({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: toLineCoords(path) } });
 	}
 
-	export function followPosition(coords: LatLng, prevCoords?: LatLng, bearingOverride?: number) {
+	export function setNavigating(active: boolean) {
+		navigating = active;
+		if (!active) cancelAnimationFrame(markerFrame);
+	}
+
+	export function followPosition(coords: LatLng, prevCoords?: LatLng, bearingOverride?: number, speedKmh = 0) {
 		if (!map) return;
+		ensureUserMarker(coords);
 		const bearing = bearingOverride ?? (prevCoords ? calculateBearing(prevCoords, coords) : map.getBearing());
-		map.easeTo({ center: toLngLat(coords), zoom: 18, bearing, pitch: 60, duration: 1000 });
+		const duration = FOLLOW_DURATION_MS;
+		map.easeTo({
+			center: toLngLat(coords),
+			zoom: interpolateBySpeed(NAV_ZOOM_BY_KMH, speedKmh),
+			bearing,
+			pitch: interpolateBySpeed(NAV_PITCH_BY_KMH, speedKmh),
+			duration,
+			easing: (t) => t
+		});
+		moveUserMarker(coords, bearing, duration);
 	}
 
 	export function drawApproachRoute(coords: LatLng[]) {
