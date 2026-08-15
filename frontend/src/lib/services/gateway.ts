@@ -2,7 +2,7 @@ import { isStandaloneBuild, standaloneOwmKey } from '$lib/utils/platform';
 import { fetchWithRetry } from '$lib/utils/fetchRetry';
 import { TtlCache } from '$lib/utils/ttlCache';
 import { searchUrl, reverseUrl, shapePlaces, pickDistrict, type PlaceResult, type PhotonResponse } from './external/photon';
-import { fuelQuery, shapeStations, queryOverpass, type FuelStation } from './external/overpass';
+import { fuelQuery, shapeStations, queryOverpass, roadPoiQuery, shapeRoadPois, type FuelStation, type RoadPoi } from './external/overpass';
 import { routeUrl, type OsrmRouteResponse } from './external/osrm';
 import { forecastUrl } from './external/owm';
 import type { LatLng } from './routing';
@@ -93,6 +93,32 @@ export async function fetchFuelStations(params: FuelSearchParams): Promise<FuelS
 	const stations = shapeStations(data.elements);
 	fuelCache.set(around, stations);
 	return stations;
+}
+
+const ROAD_POI_RADIUS_M = 25;
+const roadPoiCache = new TtlCache<RoadPoi[]>(7 * 24 * 60 * 60 * 1000, 100);
+
+export async function fetchRoadPois(path: LatLng[]): Promise<RoadPoi[]> {
+	if (path.length < 2) return [];
+	const flat = path.map(([lat, lon]) => `${lat.toFixed(5)},${lon.toFixed(5)}`);
+
+	if (!isStandaloneBuild) {
+		try {
+			const response = await fetch(`/api/road-pois?path=${flat.join(';')}&radius=${ROAD_POI_RADIUS_M}`);
+			return response.ok ? response.json() : [];
+		} catch {
+			return [];
+		}
+	}
+
+	const around = `around:${ROAD_POI_RADIUS_M},${flat.join(',')}`;
+	const cached = roadPoiCache.get(around);
+	if (cached) return cached;
+	const data = await queryOverpass(roadPoiQuery(around));
+	if (!data) return [];
+	const pois = shapeRoadPois(data.elements);
+	roadPoiCache.set(around, pois);
+	return pois;
 }
 
 function buildAround({ path, point, radius }: FuelSearchParams): string | null {
