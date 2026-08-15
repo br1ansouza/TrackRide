@@ -22,6 +22,7 @@ export interface SavedRoute {
 	duration_minutes: number | null;
 	score: number | null;
 	public: boolean;
+	completed: boolean;
 	stops: SavedRouteStop[];
 	created_at: string;
 	updated_at: string;
@@ -74,6 +75,7 @@ export interface CreateRouteParams {
 	duration_minutes?: number;
 	score?: number;
 	public?: boolean;
+	completed?: boolean;
 	route_stops_attributes?: RouteStopParams[];
 }
 
