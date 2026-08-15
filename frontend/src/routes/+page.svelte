@@ -84,6 +84,7 @@
 	let following = $state(true);
 
 	const MOVEMENT_BEARING_MIN_M = 10;
+	const ARRIVAL_RADIUS_M = 120;
 
 	function routeAheadBearing(position: LatLng): number | undefined {
 		const path = tracking.inApproach && route.approachRoute
@@ -195,6 +196,9 @@
 			return;
 		}
 
+		const lastPoint = result.path[result.path.length - 1];
+		const completed = route.destCoords ? haversineM(lastPoint, route.destCoords) <= ARRIVAL_RADIUS_M : false;
+
 		const rideParams: CreateRouteParams = {
 			name: `${route.originLabel} → ${route.destLabel}`,
 			origin_name: route.originLabel,
@@ -204,13 +208,14 @@
 			path_coords: result.path.flatMap((p) => [p[1], p[0]]),
 			distance_km: result.distanceKm,
 			duration_minutes: result.durationMinutes,
-			score: route.score?.value
+			score: route.score?.value,
+			completed
 		};
 
 		try {
 			await createRoute(rideParams);
 			toaster.success({ title: 'Percurso salvo', description: `${result.distanceKm} km registrados no histórico.` });
-			if (route.exploreRouteId) {
+			if (route.exploreRouteId && completed) {
 				completeRoute(route.exploreRouteId).catch(() => {});
 			}
 		} catch (err) {

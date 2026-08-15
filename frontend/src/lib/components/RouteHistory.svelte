@@ -116,7 +116,10 @@
 				<div class="flex flex-1 flex-col gap-1">
 					<div class="flex flex-col text-sm font-medium text-white">
 						<span>{route.origin_name}</span>
-						<span class="flex items-center gap-1 text-xs text-surface-400"><ArrowDown size={10} /> {route.destination_name}</span>
+						<span class="flex items-center gap-1 text-xs text-surface-400" title={route.completed ? 'Viagem concluída' : 'Viagem não concluída'}>
+							<ArrowDown size={10} style="color: var({route.completed ? '--color-ride-safe-300' : '--color-ride-danger-300'});" />
+							{route.destination_name}
+						</span>
 					</div>
 					<div class="flex flex-wrap gap-3 text-xs text-surface-400">
 						{#if route.distance_km}
