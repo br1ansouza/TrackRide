@@ -4,4 +4,4 @@ export const standaloneApiHost: string | undefined = import.meta.env.VITE_API_HO
 
 export const configuredApiUrl: string | undefined = import.meta.env.VITE_API_URL;
 
-export const standaloneOwmKey: string | undefined = import.meta.env.VITE_OWM_KEY;
+export const proxyBaseUrl: string = import.meta.env.VITE_PROXY_URL ?? '';
