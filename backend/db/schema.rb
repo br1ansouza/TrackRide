@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_05_184041) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_15_210000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "fuzzystrmatch"
   enable_extension "pg_catalog.plpgsql"
@@ -47,6 +47,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_05_184041) do
   end
 
   create_table "public.routes", force: :cascade do |t|
+    t.boolean "completed", default: false, null: false
     t.datetime "created_at", null: false
     t.geography "destination_coords", limit: {:srid=>4326, :type=>"st_point", :geographic=>true}, null: false
     t.string "destination_name", null: false

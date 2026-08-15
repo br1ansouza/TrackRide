@@ -84,6 +84,7 @@
 	let following = $state(true);
 
 	const MOVEMENT_BEARING_MIN_M = 10;
+	const ARRIVAL_RADIUS_M = 120;
 
 	function routeAheadBearing(position: LatLng): number | undefined {
 		const path = tracking.inApproach && route.approachRoute
@@ -98,15 +99,20 @@
 	}
 
 	$effect(() => {
-		if (tracking.active && tracking.trackedPath.length >= 2) {
-			route.mapRef?.drawTrackedPath(tracking.trackedPath);
+		route.mapRef?.setNavigating(tracking.active);
+	});
+
+	$effect(() => {
+		if (tracking.active && tracking.displayPath.length >= 2) {
+			route.mapRef?.drawTrackedPath(tracking.displayPath);
 			if (!following) return;
-			const path = tracking.trackedPath;
+			const path = tracking.displayPath;
 			const current = path[path.length - 1];
 			const prev = path[path.length - 2];
-			route.mapRef?.followPosition(current, prev, navigationBearing(current, prev));
+			route.mapRef?.followPosition(current, prev, navigationBearing(current, prev), tracking.speedKmh);
 		} else if (tracking.active && following && tracking.currentPosition) {
-			route.mapRef?.followPosition(tracking.currentPosition, undefined, routeAheadBearing(tracking.currentPosition));
+			const current = tracking.snappedPosition ?? tracking.currentPosition;
+			route.mapRef?.followPosition(current, undefined, routeAheadBearing(current), tracking.speedKmh);
 		}
 	});
 
@@ -118,13 +124,14 @@
 	function recenterOnPosition() {
 		if (tracking.active) {
 			following = true;
-			const path = tracking.trackedPath;
+			const path = tracking.displayPath;
 			if (path.length >= 2) {
 				const current = path[path.length - 1];
 				const prev = path[path.length - 2];
-				route.mapRef?.followPosition(current, prev, navigationBearing(current, prev));
+				route.mapRef?.followPosition(current, prev, navigationBearing(current, prev), tracking.speedKmh);
 			} else if (tracking.currentPosition) {
-				route.mapRef?.followPosition(tracking.currentPosition, undefined, routeAheadBearing(tracking.currentPosition));
+				const current = tracking.snappedPosition ?? tracking.currentPosition;
+				route.mapRef?.followPosition(current, undefined, routeAheadBearing(current), tracking.speedKmh);
 			}
 			return;
 		}
@@ -147,13 +154,13 @@
 		historyOpen = false;
 	}
 
-	async function handleReroute(position: LatLng) {
+	async function handleReroute(position: LatLng, bearingDeg: number | null) {
 		if (!route.mapRef || !route.destCoords) return;
 		toaster.info({ title: 'Recalculando rota', description: 'Você saiu do trajeto planejado.' });
 		const planned = tracking.plannedRoute.length >= 2 ? tracking.plannedRoute : route.routeCoords;
 		const riderIndex = closestRouteIndex(planned, position);
 		const pendingStops = route.stops.filter((s) => closestRouteIndex(planned, s.coords) >= riderIndex);
-		const routeData = await route.mapRef.drawRoute(position, route.destCoords, pendingStops.map((s) => s.coords), true);
+		const routeData = await route.mapRef.drawRoute(position, route.destCoords, pendingStops.map((s) => s.coords), true, bearingDeg);
 		if (routeData) {
 			tracking.updatePlannedRoute(routeData.coords);
 		} else {
@@ -175,7 +182,7 @@
 		});
 		mobile.setTab('map');
 		if (tracking.currentPosition) {
-			route.mapRef?.followPosition(tracking.currentPosition, undefined, routeAheadBearing(tracking.currentPosition));
+			route.mapRef?.followPosition(tracking.currentPosition, undefined, routeAheadBearing(tracking.currentPosition), tracking.speedKmh);
 		}
 	}
 
@@ -189,6 +196,9 @@
 			return;
 		}
 
+		const lastPoint = result.path[result.path.length - 1];
+		const completed = route.destCoords ? haversineM(lastPoint, route.destCoords) <= ARRIVAL_RADIUS_M : false;
+
 		const rideParams: CreateRouteParams = {
 			name: `${route.originLabel} → ${route.destLabel}`,
 			origin_name: route.originLabel,
@@ -198,13 +208,14 @@
 			path_coords: result.path.flatMap((p) => [p[1], p[0]]),
 			distance_km: result.distanceKm,
 			duration_minutes: result.durationMinutes,
-			score: route.score?.value
+			score: route.score?.value,
+			completed
 		};
 
 		try {
 			await createRoute(rideParams);
 			toaster.success({ title: 'Percurso salvo', description: `${result.distanceKm} km registrados no histórico.` });
-			if (route.exploreRouteId) {
+			if (route.exploreRouteId && completed) {
 				completeRoute(route.exploreRouteId).catch(() => {});
 			}
 		} catch (err) {
@@ -250,7 +261,7 @@
 				<TrackingOverlay
 					distanceKm={tracking.distanceKm}
 					elapsed={tracking.elapsedFormatted()}
-					speed={tracking.speedFormatted}
+					speedKmh={tracking.speedKmh}
 					onStop={stopTracking}
 				/>
 			{/if}

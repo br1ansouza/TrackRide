@@ -10,15 +10,28 @@ export interface RouteData {
 	segmentDistances: number[];
 }
 
+export interface RouteOptions {
+	bearingDeg?: number | null;
+}
+
+const BEARING_TOLERANCE_DEG = 60;
+
+function buildBearings(bearingDeg: number | null | undefined, pointCount: number): string | undefined {
+	if (bearingDeg === null || bearingDeg === undefined || !Number.isFinite(bearingDeg)) return undefined;
+	const normalized = Math.round(((bearingDeg % 360) + 360) % 360);
+	return [`${normalized},${BEARING_TOLERANCE_DEG}`, ...Array(pointCount - 1).fill('')].join(';');
+}
+
 export async function fetchRoute(
 	origin: LatLng,
 	destination: LatLng,
-	waypoints: LatLng[] = []
+	waypoints: LatLng[] = [],
+	options: RouteOptions = {}
 ): Promise<RouteData | null> {
 	const points = [origin, ...waypoints, destination];
 	const coords = points.map((p) => `${p[1]},${p[0]}`).join(';');
 
-	const data = await fetchOsrmRoute(coords);
+	const data = await fetchOsrmRoute(coords, buildBearings(options.bearingDeg, points.length));
 	if (!data || data.code !== 'Ok' || !data.routes.length) return null;
 
 	const route = data.routes[0];

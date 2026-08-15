@@ -3,6 +3,12 @@
 # If running the rails server then create or migrate existing database
 if [ "${@: -2:1}" == "./bin/rails" ] && [ "${@: -1:1}" == "server" ]; then
   ./bin/rails db:prepare
+
+  # Os seeds são idempotentes (find_or_create_by!), então podem rodar a cada boot.
+  # Uma falha aqui não pode derrubar a API.
+  if [ "$SEED_ON_BOOT" == "true" ]; then
+    ./bin/rails db:seed || echo "Seed falhou, subindo mesmo assim"
+  fi
 fi
 
 exec "${@}"

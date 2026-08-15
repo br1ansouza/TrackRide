@@ -134,7 +134,7 @@ module Api
       def route_params
         permitted = params.permit(
           :name, :origin_name, :destination_name,
-          :distance_km, :duration_minutes, :score, :public,
+          :distance_km, :duration_minutes, :score, :public, :completed,
           origin_coords: [], destination_coords: [], path_coords: [],
           route_stops_attributes: [ :name, :stop_type, :sort_order, position: [] ]
         )
@@ -190,6 +190,7 @@ module Api
           duration_minutes: route.duration_minutes,
           score: route.score,
           public: route.public,
+          completed: route.completed,
           stops: route.route_stops.map { |s| stop_response(s) },
           created_at: route.created_at,
           updated_at: route.updated_at
