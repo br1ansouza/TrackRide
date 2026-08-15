@@ -10,7 +10,9 @@
 	let submitting = $state(false);
 	let sent = $state(false);
 
-	async function handleSubmit() {
+	async function handleSubmit(event: SubmitEvent) {
+		event.preventDefault();
+
 		if (!email) return;
 		submitting = true;
 		try {
