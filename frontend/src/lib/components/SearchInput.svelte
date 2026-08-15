@@ -75,14 +75,14 @@
 			return;
 		}
 		await getCurrentPosition({
-			async onPosition(coords) {
+			async onPosition(fix) {
 				query = 'Minha localização';
 				isMyLocation = true;
 				open = false;
 				results = [];
-				const label = await resolveLocationLabel(coords);
+				const label = await resolveLocationLabel(fix.coords);
 				query = label;
-				onselect(label, coords);
+				onselect(label, fix.coords);
 			},
 			onError(message) {
 				toaster.error({ title: 'Erro de localização', description: message });

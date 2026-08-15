@@ -10,6 +10,7 @@ export interface OsrmRouteResponse {
 	}[];
 }
 
-export function routeUrl(coords: string): string {
-	return `${OSRM_URL}/${coords}?overview=full&geometries=geojson&annotations=duration,distance`;
+export function routeUrl(coords: string, bearings?: string): string {
+	const url = `${OSRM_URL}/${coords}?overview=full&geometries=geojson&annotations=duration,distance`;
+	return bearings ? `${url}&bearings=${bearings}` : url;
 }

@@ -1,20 +1,20 @@
 <script lang="ts">
-	import { onMount, mount } from 'svelte';
+	import { onMount } from 'svelte';
 	import maplibregl from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
-	import { Flag, MapPin, Navigation2 } from 'lucide-svelte';
-	import { stopIcon } from '$lib/utils/stopIcons';
 	import type { RouteStopEntry } from '$lib/types/routeStop';
 	import { cssVar } from '$lib/utils/color';
-	import { stopColor } from '$lib/utils/stopColors';
 	import { safeTop } from '$lib/utils/safeArea';
-	import { toLngLat, toLineCoords, boundsFromCoords, calculateBearing, closestRouteIndex, haversineM } from '$lib/utils/mapHelpers';
+	import { toLngLat, toLineCoords, boundsFromCoords, calculateBearing, closestRouteIndex } from '$lib/utils/mapHelpers';
 	import { fetchRoute, type LatLng, type RouteData } from '$lib/services/routing';
 	import type { WeatherPoint } from '$lib/services/weather';
+	import type { RoadPoi } from '$lib/services/external/overpass';
 	import { classifyPoint } from '$lib/services/alerts';
 	import { toaster } from '$lib/stores/toaster';
 	import { watchPosition, clearWatch, getLastPosition } from '$lib/services/geolocation';
 	import { registerOfflineProtocol, prepareMapStyle } from '$lib/services/offlineTiles';
+	import { MapMarkerController } from '$lib/utils/mapMarkerController';
+	import { registerRoadPoiIcons, roadPoiPriority } from '$lib/utils/mapPoiIcons';
 
 	let { controlsVisible = true }: { controlsVisible?: boolean } = $props();
 
@@ -24,39 +24,37 @@
 	let resolveReady: () => void;
 	let hasInitialPosition = false;
 	let gpsLoading = $state(true);
-	let locationMarker: maplibregl.Marker | null = null;
-	let originMarker: maplibregl.Marker | null = null;
-	let originPoint: LatLng | null = null;
-	let routeMarkers: maplibregl.Marker[] = [];
+	let markerController: MapMarkerController | null = null;
 
-	const ORIGIN_HIDE_RADIUS_M = 50;
 	const GPS_LOADING_TIMEOUT_MS = 20000;
+	const LINE_LAYOUT = { 'line-cap': 'round', 'line-join': 'round' } as const;
+	const NAV_ZOOM_BY_KMH: [number, number][] = [[0, 18], [30, 17.2], [60, 16.4], [90, 15.8], [120, 15.2]];
+	const NAV_PITCH_BY_KMH: [number, number][] = [[0, 60], [60, 55], [120, 48]];
 
-	function updateOriginVisibility(userPosition: LatLng) {
-		if (!originMarker || !originPoint) return;
-		const near = haversineM(userPosition, originPoint) < ORIGIN_HIDE_RADIUS_M;
-		originMarker.getElement().style.display = near ? 'none' : '';
+	const FOLLOW_DURATION_MS = 1000;
+
+	let navigating = false;
+
+	function widthByZoom(near: number, mid: number, far: number): maplibregl.DataDrivenPropertyValueSpecification<number> {
+		return ['interpolate', ['linear'], ['zoom'], 10, near, 15, mid, 18, far];
 	}
+
+	function interpolateBySpeed(table: [number, number][], kmh: number): number {
+		if (kmh <= table[0][0]) return table[0][1];
+		for (let i = 1; i < table.length; i++) {
+			const [speedAt, value] = table[i];
+			if (kmh > speedAt) continue;
+			const [prevSpeed, prevValue] = table[i - 1];
+			const t = (kmh - prevSpeed) / (speedAt - prevSpeed);
+			return prevValue + t * (value - prevValue);
+		}
+		return table[table.length - 1][1];
+	}
+
 	let weatherMarkerEls: maplibregl.Marker[] = [];
-	let stopMarkerEls: maplibregl.Marker[] = [];
 	let trackedSourceAdded = false;
 
 	const emptyLine = () => ({ type: 'Feature' as const, properties: {}, geometry: { type: 'LineString' as const, coordinates: [] as [number, number][] } });
-
-	function createIconMarker(icon: typeof Flag, background: string, size = 26, iconSize = 14, solid = false): HTMLDivElement {
-		const el = document.createElement('div');
-		const iconColor = cssVar('--color-surface-50');
-		el.style.cssText = `display:flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:50%;background:${background};border:2px solid ${iconColor};box-shadow:0 1px 4px rgba(0,0,0,0.4);`;
-		mount(icon, { target: el, props: { size: iconSize, color: iconColor, fill: solid ? iconColor : 'none' } });
-		return el;
-	}
-
-	function createDestinationMarker(): HTMLDivElement {
-		const el = document.createElement('div');
-		el.style.cssText = 'filter:drop-shadow(0 1px 3px rgba(0,0,0,0.5));';
-		mount(MapPin, { target: el, props: { size: 34, color: cssVar('--color-surface-50'), fill: cssVar('--color-ride-danger-500'), strokeWidth: 1.5 } });
-		return el;
-	}
 
 	onMount(() => {
 		mapReady = new Promise((r) => { resolveReady = r; });
@@ -77,32 +75,38 @@
 				zoom: lastPos ? 13 : 4,
 				attributionControl: false
 			});
+			markerController = new MapMarkerController(map);
+			markerController.setNavigating(navigating);
 			map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
 			map.on('load', () => { addEmptySources(); resolveReady(); });
+			map.on('zoom', updateWeatherVisibility);
 
 			const resizeObserver = new ResizeObserver(() => map?.resize());
 			resizeObserver.observe(mapContainer);
 
 			const gpsTimeout = setTimeout(() => { gpsLoading = false; }, GPS_LOADING_TIMEOUT_MS);
 			watchPosition({
-				onPosition(coords) {
+				onPosition(fix) {
 					if (!map) return;
+					const coords = fix.coords;
 					gpsLoading = false;
 					clearTimeout(gpsTimeout);
-					const lngLat = toLngLat(coords);
-					if (locationMarker) { locationMarker.setLngLat(lngLat); }
-					else {
-						const el = createIconMarker(Navigation2, cssVar('--color-ride-location-500'), 28, 15, true);
-						el.classList.add('user-position-marker');
-						locationMarker = new maplibregl.Marker({ element: el }).setLngLat(lngLat).addTo(map!);
-					}
-					updateOriginVisibility(coords);
-					if (!hasInitialPosition) { map.flyTo({ center: lngLat, zoom: 13 }); hasInitialPosition = true; }
+					markerController?.updateRider(coords, fix.accuracyM);
+					markerController?.updateOriginVisibility(coords);
+					if (!hasInitialPosition) { map.flyTo({ center: toLngLat(coords), zoom: 13 }); hasInitialPosition = true; }
 				},
 				onError(msg) { gpsLoading = false; toaster.warning({ title: 'Localização indisponível', description: msg }); }
 			});
 
-			cleanup = () => { clearTimeout(gpsTimeout); resizeObserver.disconnect(); clearWatch(); map?.remove(); };
+			cleanup = () => {
+				clearTimeout(gpsTimeout);
+				resizeObserver.disconnect();
+				clearWatch();
+				markerController?.destroy();
+				markerController = null;
+				weatherMarkerEls.forEach((marker) => marker.remove());
+				map?.remove();
+			};
 		})();
 
 		return () => { disposed = true; cleanup?.(); };
@@ -111,37 +115,46 @@
 	function addEmptySources() {
 		if (!map) return;
 		map.addSource('route', { type: 'geojson', data: emptyLine() });
-		map.addLayer({ id: 'route-line', type: 'line', source: 'route', paint: { 'line-color': cssVar('--color-ride-route-300'), 'line-width': 5, 'line-opacity': 0.9 } });
+		map.addLayer({ id: 'route-casing', type: 'line', source: 'route', layout: LINE_LAYOUT, paint: { 'line-color': cssVar('--color-surface-950'), 'line-width': widthByZoom(6, 15, 24), 'line-opacity': 0.85 } });
+		map.addLayer({ id: 'route-line', type: 'line', source: 'route', layout: LINE_LAYOUT, paint: { 'line-color': cssVar('--color-ride-route-300'), 'line-width': widthByZoom(4, 10, 17), 'line-opacity': 0.95 } });
 		map.addSource('conditions', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-		map.addLayer({ id: 'conditions-line', type: 'line', source: 'conditions', paint: { 'line-color': ['get', 'color'], 'line-width': 6, 'line-opacity': ['get', 'opacity'] } });
+		map.addLayer({ id: 'conditions-line', type: 'line', source: 'conditions', layout: LINE_LAYOUT, paint: { 'line-color': ['get', 'color'], 'line-width': widthByZoom(5, 11, 18), 'line-opacity': ['get', 'opacity'] } });
 		map.addSource('approach', { type: 'geojson', data: emptyLine() });
-		map.addLayer({ id: 'approach-line', type: 'line', source: 'approach', paint: { 'line-color': cssVar('--color-ride-location-300'), 'line-width': 4, 'line-opacity': 0.8, 'line-dasharray': [2, 3] } });
+		map.addLayer({ id: 'approach-line', type: 'line', source: 'approach', layout: LINE_LAYOUT, paint: { 'line-color': cssVar('--color-ride-location-300'), 'line-width': widthByZoom(3, 7, 11), 'line-opacity': 0.8, 'line-dasharray': [2, 3] } });
+		map.addSource('road-pois', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+		registerRoadPoiIcons(map);
+		map.addLayer({
+			id: 'road-pois-symbol',
+			type: 'symbol',
+			source: 'road-pois',
+			minzoom: 13,
+			layout: {
+				'icon-image': ['concat', 'road-poi-', ['get', 'kind']],
+				'icon-size': ['interpolate', ['linear'], ['zoom'], 13, 0.58, 18, 0.9],
+				'icon-allow-overlap': false,
+				'icon-ignore-placement': false,
+				'symbol-sort-key': ['get', 'priority']
+			}
+		});
 		map.addSource('tracked', { type: 'geojson', data: emptyLine() });
-		map.addLayer({ id: 'tracked-line', type: 'line', source: 'tracked', paint: { 'line-color': cssVar('--color-ride-safe-500'), 'line-width': 4, 'line-opacity': 0.9 } });
+		map.addLayer({ id: 'tracked-line', type: 'line', source: 'tracked', layout: LINE_LAYOUT, paint: { 'line-color': cssVar('--color-ride-safe-500'), 'line-width': widthByZoom(3, 6, 9), 'line-opacity': 0.95 } });
 		trackedSourceAdded = true;
 	}
 
-	function clearRoute() {
+	export function clearRoute() {
 		if (!map) return;
 		(map.getSource('route') as maplibregl.GeoJSONSource | undefined)?.setData(emptyLine());
 		(map.getSource('conditions') as maplibregl.GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features: [] });
 		(map.getSource('approach') as maplibregl.GeoJSONSource | undefined)?.setData(emptyLine());
-		routeMarkers.forEach((m) => m.remove()); routeMarkers = [];
+		(map.getSource('road-pois') as maplibregl.GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features: [] });
+		markerController?.clearRoute();
 		weatherMarkerEls.forEach((m) => m.remove()); weatherMarkerEls = [];
-		stopMarkerEls.forEach((m) => m.remove()); stopMarkerEls = [];
-		originMarker = null;
-		originPoint = null;
 	}
 
 	function placeRouteMarkers(originCoords: LatLng, destCoords: LatLng) {
-		originMarker = new maplibregl.Marker({ element: createIconMarker(Flag, cssVar('--color-ride-safe-500')) }).setLngLat(toLngLat(originCoords)).setPopup(new maplibregl.Popup().setText('Origem')).addTo(map!);
-		originPoint = originCoords;
-		routeMarkers.push(
-			originMarker,
-			new maplibregl.Marker({ element: createDestinationMarker(), anchor: 'bottom' }).setLngLat(toLngLat(destCoords)).setPopup(new maplibregl.Popup().setText('Destino')).addTo(map!)
-		);
+		markerController?.placeEndpoints(originCoords, destCoords);
 		const lastPosition = getLastPosition();
-		if (lastPosition) updateOriginVisibility(lastPosition);
+		if (lastPosition) markerController?.updateOriginVisibility(lastPosition);
 	}
 
 	function renderRouteLine(originCoords: LatLng, destCoords: LatLng, routeData: RouteData, skipFit: boolean): boolean {
@@ -152,12 +165,12 @@
 		return true;
 	}
 
-	export async function drawRoute(originCoords: LatLng, destCoords: LatLng, waypoints: LatLng[] = [], skipFit = false): Promise<RouteData | null> {
+	export async function drawRoute(originCoords: LatLng, destCoords: LatLng, waypoints: LatLng[] = [], skipFit = false, bearingDeg: number | null = null): Promise<RouteData | null> {
 		if (!map) return null;
 		await mapReady;
 		clearRoute();
 		placeRouteMarkers(originCoords, destCoords);
-		const routeData = await fetchRoute(originCoords, destCoords, waypoints);
+		const routeData = await fetchRoute(originCoords, destCoords, waypoints, { bearingDeg });
 		if (!routeData) return null;
 		return renderRouteLine(originCoords, destCoords, routeData, skipFit) ? routeData : null;
 	}
@@ -171,12 +184,7 @@
 	}
 
 	export function showStopMarkers(stops: RouteStopEntry[]) {
-		if (!map) return;
-		stopMarkerEls.forEach((m) => m.remove());
-		stopMarkerEls = stops.map((s) => {
-			const sc = stopColor(s.stopType);
-			return new maplibregl.Marker({ element: createIconMarker(stopIcon(s.stopType), cssVar(sc.marker), 24, 13) }).setLngLat(toLngLat(s.coords)).setPopup(new maplibregl.Popup().setText(s.name)).addTo(map!);
-		});
+		markerController?.showStops(stops);
 	}
 
 	export function showRouteConditions(routeCoords: LatLng[], points: WeatherPoint[]) {
@@ -209,7 +217,6 @@
 			return new maplibregl.Marker({ element: el }).setLngLat(toLngLat(p.coords)).addTo(map!);
 		});
 		updateWeatherVisibility();
-		map.on('zoom', updateWeatherVisibility);
 	}
 
 	function updateWeatherVisibility() {
@@ -235,15 +242,42 @@
 		map.easeTo({ center: last ? toLngLat(last) : map.getCenter().toArray() as [number, number], zoom: 18, duration: 500 });
 	}
 
+	export function showRoadPois(pois: RoadPoi[]) {
+		const source = map?.getSource('road-pois') as maplibregl.GeoJSONSource | undefined;
+		if (!source) return;
+		source.setData({
+			type: 'FeatureCollection',
+			features: pois.map((poi) => ({
+				type: 'Feature' as const,
+				properties: { kind: poi.kind, priority: roadPoiPriority(poi.kind) },
+				geometry: { type: 'Point' as const, coordinates: [poi.lon, poi.lat] }
+			}))
+		});
+	}
+
 	export function drawTrackedPath(path: LatLng[]) {
 		if (!map || !trackedSourceAdded || path.length < 2) return;
 		(map.getSource('tracked') as maplibregl.GeoJSONSource).setData({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: toLineCoords(path) } });
 	}
 
-	export function followPosition(coords: LatLng, prevCoords?: LatLng, bearingOverride?: number) {
+	export function setNavigating(active: boolean) {
+		navigating = active;
+		markerController?.setNavigating(active);
+	}
+
+	export function followPosition(coords: LatLng, prevCoords?: LatLng, bearingOverride?: number, speedKmh = 0) {
 		if (!map) return;
 		const bearing = bearingOverride ?? (prevCoords ? calculateBearing(prevCoords, coords) : map.getBearing());
-		map.easeTo({ center: toLngLat(coords), zoom: 18, bearing, pitch: 60, duration: 1000 });
+		const duration = FOLLOW_DURATION_MS;
+		map.easeTo({
+			center: toLngLat(coords),
+			zoom: interpolateBySpeed(NAV_ZOOM_BY_KMH, speedKmh),
+			bearing,
+			pitch: interpolateBySpeed(NAV_PITCH_BY_KMH, speedKmh),
+			duration,
+			easing: (t) => t
+		});
+		markerController?.moveRider(coords, bearing, duration);
 	}
 
 	export function drawApproachRoute(coords: LatLng[]) {
@@ -284,25 +318,6 @@
 </div>
 
 <style>
-	:global(.user-position-marker) {
-		position: relative;
-	}
-
-	:global(.user-position-marker)::before {
-		content: '';
-		position: absolute;
-		inset: -6px;
-		border-radius: 50%;
-		background: var(--color-ride-location-500);
-		animation: user-pulse 2s ease-out infinite;
-		z-index: -1;
-	}
-
-	@keyframes user-pulse {
-		0% { transform: scale(0.6); opacity: 0.4; }
-		70%, 100% { transform: scale(1.3); opacity: 0; }
-	}
-
 	.hide-controls :global(.maplibregl-ctrl-attrib),
 	.hide-controls :global(.maplibregl-ctrl) { display: none; }
 </style>

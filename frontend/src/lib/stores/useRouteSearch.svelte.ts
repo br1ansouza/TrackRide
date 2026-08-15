@@ -10,6 +10,7 @@ import { savePack, loadPack, WEATHER_TTL_MS } from '$lib/services/offlinePack';
 import { prefetchRouteTiles } from '$lib/services/offlineTiles';
 import { closestRouteIndex, haversineM } from '$lib/utils/mapHelpers';
 import { getLastPosition } from '$lib/services/geolocation';
+import { fetchRoadPois } from '$lib/services/gateway';
 import { toaster } from '$lib/stores/toaster';
 import { useMobile } from '$lib/stores/mobile.svelte';
 import { useAuth } from '$lib/stores/auth.svelte';
@@ -22,6 +23,22 @@ export interface ApproachRoute {
 }
 
 const APPROACH_MIN_M = 200;
+const ROAD_POI_STEP_M = 300;
+const ROAD_POI_MAX_POINTS = 120;
+
+function samplePath(coords: LatLng[], stepM: number, maxPoints: number): LatLng[] {
+	if (coords.length < 2) return [];
+	const sampled: LatLng[] = [coords[0]];
+	let accumulated = 0;
+	for (let i = 1; i < coords.length && sampled.length < maxPoints; i++) {
+		accumulated += haversineM(coords[i - 1], coords[i]);
+		if (accumulated >= stepM) {
+			sampled.push(coords[i]);
+			accumulated = 0;
+		}
+	}
+	return sampled;
+}
 
 export function useRouteSearch() {
 	const mobile = useMobile();
@@ -88,6 +105,13 @@ export function useRouteSearch() {
 			exploreRouteId,
 			savedAt: Date.now()
 		});
+	}
+
+	async function loadRoadPois(coords: LatLng[]): Promise<void> {
+		const sampled = samplePath(coords, ROAD_POI_STEP_M, ROAD_POI_MAX_POINTS);
+		if (sampled.length < 2) return;
+		const pois = await fetchRoadPois(sampled);
+		mapRef?.showRoadPois(pois);
 	}
 
 	async function computeApproach(routeOrigin: LatLng): Promise<void> {
@@ -158,6 +182,7 @@ export function useRouteSearch() {
 			}
 
 			if (stops.length > 0) mapRef.showStopMarkers(stops);
+			loadRoadPois(routeData.coords);
 			await processWeather(routeData);
 		} finally {
 			if (isRecalc) recalculating = false;
@@ -224,7 +249,7 @@ export function useRouteSearch() {
 		destLabel = '';
 		exploreRouteId = null;
 		editingRouteId = null;
-		mapRef?.clearApproachRoute();
+		mapRef?.clearRoute();
 	}
 
 	async function loadSavedRoute(saved: SavedRoute): Promise<RouteData | null> {
@@ -245,6 +270,7 @@ export function useRouteSearch() {
 			return null;
 		}
 		if (stops.length > 0) mapRef.showStopMarkers(stops);
+		loadRoadPois(routeData.coords);
 		return routeData;
 	}
 

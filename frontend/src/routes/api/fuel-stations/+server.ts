@@ -54,8 +54,7 @@ export const GET: RequestHandler = async ({ url }) => {
 	const data = await queryOverpass(fuelQuery(around));
 	if (!data) {
 		return new Response(JSON.stringify([]), {
-			status: 502,
-			headers: { 'Content-Type': 'application/json' }
+			headers: { 'Content-Type': 'application/json', 'X-TrackRide-Degraded': 'overpass' }
 		});
 	}
 

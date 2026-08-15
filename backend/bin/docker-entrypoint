@@ -3,6 +3,10 @@
 # If running the rails server then create or migrate existing database
 if [ "${@: -2:1}" == "./bin/rails" ] && [ "${@: -1:1}" == "server" ]; then
   ./bin/rails db:prepare
+
+  if [ "$SKIP_SEED" != "true" ]; then
+    ./bin/rails db:seed || echo "Seed falhou, subindo mesmo assim"
+  fi
 fi
 
 exec "${@}"

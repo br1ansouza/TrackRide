@@ -1,10 +1,9 @@
-import { isStandaloneBuild, standaloneOwmKey } from '$lib/utils/platform';
+import { isStandaloneBuild, proxyBaseUrl } from '$lib/utils/platform';
 import { fetchWithRetry } from '$lib/utils/fetchRetry';
 import { TtlCache } from '$lib/utils/ttlCache';
 import { searchUrl, reverseUrl, shapePlaces, pickDistrict, type PlaceResult, type PhotonResponse } from './external/photon';
-import { fuelQuery, shapeStations, queryOverpass, type FuelStation } from './external/overpass';
+import { fuelQuery, shapeStations, queryOverpass, roadPoiQuery, shapeRoadPois, type FuelStation, type RoadPoi } from './external/overpass';
 import { routeUrl, type OsrmRouteResponse } from './external/osrm';
-import { forecastUrl } from './external/owm';
 import type { LatLng } from './routing';
 
 export interface ForecastPayload {
@@ -26,27 +25,31 @@ export async function fetchForecast(lat: number, lon: number): Promise<ForecastP
 		const response = await fetchWithRetry(`/api/forecast?lat=${lat}&lon=${lon}`, {}, { label: 'Forecast' });
 		return response ? response.json() : null;
 	}
-	if (!standaloneOwmKey) return null;
 	const cacheKey = `${lat.toFixed(2)},${lon.toFixed(2)}`;
 	const cached = forecastCache.get(cacheKey);
 	if (cached) return cached;
-	const response = await fetchWithRetry(forecastUrl(lat, lon, standaloneOwmKey), {}, { label: 'OpenWeatherMap' });
+	const response = await fetchWithRetry(
+		`${proxyBaseUrl}/api/forecast?lat=${lat}&lon=${lon}`,
+		{},
+		{ label: 'Forecast' }
+	);
 	if (!response) return null;
 	const payload: ForecastPayload = await response.json();
 	forecastCache.set(cacheKey, payload);
 	return payload;
 }
 
-export async function fetchOsrmRoute(coords: string): Promise<OsrmRouteResponse | null> {
+export async function fetchOsrmRoute(coords: string, bearings?: string): Promise<OsrmRouteResponse | null> {
 	if (!isStandaloneBuild) {
+		const query = bearings ? `&bearings=${bearings}` : '';
 		try {
-			const response = await fetch(`/api/route?coords=${coords}`);
+			const response = await fetch(`/api/route?coords=${coords}${query}`);
 			return response.ok ? response.json() : null;
 		} catch {
 			return null;
 		}
 	}
-	const response = await fetchWithRetry(routeUrl(coords), {}, { delayMs: 500, label: 'OSRM' });
+	const response = await fetchWithRetry(routeUrl(coords, bearings), {}, { delayMs: 500, label: 'OSRM' });
 	return response ? response.json() : null;
 }
 
@@ -92,6 +95,32 @@ export async function fetchFuelStations(params: FuelSearchParams): Promise<FuelS
 	const stations = shapeStations(data.elements);
 	fuelCache.set(around, stations);
 	return stations;
+}
+
+const ROAD_POI_RADIUS_M = 25;
+const roadPoiCache = new TtlCache<RoadPoi[]>(7 * 24 * 60 * 60 * 1000, 100);
+
+export async function fetchRoadPois(path: LatLng[]): Promise<RoadPoi[]> {
+	if (path.length < 2) return [];
+	const flat = path.map(([lat, lon]) => `${lat.toFixed(5)},${lon.toFixed(5)}`);
+
+	if (!isStandaloneBuild) {
+		try {
+			const response = await fetch(`/api/road-pois?path=${flat.join(';')}&radius=${ROAD_POI_RADIUS_M}`);
+			return response.ok ? response.json() : [];
+		} catch {
+			return [];
+		}
+	}
+
+	const around = `around:${ROAD_POI_RADIUS_M},${flat.join(',')}`;
+	const cached = roadPoiCache.get(around);
+	if (cached) return cached;
+	const data = await queryOverpass(roadPoiQuery(around));
+	if (!data) return [];
+	const pois = shapeRoadPois(data.elements);
+	roadPoiCache.set(around, pois);
+	return pois;
 }
 
 function buildAround({ path, point, radius }: FuelSearchParams): string | null {

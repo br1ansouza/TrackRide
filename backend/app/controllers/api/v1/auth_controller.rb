@@ -48,7 +48,16 @@ module Api
 
         if user
           raw_token = user.generate_reset_token!
-          UserMailer.reset_password(user, raw_token).deliver_later
+
+          if ActionMailer::Base.perform_deliveries
+            begin
+              UserMailer.reset_password(user, raw_token).deliver_now
+            rescue StandardError => e
+              Rails.logger.error("[forgot_password] falha no envio: #{e.class} #{e.message}")
+            end
+          else
+            Rails.logger.warn("[forgot_password] envio desligado: nenhum provedor configurado")
+          end
         end
 
         render json: { message: "Se o email existir, enviaremos instruções de recuperação." }
@@ -63,6 +72,7 @@ module Api
 
         if user.update(password: params[:password], password_confirmation: params[:password_confirmation])
           user.clear_reset_token!
+          notify_password_changed(user)
           render json: { message: "Senha redefinida com sucesso" }
         else
           render json: { errors: user.errors.full_messages }, status: :unprocessable_entity
@@ -70,6 +80,14 @@ module Api
       end
 
       private
+
+      def notify_password_changed(user)
+        return unless ActionMailer::Base.perform_deliveries
+
+        UserMailer.password_changed(user).deliver_now
+      rescue StandardError => e
+        Rails.logger.error("[reset_password] falha no aviso de troca: #{e.class} #{e.message}")
+      end
 
       def register_params
         params.permit(:name, :email, :password, :password_confirmation)
