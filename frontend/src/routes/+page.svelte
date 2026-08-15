@@ -147,13 +147,13 @@
 		historyOpen = false;
 	}
 
-	async function handleReroute(position: LatLng) {
+	async function handleReroute(position: LatLng, bearingDeg: number | null) {
 		if (!route.mapRef || !route.destCoords) return;
 		toaster.info({ title: 'Recalculando rota', description: 'Você saiu do trajeto planejado.' });
 		const planned = tracking.plannedRoute.length >= 2 ? tracking.plannedRoute : route.routeCoords;
 		const riderIndex = closestRouteIndex(planned, position);
 		const pendingStops = route.stops.filter((s) => closestRouteIndex(planned, s.coords) >= riderIndex);
-		const routeData = await route.mapRef.drawRoute(position, route.destCoords, pendingStops.map((s) => s.coords), true);
+		const routeData = await route.mapRef.drawRoute(position, route.destCoords, pendingStops.map((s) => s.coords), true, bearingDeg);
 		if (routeData) {
 			tracking.updatePlannedRoute(routeData.coords);
 		} else {
@@ -250,7 +250,7 @@
 				<TrackingOverlay
 					distanceKm={tracking.distanceKm}
 					elapsed={tracking.elapsedFormatted()}
-					speed={tracking.speedFormatted}
+					speedKmh={tracking.speedKmh}
 					onStop={stopTracking}
 				/>
 			{/if}

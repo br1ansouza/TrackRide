@@ -85,8 +85,9 @@
 
 			const gpsTimeout = setTimeout(() => { gpsLoading = false; }, GPS_LOADING_TIMEOUT_MS);
 			watchPosition({
-				onPosition(coords) {
+				onPosition(fix) {
 					if (!map) return;
+					const coords = fix.coords;
 					gpsLoading = false;
 					clearTimeout(gpsTimeout);
 					const lngLat = toLngLat(coords);
@@ -152,12 +153,12 @@
 		return true;
 	}
 
-	export async function drawRoute(originCoords: LatLng, destCoords: LatLng, waypoints: LatLng[] = [], skipFit = false): Promise<RouteData | null> {
+	export async function drawRoute(originCoords: LatLng, destCoords: LatLng, waypoints: LatLng[] = [], skipFit = false, bearingDeg: number | null = null): Promise<RouteData | null> {
 		if (!map) return null;
 		await mapReady;
 		clearRoute();
 		placeRouteMarkers(originCoords, destCoords);
-		const routeData = await fetchRoute(originCoords, destCoords, waypoints);
+		const routeData = await fetchRoute(originCoords, destCoords, waypoints, { bearingDeg });
 		if (!routeData) return null;
 		return renderRouteLine(originCoords, destCoords, routeData, skipFit) ? routeData : null;
 	}
