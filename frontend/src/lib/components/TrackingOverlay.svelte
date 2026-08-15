@@ -5,11 +5,28 @@
 	interface Props {
 		distanceKm: number;
 		elapsed: string;
-		speed: number;
+		speedKmh: number;
 		onStop: () => void;
 	}
 
-	let { distanceKm, elapsed, speed, onStop }: Props = $props();
+	let { distanceKm, elapsed, speedKmh, onStop }: Props = $props();
+
+	const SPEED_TAU = 0.25;
+
+	let displaySpeed = $state(0);
+
+	$effect(() => {
+		const target = speedKmh;
+		let previous = performance.now();
+		let frame = requestAnimationFrame(function step(now) {
+			const dt = (now - previous) / 1000;
+			previous = now;
+			displaySpeed += (target - displaySpeed) * (1 - Math.exp(-dt / SPEED_TAU));
+			if (Math.abs(target - displaySpeed) > 0.05) frame = requestAnimationFrame(step);
+			else displaySpeed = target;
+		});
+		return () => cancelAnimationFrame(frame);
+	});
 </script>
 
 <div class="pointer-events-none absolute inset-x-0 z-[700] flex justify-center px-4" style="top: {safeTop};">
@@ -25,7 +42,7 @@
 		</div>
 		<div class="h-8 w-px bg-surface-700"></div>
 		<div class="flex flex-col items-center">
-			<span class="text-lg font-bold text-white">{speed}</span>
+			<span class="text-lg font-bold text-white tabular-nums">{Math.round(displaySpeed)}</span>
 			<span class="flex items-center gap-1 text-[10px] text-surface-400"><Gauge size={10} /> km/h</span>
 		</div>
 	</div>

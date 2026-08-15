@@ -11,9 +11,38 @@ async function getBackgroundGeolocation(): Promise<BackgroundGeolocationPlugin> 
 	return bgPlugin;
 }
 
+export interface GeoFix {
+	coords: LatLng;
+	accuracyM: number | null;
+	speedMs: number | null;
+	bearingDeg: number | null;
+	timestamp: number;
+}
+
 interface GeoCallbacks {
-	onPosition: (coords: LatLng) => void;
+	onPosition: (fix: GeoFix) => void;
 	onError: (message: string) => void;
+}
+
+interface PositionLike {
+	timestamp: number;
+	coords: {
+		latitude: number;
+		longitude: number;
+		accuracy: number | null;
+		speed: number | null;
+		heading: number | null;
+	};
+}
+
+function toFix(pos: PositionLike): GeoFix {
+	return {
+		coords: [pos.coords.latitude, pos.coords.longitude],
+		accuracyM: pos.coords.accuracy,
+		speedMs: pos.coords.speed,
+		bearingDeg: pos.coords.heading,
+		timestamp: pos.timestamp
+	};
 }
 
 let watchId: string | number | null = null;
@@ -62,9 +91,9 @@ export async function getCurrentPosition(callbacks: GeoCallbacks): Promise<void>
 		try {
 			const { Geolocation } = await import('@capacitor/geolocation');
 			const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
-			const coords: LatLng = [pos.coords.latitude, pos.coords.longitude];
-			savePosition(coords);
-			callbacks.onPosition(coords);
+			const fix = toFix(pos);
+			savePosition(fix.coords);
+			callbacks.onPosition(fix);
 		} catch {
 			callbacks.onError('Não foi possível obter sua localização.');
 		}
@@ -73,9 +102,9 @@ export async function getCurrentPosition(callbacks: GeoCallbacks): Promise<void>
 
 	navigator.geolocation.getCurrentPosition(
 		(pos) => {
-			const coords: LatLng = [pos.coords.latitude, pos.coords.longitude];
-			savePosition(coords);
-			callbacks.onPosition(coords);
+			const fix = toFix(pos);
+			savePosition(fix.coords);
+			callbacks.onPosition(fix);
 		},
 		(err) => callbacks.onError(geoError(err.code)),
 		{ enableHighAccuracy: false, timeout: 10000 }
@@ -90,9 +119,9 @@ export async function watchPosition(callbacks: GeoCallbacks): Promise<void> {
 			const { Geolocation } = await import('@capacitor/geolocation');
 			watchId = await Geolocation.watchPosition({ enableHighAccuracy: true }, (pos, err) => {
 				if (err || !pos) return;
-				const coords: LatLng = [pos.coords.latitude, pos.coords.longitude];
-				savePosition(coords);
-				callbacks.onPosition(coords);
+				const fix = toFix(pos);
+				savePosition(fix.coords);
+				callbacks.onPosition(fix);
 			});
 		} catch {
 			callbacks.onError('Não foi possível rastrear sua localização.');
@@ -102,9 +131,9 @@ export async function watchPosition(callbacks: GeoCallbacks): Promise<void> {
 
 	watchId = navigator.geolocation.watchPosition(
 		(pos) => {
-			const coords: LatLng = [pos.coords.latitude, pos.coords.longitude];
-			savePosition(coords);
-			callbacks.onPosition(coords);
+			const fix = toFix(pos);
+			savePosition(fix.coords);
+			callbacks.onPosition(fix);
 		},
 		(err) => callbacks.onError(geoError(err.code)),
 		{ enableHighAccuracy: true }
@@ -151,7 +180,7 @@ export async function startBackgroundWatch(callbacks: GeoCallbacks): Promise<voi
 				backgroundTitle: 'TrackRide',
 				requestPermissions: true,
 				stale: false,
-				distanceFilter: 5
+				distanceFilter: 0
 			},
 			(location?: Location, error?: CallbackError) => {
 				if (error) {
@@ -159,9 +188,15 @@ export async function startBackgroundWatch(callbacks: GeoCallbacks): Promise<voi
 					return;
 				}
 				if (!location) return;
-				const coords: LatLng = [location.latitude, location.longitude];
-				savePosition(coords);
-				callbacks.onPosition(coords);
+				const fix: GeoFix = {
+					coords: [location.latitude, location.longitude],
+					accuracyM: location.accuracy ?? null,
+					speedMs: location.speed,
+					bearingDeg: location.bearing,
+					timestamp: location.time ?? Date.now()
+				};
+				savePosition(fix.coords);
+				callbacks.onPosition(fix);
 			}
 		);
 		if (callbackId && typeof callbackId.then === 'function') {

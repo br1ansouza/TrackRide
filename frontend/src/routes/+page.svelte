@@ -250,7 +250,7 @@
 				<TrackingOverlay
 					distanceKm={tracking.distanceKm}
 					elapsed={tracking.elapsedFormatted()}
-					speed={tracking.speedFormatted}
+					speedKmh={tracking.speedKmh}
 					onStop={stopTracking}
 				/>
 			{/if}

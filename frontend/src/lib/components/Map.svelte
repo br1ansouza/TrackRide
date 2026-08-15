@@ -85,8 +85,9 @@
 
 			const gpsTimeout = setTimeout(() => { gpsLoading = false; }, GPS_LOADING_TIMEOUT_MS);
 			watchPosition({
-				onPosition(coords) {
+				onPosition(fix) {
 					if (!map) return;
+					const coords = fix.coords;
 					gpsLoading = false;
 					clearTimeout(gpsTimeout);
 					const lngLat = toLngLat(coords);
