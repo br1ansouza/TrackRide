@@ -1,10 +1,9 @@
-import { isStandaloneBuild, standaloneOwmKey } from '$lib/utils/platform';
+import { isStandaloneBuild, proxyBaseUrl } from '$lib/utils/platform';
 import { fetchWithRetry } from '$lib/utils/fetchRetry';
 import { TtlCache } from '$lib/utils/ttlCache';
 import { searchUrl, reverseUrl, shapePlaces, pickDistrict, type PlaceResult, type PhotonResponse } from './external/photon';
 import { fuelQuery, shapeStations, queryOverpass, roadPoiQuery, shapeRoadPois, type FuelStation, type RoadPoi } from './external/overpass';
 import { routeUrl, type OsrmRouteResponse } from './external/osrm';
-import { forecastUrl } from './external/owm';
 import type { LatLng } from './routing';
 
 export interface ForecastPayload {
@@ -26,11 +25,14 @@ export async function fetchForecast(lat: number, lon: number): Promise<ForecastP
 		const response = await fetchWithRetry(`/api/forecast?lat=${lat}&lon=${lon}`, {}, { label: 'Forecast' });
 		return response ? response.json() : null;
 	}
-	if (!standaloneOwmKey) return null;
 	const cacheKey = `${lat.toFixed(2)},${lon.toFixed(2)}`;
 	const cached = forecastCache.get(cacheKey);
 	if (cached) return cached;
-	const response = await fetchWithRetry(forecastUrl(lat, lon, standaloneOwmKey), {}, { label: 'OpenWeatherMap' });
+	const response = await fetchWithRetry(
+		`${proxyBaseUrl}/api/forecast?lat=${lat}&lon=${lon}`,
+		{},
+		{ label: 'Forecast' }
+	);
 	if (!response) return null;
 	const payload: ForecastPayload = await response.json();
 	forecastCache.set(cacheKey, payload);
