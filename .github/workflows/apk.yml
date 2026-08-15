@@ -50,8 +50,9 @@ jobs:
 
       - name: Sync Capacitor
         run: |
+          cp capacitor.config.example.ts capacitor.config.ts
           npx cap sync android
-          find android/app/src/main/assets/public -name '*.gz' -delete
+          find android/app/src/main/assets/public -name '*.gz' -delete || true
 
       - name: Assemble APK
         run: ./gradlew assembleDebug --no-daemon
