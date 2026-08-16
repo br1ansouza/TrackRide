@@ -46,7 +46,7 @@
 		"@hugotomazi/capacitor-navigation-bar": "^4.0.1",
 		"@tanstack/svelte-query": "^6.1.38",
 		"lucide-svelte": "^1.0.1",
-		"maplibre-gl": "^4.7.1",
+		"maplibre-gl": "^6.3.0",
 		"zod": "^4.4.3"
 	}
 }

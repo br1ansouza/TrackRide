@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import maplibregl from 'maplibre-gl';
+	import * as maplibregl from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
+	import mapWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 	import type { RouteStopEntry } from '$lib/types/routeStop';
 	import { cssVar } from '$lib/utils/color';
 	import { safeTop } from '$lib/utils/safeArea';
@@ -57,6 +58,7 @@
 	const emptyLine = () => ({ type: 'Feature' as const, properties: {}, geometry: { type: 'LineString' as const, coordinates: [] as [number, number][] } });
 
 	onMount(() => {
+		maplibregl.setWorkerUrl(mapWorkerUrl);
 		mapReady = new Promise((r) => { resolveReady = r; });
 		registerOfflineProtocol();
 
@@ -292,8 +294,10 @@
 
 	export function reloadBaseTiles() {
 		if (!map) return;
-		for (const cache of Object.values(map.style.sourceCaches)) {
-			cache.reload();
+		for (const [sourceId, source] of Object.entries(map.getStyle().sources)) {
+			if (source.type === 'vector' || source.type === 'raster' || source.type === 'raster-dem') {
+				map.refreshTiles(sourceId);
+			}
 		}
 		map.triggerRepaint();
 	}

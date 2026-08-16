@@ -1,4 +1,4 @@
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
 import type { RouteStopEntry } from '$lib/types/routeStop';
 import type { LatLng } from '$lib/services/routing';
 import { haversineM, toLngLat } from '$lib/utils/mapHelpers';

@@ -1,5 +1,5 @@
 import type { LatLng } from '$lib/services/routing';
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
 
 export function toLngLat(coords: LatLng): [number, number] {
 	return [coords[1], coords[0]];
