@@ -1,4 +1,9 @@
-import { detectBrand, brandLabel, sellsLiquidFuel, type FuelBrandKey } from '$lib/services/fuelBrands';
+import {
+	detectBrand,
+	brandLabel,
+	sellsLiquidFuel,
+	type FuelBrandKey
+} from '$lib/services/fuelBrands';
 
 export interface FuelStation {
 	name: string;
@@ -18,11 +23,24 @@ const OVERPASS_URLS = [
 	'https://overpass-api.de/api/interpreter',
 	'https://overpass.private.coffee/api/interpreter'
 ];
-const OVERPASS_TIMEOUT_MS = 15_000;
-const MAX_RESULTS = 60;
+const OVERPASS_TIMEOUT_MS = 6500;
+const MAX_RESULTS = 120;
+const METERS_PER_LATITUDE_DEGREE = 111_320;
 
-export function fuelQuery(around: string): string {
-	return `[out:json][timeout:15];nwr["amenity"="fuel"](${around});out center ${MAX_RESULTS};`;
+export function fuelBounds(lat: number, lon: number, radiusM: number): string {
+	const latDelta = radiusM / METERS_PER_LATITUDE_DEGREE;
+	const lonDelta = radiusM / (METERS_PER_LATITUDE_DEGREE * Math.cos((lat * Math.PI) / 180));
+	return [lat - latDelta, lon - lonDelta, lat + latDelta, lon + lonDelta]
+		.map((value) => value.toFixed(5))
+		.join(',');
+}
+
+export function fuelQuery(around: string | string[]): string {
+	const areas = Array.isArray(around) ? around : [around];
+	const selectors = areas
+		.map((area) => `node["amenity"="fuel"](${area});way["amenity"="fuel"](${area});`)
+		.join('');
+	return `[out:json][timeout:6];(${selectors});out center ${MAX_RESULTS};`;
 }
 
 export type RoadPoiKind = 'traffic_signals' | 'stop' | 'speed_camera' | 'traffic_calming';
@@ -60,7 +78,9 @@ export function shapeRoadPois(elements: OverpassElement[]): RoadPoi[] {
 			lat: element.lat ?? element.center?.lat,
 			lon: element.lon ?? element.center?.lon
 		}))
-		.filter((poi): poi is RoadPoi => poi.kind !== null && poi.lat !== undefined && poi.lon !== undefined);
+		.filter(
+			(poi): poi is RoadPoi => poi.kind !== null && poi.lat !== undefined && poi.lon !== undefined
+		);
 }
 
 export function shapeStations(elements: OverpassElement[]): FuelStation[] {
@@ -69,35 +89,66 @@ export function shapeStations(elements: OverpassElement[]): FuelStation[] {
 		.map((element) => {
 			const brand = detectBrand(element.tags);
 			return {
-				name: element.tags?.name ?? element.tags?.brand ?? (brand ? brandLabel(brand) : 'Posto de combustível'),
+				name:
+					element.tags?.name ??
+					element.tags?.brand ??
+					(brand ? brandLabel(brand) : 'Posto de combustível'),
 				lat: element.lat ?? element.center?.lat,
 				lon: element.lon ?? element.center?.lon,
 				brand
 			};
 		})
-		.filter((station): station is FuelStation =>
-			station.lat !== undefined && station.lon !== undefined
+		.filter(
+			(station): station is FuelStation => station.lat !== undefined && station.lon !== undefined
 		);
 }
 
-export async function queryOverpass(query: string): Promise<{ elements: OverpassElement[] } | null> {
-	for (const url of OVERPASS_URLS) {
-		try {
-			const response = await fetch(url, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/x-www-form-urlencoded',
-					'User-Agent': 'TrackRide/1.0'
-				},
-				body: `data=${encodeURIComponent(query)}`,
-				signal: AbortSignal.timeout(OVERPASS_TIMEOUT_MS)
-			});
-			if (!response.ok) continue;
-			const payload = await response.json() as { elements?: OverpassElement[] };
-			if (Array.isArray(payload.elements)) return { elements: payload.elements };
-		} catch {
-			continue;
+async function fetchOverpass(
+	url: string,
+	query: string,
+	signal: AbortSignal
+): Promise<{ elements: OverpassElement[] }> {
+	const response = await fetch(url, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/x-www-form-urlencoded',
+			'User-Agent': 'TrackRide/1.0'
+		},
+		body: `data=${encodeURIComponent(query)}`,
+		signal
+	});
+	if (!response.ok) throw new Error(`Overpass ${response.status}`);
+	const payload = (await response.json()) as { elements?: OverpassElement[] };
+	if (!Array.isArray(payload.elements)) throw new Error('Resposta inválida do Overpass');
+	return { elements: payload.elements };
+}
+
+export async function queryOverpass(
+	query: string,
+	concurrent = false
+): Promise<{ elements: OverpassElement[] } | null> {
+	if (!concurrent) {
+		for (const url of OVERPASS_URLS) {
+			try {
+				return await fetchOverpass(url, query, AbortSignal.timeout(OVERPASS_TIMEOUT_MS));
+			} catch {
+				continue;
+			}
 		}
+		return null;
 	}
-	return null;
+
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), OVERPASS_TIMEOUT_MS);
+	const requests = OVERPASS_URLS.map((url) => fetchOverpass(url, query, controller.signal));
+
+	try {
+		const result = await Promise.any(requests);
+		controller.abort();
+		return result;
+	} catch {
+		return null;
+	} finally {
+		clearTimeout(timeout);
+	}
 }
