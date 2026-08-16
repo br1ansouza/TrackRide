@@ -144,6 +144,34 @@
 	font-size: 12px;
 }
 
+.auth-consent {
+	display: flex;
+	align-items: flex-start;
+	gap: 9px;
+	margin: 4px 0 2px;
+	color: var(--color-surface-400) !important;
+	font-size: 12px !important;
+	font-weight: 450 !important;
+	line-height: 1.5;
+}
+
+.auth-consent input {
+	height: 15px;
+	width: 15px;
+	margin-top: 2px;
+	accent-color: var(--color-ride-route-500);
+}
+
+.auth-consent a {
+	color: var(--color-ride-route-300);
+	font-weight: 600;
+	text-decoration: none;
+}
+
+.auth-consent a:hover {
+	color: var(--color-ride-route-100);
+}
+
 .auth-feedback {
 	display: flex;
 	align-items: flex-start;

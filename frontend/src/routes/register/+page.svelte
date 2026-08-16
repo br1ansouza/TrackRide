@@ -12,11 +12,12 @@
 	let email = $state('');
 	let password = $state('');
 	let passwordConfirmation = $state('');
+	let legalConsent = $state(false);
 	let showPasswords = $state(false);
 	let submitting = $state(false);
 
 	let passwordsMatch = $derived(password === passwordConfirmation);
-	let canSubmit = $derived(Boolean(name && email && password && passwordConfirmation && passwordsMatch && !submitting));
+	let canSubmit = $derived(Boolean(name && email && password && passwordConfirmation && passwordsMatch && legalConsent && !submitting));
 
 	async function handleSubmit(event: SubmitEvent) {
 		event.preventDefault();
@@ -60,6 +61,11 @@
 		{#if passwordConfirmation && !passwordsMatch}
 			<span class="auth-error">As senhas não coincidem.</span>
 		{/if}
+
+		<label class="auth-consent">
+			<input type="checkbox" bind:checked={legalConsent} required />
+			<span>Li e aceito os <a href="/termos" target="_blank" rel="noreferrer">Termos de Uso</a> e a <a href="/privacidade" target="_blank" rel="noreferrer">Política de Privacidade</a>.</span>
+		</label>
 
 		<button type="submit" disabled={!canSubmit} class="auth-primary-button" aria-busy={submitting}>
 			{#if submitting}<LoaderCircle size={18} class="animate-spin" />{:else}<UserPlus size={18} />{/if}

@@ -8,6 +8,8 @@ module Api
         with: -> { render json: { error: "Muitas tentativas. Aguarde um minuto." }, status: :too_many_requests }
       rate_limit to: 5, within: 15.minutes, only: [ :forgot_password, :reset_password ],
         with: -> { render json: { error: "Muitas tentativas. Aguarde alguns minutos." }, status: :too_many_requests }
+      rate_limit to: 5, within: 1.hour, only: :destroy_account,
+        with: -> { render json: { error: "Muitas tentativas. Aguarde antes de tentar novamente." }, status: :too_many_requests }
 
       def register
         user = User.new(register_params)
@@ -41,6 +43,15 @@ module Api
         else
           render json: { errors: current_user.errors.full_messages }, status: :unprocessable_entity
         end
+      end
+
+      def destroy_account
+        unless current_user.authenticate(params[:password])
+          return render json: { error: "Senha incorreta" }, status: :unprocessable_entity
+        end
+
+        current_user.destroy!
+        head :no_content
       end
 
       def forgot_password

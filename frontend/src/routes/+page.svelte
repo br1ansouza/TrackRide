@@ -13,6 +13,7 @@
 	import RouteHistory from '$lib/components/RouteHistory.svelte';
 	import ExplorePanel from '$lib/components/ExplorePanel.svelte';
 	import DesktopHeader from '$lib/components/DesktopHeader.svelte';
+	import LocationDisclosure from '$lib/components/LocationDisclosure.svelte';
 	import { useMobile } from '$lib/stores/mobile.svelte';
 	import { useAuth } from '$lib/stores/auth.svelte';
 	import { useConnectivity } from '$lib/stores/connectivity.svelte';
@@ -25,6 +26,7 @@
 	import { bearingAlongPath, haversineM, closestRouteIndex } from '$lib/utils/mapHelpers';
 	import { vibrateHeavy } from '$lib/utils/haptics';
 	import { toaster } from '$lib/stores/toaster';
+	import { isStandaloneBuild } from '$lib/utils/platform';
 
 	const mobile = useMobile();
 	const auth = useAuth();
@@ -144,6 +146,8 @@
 	let desktopProfileOpen = $state(false);
 	let historyOpen = $state(false);
 	let exploreOpen = $state(false);
+	let showLocationDisclosure = $state(false);
+	const LOCATION_DISCLOSURE_KEY = 'trackride:background-location-disclosure-v1';
 
 	function openHistory() {
 		historyOpen = true;
@@ -171,7 +175,7 @@
 		}
 	}
 
-	function startTracking() {
+	function beginTracking() {
 		vibrateHeavy();
 		following = true;
 		tracking.start({
@@ -187,6 +191,20 @@
 		if (tracking.currentPosition) {
 			route.mapRef?.followPosition(tracking.currentPosition, undefined, routeAheadBearing(tracking.currentPosition), tracking.speedKmh);
 		}
+	}
+
+	function startTracking() {
+		if (isStandaloneBuild && localStorage.getItem(LOCATION_DISCLOSURE_KEY) !== 'accepted') {
+			showLocationDisclosure = true;
+			return;
+		}
+		beginTracking();
+	}
+
+	function acceptLocationDisclosure() {
+		localStorage.setItem(LOCATION_DISCLOSURE_KEY, 'accepted');
+		showLocationDisclosure = false;
+		beginTracking();
 	}
 
 	async function stopTracking() {
@@ -409,4 +427,8 @@
 		{/if}
 	</div>
 </div>
+{/if}
+
+{#if showLocationDisclosure}
+	<LocationDisclosure onConfirm={acceptLocationDisclosure} onCancel={() => showLocationDisclosure = false} />
 {/if}

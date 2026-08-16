@@ -1,6 +1,6 @@
 import { onMount } from 'svelte';
 import { goto } from '$app/navigation';
-import { type AuthUser, fetchMe, clearToken, isAuthenticated, getCachedUser, clearCachedUser } from '$lib/services/auth';
+import { type AuthUser, fetchMe, clearToken, isAuthenticated, getCachedUser, clearCachedUser, deleteAccount as deleteAccountRequest } from '$lib/services/auth';
 import { clearOfflineUserData } from '$lib/services/offlinePack';
 import { useConnectivity } from '$lib/stores/connectivity.svelte';
 
@@ -30,6 +30,14 @@ export function useAuth() {
 		get loading() { return loading; },
 		get isLoggedIn() { return !!user; },
 		setUser(u: AuthUser) { user = u; },
+		async deleteAccount(password: string) {
+			await deleteAccountRequest(password);
+			clearToken();
+			clearCachedUser();
+			await clearOfflineUserData();
+			user = null;
+			goto('/login?conta_excluida=1');
+		},
 		logout() {
 			clearToken();
 			clearCachedUser();
