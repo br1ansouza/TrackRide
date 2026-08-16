@@ -74,7 +74,7 @@
 			if (msg.includes('Já existe')) {
 				toaster.warning({ title: 'Trajeto já compartilhado', description: 'Outro motociclista já publicou uma rota com origem e destino semelhantes.' });
 			} else if (msg.includes('curta')) {
-				toaster.warning({ title: 'Rota muito curta', description: 'Rotas com menos de 5 km não podem ser compartilhadas. A análise de clima não seria relevante.' });
+				toaster.warning({ title: 'Rota muito curta', description: 'Rotas com menos de 2 km não podem ser compartilhadas. A análise de clima não seria relevante.' });
 			} else if (msg.includes('longa')) {
 				toaster.warning({ title: 'Rota muito longa', description: 'Rotas acima de 1.000 km não podem ser compartilhadas. Divida em etapas menores.' });
 			} else {
