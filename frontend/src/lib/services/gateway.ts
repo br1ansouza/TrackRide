@@ -1,9 +1,30 @@
 import { isStandaloneBuild, proxyBaseUrl } from '$lib/utils/platform';
 import { fetchWithRetry } from '$lib/utils/fetchRetry';
 import { TtlCache } from '$lib/utils/ttlCache';
-import { searchUrl, reverseUrl, shapePlaces, pickDistrict, type PlaceResult, type PhotonResponse } from './external/photon';
-import { fuelQuery, shapeStations, queryOverpass, roadPoiQuery, shapeRoadPois, type FuelStation, type RoadPoi } from './external/overpass';
-import { routeUrl, type OsrmRouteResponse } from './external/osrm';
+import {
+	searchUrl,
+	reverseUrl,
+	shapePlaces,
+	pickDistrict,
+	type PlaceResult,
+	type PhotonResponse
+} from './external/photon';
+import {
+	fuelBounds,
+	fuelQuery,
+	shapeStations,
+	queryOverpass,
+	roadPoiQuery,
+	shapeRoadPois,
+	type FuelStation,
+	type RoadPoi
+} from './external/overpass';
+import {
+	routeUrl,
+	tableUrl,
+	type OsrmRouteResponse,
+	type OsrmTableResponse
+} from './external/osrm';
 import type { LatLng } from './routing';
 
 export interface ForecastPayload {
@@ -22,7 +43,11 @@ const fuelCache = new TtlCache<FuelStation[]>(24 * 60 * 60 * 1000, 200);
 
 export async function fetchForecast(lat: number, lon: number): Promise<ForecastPayload | null> {
 	if (!isStandaloneBuild) {
-		const response = await fetchWithRetry(`/api/forecast?lat=${lat}&lon=${lon}`, {}, { label: 'Forecast' });
+		const response = await fetchWithRetry(
+			`/api/forecast?lat=${lat}&lon=${lon}`,
+			{},
+			{ label: 'Forecast' }
+		);
 		return response ? response.json() : null;
 	}
 	const cacheKey = `${lat.toFixed(2)},${lon.toFixed(2)}`;
@@ -39,7 +64,10 @@ export async function fetchForecast(lat: number, lon: number): Promise<ForecastP
 	return payload;
 }
 
-export async function fetchOsrmRoute(coords: string, bearings?: string): Promise<OsrmRouteResponse | null> {
+export async function fetchOsrmRoute(
+	coords: string,
+	bearings?: string
+): Promise<OsrmRouteResponse | null> {
 	if (!isStandaloneBuild) {
 		const query = bearings ? `&bearings=${bearings}` : '';
 		try {
@@ -49,11 +77,37 @@ export async function fetchOsrmRoute(coords: string, bearings?: string): Promise
 			return null;
 		}
 	}
-	const response = await fetchWithRetry(routeUrl(coords, bearings), {}, { delayMs: 500, label: 'OSRM' });
+	const response = await fetchWithRetry(
+		routeUrl(coords, bearings),
+		{},
+		{ delayMs: 500, label: 'OSRM' }
+	);
 	return response ? response.json() : null;
 }
 
-export async function searchPlaces(query: string, proximity?: { lat: number; lon: number }): Promise<PlaceResult[]> {
+export async function fetchOsrmTable(coords: string): Promise<OsrmTableResponse | null> {
+	if (!isStandaloneBuild) {
+		try {
+			const response = await fetch(`/api/route-matrix?coords=${encodeURIComponent(coords)}`, {
+				signal: AbortSignal.timeout(8000)
+			});
+			return response.ok ? response.json() : null;
+		} catch {
+			return null;
+		}
+	}
+	const response = await fetchWithRetry(
+		tableUrl(coords),
+		{},
+		{ retries: 1, delayMs: 500, label: 'OSRM Table' }
+	);
+	return response ? response.json() : null;
+}
+
+export async function searchPlaces(
+	query: string,
+	proximity?: { lat: number; lon: number }
+): Promise<PlaceResult[]> {
 	if (!isStandaloneBuild) {
 		const prox = proximity ? `&lat=${proximity.lat}&lon=${proximity.lon}` : '';
 		try {
@@ -85,12 +139,16 @@ export async function reverseDistrict(lat: number, lon: number): Promise<string 
 }
 
 export async function fetchFuelStations(params: FuelSearchParams): Promise<FuelStation[]> {
-	if (!isStandaloneBuild) return fetchFuelStationsViaProxy(params);
 	const around = buildAround(params);
 	if (!around) return [];
 	const cached = fuelCache.get(around);
 	if (cached) return cached;
-	const data = await queryOverpass(fuelQuery(around));
+	if (!isStandaloneBuild) {
+		const stations = await fetchFuelStationsViaProxy(params);
+		if (stations.length > 0) fuelCache.set(around, stations);
+		return stations;
+	}
+	const data = await queryOverpass(fuelQuery(around), true);
 	if (!data) return [];
 	const stations = shapeStations(data.elements);
 	fuelCache.set(around, stations);
@@ -106,7 +164,9 @@ export async function fetchRoadPois(path: LatLng[]): Promise<RoadPoi[]> {
 
 	if (!isStandaloneBuild) {
 		try {
-			const response = await fetch(`/api/road-pois?path=${flat.join(';')}&radius=${ROAD_POI_RADIUS_M}`);
+			const response = await fetch(
+				`/api/road-pois?path=${flat.join(';')}&radius=${ROAD_POI_RADIUS_M}`
+			);
 			return response.ok ? response.json() : [];
 		} catch {
 			return [];
@@ -128,11 +188,15 @@ function buildAround({ path, point, radius }: FuelSearchParams): string | null {
 		const flat = path.map(([lat, lon]) => `${lat.toFixed(5)},${lon.toFixed(5)}`).join(',');
 		return `around:${radius},${flat}`;
 	}
-	if (point) return `around:${radius},${point[0].toFixed(3)},${point[1].toFixed(3)}`;
+	if (point) return fuelBounds(point[0], point[1], radius);
 	return null;
 }
 
-async function fetchFuelStationsViaProxy({ path, point, radius }: FuelSearchParams): Promise<FuelStation[]> {
+async function fetchFuelStationsViaProxy({
+	path,
+	point,
+	radius
+}: FuelSearchParams): Promise<FuelStation[]> {
 	let params: string;
 	if (path && path.length >= 2) {
 		params = `path=${path.map(([lat, lon]) => `${lat.toFixed(5)},${lon.toFixed(5)}`).join(';')}&radius=${radius}`;
@@ -142,7 +206,9 @@ async function fetchFuelStationsViaProxy({ path, point, radius }: FuelSearchPara
 		return [];
 	}
 	try {
-		const response = await fetch(`/api/fuel-stations?${params}`);
+		const response = await fetch(`/api/fuel-stations?${params}`, {
+			signal: AbortSignal.timeout(8000)
+		});
 		return response.ok ? response.json() : [];
 	} catch {
 		return [];
