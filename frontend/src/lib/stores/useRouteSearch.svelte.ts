@@ -172,8 +172,8 @@ export function useRouteSearch() {
 			}
 
 			const distanceKm = routeData.totalDistance / 1000;
-			if (distanceKm < 5) {
-				toaster.warning({ title: 'Rota muito curta', description: 'A rota precisa ter no mínimo 5 km para análise de clima.' });
+			if (distanceKm < 2) {
+				toaster.warning({ title: 'Rota muito curta', description: 'A rota precisa ter no mínimo 2 km para análise de clima.' });
 				return;
 			}
 			if (distanceKm > 1000) {

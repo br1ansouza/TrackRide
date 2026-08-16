@@ -1,4 +1,6 @@
-const OSRM_URL = 'https://router.project-osrm.org/route/v1/driving';
+const OSRM_BASE_URL = 'https://router.project-osrm.org';
+const OSRM_ROUTE_URL = `${OSRM_BASE_URL}/route/v1/driving`;
+const OSRM_TABLE_URL = `${OSRM_BASE_URL}/table/v1/driving`;
 
 export interface OsrmRouteResponse {
 	code: string;
@@ -10,7 +12,16 @@ export interface OsrmRouteResponse {
 	}[];
 }
 
+export interface OsrmTableResponse {
+	code: string;
+	distances?: (number | null)[][];
+}
+
 export function routeUrl(coords: string, bearings?: string): string {
-	const url = `${OSRM_URL}/${coords}?overview=full&geometries=geojson&annotations=duration,distance`;
+	const url = `${OSRM_ROUTE_URL}/${coords}?overview=full&geometries=geojson&annotations=duration,distance`;
 	return bearings ? `${url}&bearings=${bearings}` : url;
+}
+
+export function tableUrl(coords: string): string {
+	return `${OSRM_TABLE_URL}/${coords}?annotations=distance`;
 }

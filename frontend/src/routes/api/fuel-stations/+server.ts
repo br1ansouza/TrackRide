@@ -1,5 +1,10 @@
 import { parseLatLon } from '$lib/server/coords';
-import { fuelQuery, shapeStations, queryOverpass } from '$lib/services/external/overpass';
+import {
+	fuelBounds,
+	fuelQuery,
+	shapeStations,
+	queryOverpass
+} from '$lib/services/external/overpass';
 import { TtlCache } from '$lib/utils/ttlCache';
 import type { RequestHandler } from './$types';
 
@@ -21,11 +26,17 @@ function parsePath(url: URL): number[] | null {
 	if (!raw) return null;
 
 	const pairs = raw.split(';', MAX_PATH_POINTS).map((pair) => pair.split(',').map(Number));
-	const valid = pairs.length >= 2 && pairs.every(
-		([lat, lon]) =>
-			Number.isFinite(lat) && Number.isFinite(lon) &&
-			lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180
-	);
+	const valid =
+		pairs.length >= 2 &&
+		pairs.every(
+			([lat, lon]) =>
+				Number.isFinite(lat) &&
+				Number.isFinite(lon) &&
+				lat >= -90 &&
+				lat <= 90 &&
+				lon >= -180 &&
+				lon <= 180
+		);
 	return valid ? pairs.flat() : null;
 }
 
@@ -38,7 +49,7 @@ export const GET: RequestHandler = async ({ url }) => {
 	if (path) {
 		around = `around:${radius},${path.join(',')}`;
 	} else if (point) {
-		around = `around:${radius},${point.lat.toFixed(3)},${point.lon.toFixed(3)}`;
+		around = fuelBounds(point.lat, point.lon, radius);
 	} else {
 		return new Response(JSON.stringify([]), {
 			status: 400,
@@ -48,19 +59,31 @@ export const GET: RequestHandler = async ({ url }) => {
 
 	const cached = cache.get(around);
 	if (cached) {
-		return new Response(cached, { headers: { 'Content-Type': 'application/json' } });
+		return new Response(cached, {
+			headers: {
+				'Content-Type': 'application/json',
+				'Cache-Control': 'public, max-age=86400'
+			}
+		});
 	}
 
-	const data = await queryOverpass(fuelQuery(around));
+	const data = await queryOverpass(fuelQuery(around), true);
 	if (!data) {
 		return new Response(JSON.stringify([]), {
-			headers: { 'Content-Type': 'application/json', 'X-TrackRide-Degraded': 'overpass' }
+			headers: {
+				'Content-Type': 'application/json',
+				'Cache-Control': 'no-store',
+				'X-TrackRide-Degraded': 'overpass'
+			}
 		});
 	}
 
 	const body = JSON.stringify(shapeStations(data.elements));
 	cache.set(around, body);
 	return new Response(body, {
-		headers: { 'Content-Type': 'application/json' }
+		headers: {
+			'Content-Type': 'application/json',
+			'Cache-Control': 'public, max-age=86400'
+		}
 	});
 };
