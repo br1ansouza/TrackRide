@@ -1,6 +1,8 @@
 class User < ApplicationRecord
   has_secure_password
   has_many :routes, dependent: :destroy
+  has_many :route_likes, dependent: :destroy
+  has_many :route_completions, dependent: :destroy
 
   enum :riding_preference, { calm: 0, mixed: 1, sport: 2 }
 
