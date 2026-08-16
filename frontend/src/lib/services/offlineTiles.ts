@@ -19,11 +19,20 @@ function decodeJson(buffer: ArrayBuffer): unknown {
 	return JSON.parse(new TextDecoder().decode(buffer));
 }
 
+function toProtocolUrl(url: string): string {
+	return `${PROTOCOL}://${url.replace(/^https?:\/\//, '')}`;
+}
+
+function toFetchUrl(protocolUrl: string): string {
+	const stripped = protocolUrl.replace(`${PROTOCOL}://`, '');
+	return `https://${stripped.replace(/^https?:?(\/\/|\/)/, '')}`;
+}
+
 export function registerOfflineProtocol(): void {
 	if (protocolRegistered) return;
 	protocolRegistered = true;
 	maplibregl.addProtocol(PROTOCOL, async (params, abortController) => {
-		const url = params.url.replace(`${PROTOCOL}://`, '');
+		const url = toFetchUrl(params.url);
 		const cached = await idbGet<ArrayBuffer>('tiles', url).catch(() => undefined);
 		if (cached !== undefined) {
 			return { data: params.type === 'json' ? decodeJson(cached) : cached };
@@ -51,13 +60,13 @@ export async function prepareMapStyle(): Promise<StyleSpecification | string> {
 			const template = tileJson.tiles[0];
 			const vectorSource = source as VectorSourceSpecification;
 			delete vectorSource.url;
-			vectorSource.tiles = [`${PROTOCOL}://${template}`];
+			vectorSource.tiles = [toProtocolUrl(template)];
 			vectorSource.minzoom = tileJson.minzoom ?? 0;
 			vectorSource.maxzoom = tileJson.maxzoom ?? 14;
 			idbPut('cache', TEMPLATE_CACHE_KEY, template).catch((error) => console.error('Falha ao cachear template:', error));
 		}
-		if (style.glyphs) style.glyphs = `${PROTOCOL}://${style.glyphs}`;
-		if (style.sprite && typeof style.sprite === 'string') style.sprite = `${PROTOCOL}://${style.sprite}`;
+		if (style.glyphs) style.glyphs = toProtocolUrl(style.glyphs);
+		if (style.sprite && typeof style.sprite === 'string') style.sprite = toProtocolUrl(style.sprite);
 
 		idbPut('cache', STYLE_CACHE_KEY, style).catch((error) => console.error('Falha ao cachear style:', error));
 		return style;
