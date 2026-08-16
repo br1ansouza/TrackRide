@@ -1,7 +1,10 @@
+import { detectBrand, brandLabel, sellsLiquidFuel, type FuelBrandKey } from '$lib/services/fuelBrands';
+
 export interface FuelStation {
 	name: string;
 	lat: number;
 	lon: number;
+	brand: FuelBrandKey | null;
 }
 
 export interface OverpassElement {
@@ -16,7 +19,7 @@ const OVERPASS_URLS = [
 	'https://overpass.private.coffee/api/interpreter'
 ];
 const OVERPASS_TIMEOUT_MS = 15_000;
-const MAX_RESULTS = 20;
+const MAX_RESULTS = 60;
 
 export function fuelQuery(around: string): string {
 	return `[out:json][timeout:15];nwr["amenity"="fuel"](${around});out center ${MAX_RESULTS};`;
@@ -62,11 +65,16 @@ export function shapeRoadPois(elements: OverpassElement[]): RoadPoi[] {
 
 export function shapeStations(elements: OverpassElement[]): FuelStation[] {
 	return elements
-		.map((element) => ({
-			name: element.tags?.name ?? element.tags?.brand ?? 'Posto de combustível',
-			lat: element.lat ?? element.center?.lat,
-			lon: element.lon ?? element.center?.lon
-		}))
+		.filter((element) => sellsLiquidFuel(element.tags))
+		.map((element) => {
+			const brand = detectBrand(element.tags);
+			return {
+				name: element.tags?.name ?? element.tags?.brand ?? (brand ? brandLabel(brand) : 'Posto de combustível'),
+				lat: element.lat ?? element.center?.lat,
+				lon: element.lon ?? element.center?.lon,
+				brand
+			};
+		})
 		.filter((station): station is FuelStation =>
 			station.lat !== undefined && station.lon !== undefined
 		);
