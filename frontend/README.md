@@ -51,6 +51,7 @@ npm run cap:build           # APK debug (build standalone + gradle)
 ```
 
 APK sai em `android/app/build/outputs/apk/debug/app-debug.apk`.
+O workflow `APK` gera um APK de release assinado e um AAB a cada alteração Android promovida para `main`.
 
 ## Configuração
 

@@ -1,14 +1,45 @@
 apply plugin: 'com.android.application'
 
+def secretValue = { String name ->
+    def directValue = System.getenv(name)
+    def filePath = System.getenv("${name}_FILE")
+    directValue ?: (filePath ? file(filePath).text.trim() : null)
+}
+
+def releaseKeystorePath = System.getenv('ANDROID_KEYSTORE_PATH')
+def releaseStorePassword = secretValue('ANDROID_KEYSTORE_PASSWORD')
+def releaseKeyPassword = secretValue('ANDROID_KEY_PASSWORD')
+def releaseKeyAlias = System.getenv('ANDROID_KEY_ALIAS') ?: 'trackride'
+def releaseSigningConfigured = releaseKeystorePath && releaseStorePassword && releaseKeyPassword
+def releaseRequested = gradle.startParameter.taskNames.any { it.toLowerCase().contains('release') }
+
+if (releaseRequested && !releaseSigningConfigured) {
+    throw new GradleException('Assinatura de release nao configurada')
+}
+
+def githubRunNumber = System.getenv('GITHUB_RUN_NUMBER')
+def trackRideVersionCode = githubRunNumber ? 1000 + githubRunNumber.toInteger() : 4
+def trackRideVersionName = githubRunNumber ? "0.3.${githubRunNumber}" : '0.4'
+
 android {
     namespace "com.trackride.app"
     compileSdk rootProject.ext.compileSdkVersion
+    signingConfigs {
+        release {
+            if (releaseSigningConfigured) {
+                storeFile file(releaseKeystorePath)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
     defaultConfig {
         applicationId "com.trackride.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 3
-        versionName "0.3"
+        versionCode trackRideVersionCode
+        versionName trackRideVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -18,6 +49,7 @@ android {
     }
     buildTypes {
         release {
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
