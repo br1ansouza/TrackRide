@@ -2,6 +2,8 @@
 .env.*
 !.env.example
 *.local.md
+BACKLOG.md
+frontend/android/trackride-signing-password.local
 *.pem
 *.key
 *.cert

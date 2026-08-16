@@ -54,27 +54,53 @@ jobs:
           npx cap sync android
           find android/app/src/main/assets/public -name '*.gz' -delete || true
 
-      - name: Assemble APK
-        run: ./gradlew assembleDebug --no-daemon
+      - name: Configure release signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          test -n "$ANDROID_KEYSTORE_BASE64"
+          test -n "$ANDROID_KEYSTORE_PASSWORD"
+          test -n "$ANDROID_KEY_PASSWORD"
+          keystore_path="$RUNNER_TEMP/trackride-release.p12"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$keystore_path"
+          echo "ANDROID_KEYSTORE_PATH=$keystore_path" >> "$GITHUB_ENV"
+
+      - name: Assemble signed release
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: trackride
+        run: ./gradlew assembleRelease bundleRelease --no-daemon
         working-directory: frontend/android
+
+      - name: Verify release signature
+        run: |
+          apksigner=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)
+          test -n "$apksigner"
+          "$apksigner" verify --print-certs android/app/build/outputs/apk/release/app-release.apk
 
       - name: Publish rolling release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp android/app/build/outputs/apk/debug/app-debug.apk TrackRide.apk
+          cp android/app/build/outputs/apk/release/app-release.apk TrackRide.apk
+          cp android/app/build/outputs/bundle/release/app-release.aab TrackRide.aab
           stamp=$(TZ=America/Sao_Paulo date '+%d/%m %H:%M')
           title="APK — $stamp (${GITHUB_SHA::7})"
           notes="Build automatico de \`${GITHUB_SHA::7}\` em $stamp (horario de Brasilia).
 
-          APK de debug: para instalar por cima de uma versao anterior instalada com outra chave, desinstale antes.
+          APK de release assinado com certificado permanente. A primeira migracao do APK de debug exige desinstalacao; as proximas versoes podem ser instaladas por cima.
+
+          O arquivo AAB esta disponivel para publicacao na Play Store.
 
           $(git log -1 --pretty=%s)"
           if gh release view apk-latest >/dev/null 2>&1; then
             gh release edit apk-latest --title "$title" --notes "$notes"
-            gh release upload apk-latest TrackRide.apk --clobber
+            gh release upload apk-latest TrackRide.apk TrackRide.aab --clobber
           else
-            gh release create apk-latest TrackRide.apk \
+            gh release create apk-latest TrackRide.apk TrackRide.aab \
               --title "$title" \
               --notes "$notes"
           fi
