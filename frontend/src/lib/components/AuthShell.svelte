@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { fly } from 'svelte/transition';
+	import { Route } from 'lucide-svelte';
 	import { transitions } from '$lib/utils/transitions';
 	import backgroundImg from '$lib/assets/background-trackride.png';
 	import '$lib/styles/login-layout.css';
@@ -16,7 +17,7 @@
 		<section class="auth-content" in:fly={transitions.panel}>
 			<header class="auth-header">
 				<div class="brand-lockup">
-					<img src="/brand/trackride-mark.png" alt="" aria-hidden="true" />
+					<Route size={20} strokeWidth={2.3} aria-hidden="true" />
 					<span>TrackRide</span>
 				</div>
 				<div class="auth-heading">
