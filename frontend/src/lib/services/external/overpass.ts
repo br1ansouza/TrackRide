@@ -1,5 +1,3 @@
-import { fetchWithRetry } from '$lib/utils/fetchRetry';
-
 export interface FuelStation {
 	name: string;
 	lat: number;
@@ -13,7 +11,11 @@ export interface OverpassElement {
 	tags?: Record<string, string>;
 }
 
-const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
+const OVERPASS_URLS = [
+	'https://overpass-api.de/api/interpreter',
+	'https://overpass.private.coffee/api/interpreter'
+];
+const OVERPASS_TIMEOUT_MS = 15_000;
 const MAX_RESULTS = 20;
 
 export function fuelQuery(around: string): string {
@@ -33,9 +35,7 @@ const MAX_ROAD_POIS = 400;
 export function roadPoiQuery(around: string): string {
 	return (
 		`[out:json][timeout:25];(` +
-		`node["highway"="traffic_signals"](${around});` +
-		`node["highway"="stop"](${around});` +
-		`node["highway"="speed_camera"](${around});` +
+		`node["highway"~"^(traffic_signals|stop|speed_camera)$"](${around});` +
 		`node["traffic_calming"](${around});` +
 		`);out body ${MAX_ROAD_POIS};`
 	);
@@ -73,18 +73,23 @@ export function shapeStations(elements: OverpassElement[]): FuelStation[] {
 }
 
 export async function queryOverpass(query: string): Promise<{ elements: OverpassElement[] } | null> {
-	const response = await fetchWithRetry(
-		OVERPASS_URL,
-		{
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/x-www-form-urlencoded',
-				'User-Agent': 'TrackRide/1.0'
-			},
-			body: `data=${encodeURIComponent(query)}`
-		},
-		{ retries: 2, delayMs: 1000, label: 'Overpass' }
-	);
-	if (!response) return null;
-	return response.json();
+	for (const url of OVERPASS_URLS) {
+		try {
+			const response = await fetch(url, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/x-www-form-urlencoded',
+					'User-Agent': 'TrackRide/1.0'
+				},
+				body: `data=${encodeURIComponent(query)}`,
+				signal: AbortSignal.timeout(OVERPASS_TIMEOUT_MS)
+			});
+			if (!response.ok) continue;
+			const payload = await response.json() as { elements?: OverpassElement[] };
+			if (Array.isArray(payload.elements)) return { elements: payload.elements };
+		} catch {
+			continue;
+		}
+	}
+	return null;
 }

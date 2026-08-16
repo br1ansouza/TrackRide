@@ -249,7 +249,7 @@ export function useRouteSearch() {
 		destLabel = '';
 		exploreRouteId = null;
 		editingRouteId = null;
-		mapRef?.clearApproachRoute();
+		mapRef?.clearRoute();
 	}
 
 	async function loadSavedRoute(saved: SavedRoute): Promise<RouteData | null> {

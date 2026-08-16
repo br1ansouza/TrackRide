@@ -1,0 +1,98 @@
+.profile-page {
+	position: relative;
+	height: 100%;
+	overflow: hidden;
+	background: var(--color-surface-950);
+}
+
+.profile-art,
+.profile-shade {
+	position: absolute;
+	inset: 0 0 auto;
+	height: 255px;
+	pointer-events: none;
+}
+
+.profile-art {
+	background-position: center 66%;
+	background-repeat: no-repeat;
+	background-size: 112% auto;
+	filter: brightness(0.58) contrast(1.2);
+	opacity: 0.14;
+	mask-image: linear-gradient(to bottom, #000 58%, transparent 100%);
+}
+
+.profile-shade {
+	background:
+		radial-gradient(circle at 4% 10%, color-mix(in oklch, var(--color-ride-route-500) 22%, transparent), transparent 48%),
+		radial-gradient(circle at 96% 42%, color-mix(in oklch, var(--color-ride-alert-500) 13%, transparent), transparent 36%),
+		linear-gradient(180deg, color-mix(in oklch, var(--color-surface-950) 24%, transparent), var(--color-surface-950));
+}
+
+.profile-scroll {
+	position: relative;
+	display: flex;
+	height: 100%;
+	flex-direction: column;
+	gap: 20px;
+	overflow-y: auto;
+	padding: calc(26px + env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) calc(28px + env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+	scrollbar-width: none;
+}
+
+.profile-scroll::-webkit-scrollbar {
+	display: none;
+}
+
+.profile-header {
+	display: flex;
+	flex-direction: column;
+}
+
+.profile-identity {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+}
+
+.profile-avatar {
+	position: relative;
+	display: grid;
+	height: 58px;
+	width: 58px;
+	flex: 0 0 auto;
+	place-items: center;
+	border: 1px solid color-mix(in oklch, var(--color-ride-route-100) 50%, transparent);
+	border-radius: 999px;
+	background: linear-gradient(145deg, var(--color-ride-route-500), var(--color-ride-route-900));
+	box-shadow: 0 10px 28px color-mix(in oklch, var(--color-ride-route-500) 28%, transparent);
+	color: var(--color-surface-50);
+	font-size: 21px;
+	font-weight: 750;
+}
+
+.profile-avatar::after {
+	position: absolute;
+	right: 1px;
+	bottom: 3px;
+	height: 9px;
+	width: 9px;
+	border: 2px solid var(--color-surface-950);
+	border-radius: 50%;
+	background: var(--color-ride-alert-500);
+	content: '';
+}
+
+.profile-identity h2 {
+	color: var(--color-surface-50);
+	font-size: 23px;
+	font-weight: 740;
+	letter-spacing: -0.025em;
+	line-height: 1.15;
+}
+
+.profile-identity p {
+	margin-top: 5px;
+	color: var(--color-surface-400);
+	font-size: 13px;
+}
