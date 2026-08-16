@@ -35,6 +35,7 @@
 	const FOLLOW_DURATION_MS = 1000;
 
 	let navigating = false;
+	let drawnRouteCoords: LatLng[] = [];
 
 	function widthByZoom(near: number, mid: number, far: number): maplibregl.DataDrivenPropertyValueSpecification<number> {
 		return ['interpolate', ['linear'], ['zoom'], 10, near, 15, mid, 18, far];
@@ -145,6 +146,7 @@
 
 	export function clearRoute() {
 		if (!map) return;
+		drawnRouteCoords = [];
 		(map.getSource('route') as maplibregl.GeoJSONSource | undefined)?.setData(emptyLine());
 		(map.getSource('conditions') as maplibregl.GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features: [] });
 		(map.getSource('approach') as maplibregl.GeoJSONSource | undefined)?.setData(emptyLine());
@@ -163,6 +165,7 @@
 		const src = map?.getSource('route') as maplibregl.GeoJSONSource | undefined;
 		if (!map || !src) return false;
 		src.setData({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: toLineCoords(routeData.coords) } });
+		drawnRouteCoords = routeData.coords;
 		if (!skipFit) map.fitBounds(boundsFromCoords([originCoords, destCoords, ...routeData.coords]), { padding: 40 });
 		return true;
 	}
@@ -230,12 +233,8 @@
 	}
 
 	export function fitRoute() {
-		if (!map) return;
-		const data = (map.getSource('route') as unknown as { _data: { geometry?: { coordinates: [number, number][] } } })?._data;
-		if (!data?.geometry?.coordinates?.length) return;
-		const bounds = new maplibregl.LngLatBounds();
-		data.geometry.coordinates.forEach((c) => bounds.extend(c));
-		map.fitBounds(bounds, { padding: 40, bearing: 0, pitch: 0 });
+		if (!map || drawnRouteCoords.length === 0) return;
+		map.fitBounds(boundsFromCoords(drawnRouteCoords), { padding: 40, bearing: 0, pitch: 0 });
 	}
 
 	export function zoomStreet() {
@@ -265,6 +264,11 @@
 	export function setNavigating(active: boolean) {
 		navigating = active;
 		markerController?.setNavigating(active);
+	}
+
+	export function updateUserPosition(coords: LatLng, bearingOverride?: number) {
+		if (!map) return;
+		markerController?.moveRider(coords, bearingOverride ?? map.getBearing(), FOLLOW_DURATION_MS);
 	}
 
 	export function followPosition(coords: LatLng, prevCoords?: LatLng, bearingOverride?: number, speedKmh = 0) {
