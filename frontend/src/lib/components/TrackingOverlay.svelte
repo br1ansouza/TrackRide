@@ -29,7 +29,10 @@
 	});
 </script>
 
-<div class="pointer-events-none absolute inset-x-0 z-[700] flex justify-center px-4" style="top: {safeTop};">
+<div
+	class="pointer-events-none absolute inset-x-0 z-[700] flex justify-center px-4 landscape:justify-start"
+	style="top: {safeTop}; padding-left: calc(1rem + env(safe-area-inset-left));"
+>
 	<div class="flex items-center gap-4 rounded-2xl bg-surface-900/90 px-5 py-3 shadow-lg backdrop-blur-sm">
 		<div class="flex flex-col items-center">
 			<span class="text-lg font-bold text-white">{distanceKm}</span>
