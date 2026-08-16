@@ -3,6 +3,8 @@ import type { RouteStopEntry } from '$lib/types/routeStop';
 import type { FuelStation } from '$lib/services/external/overpass';
 import { fetchFuelStations } from '$lib/services/gateway';
 import { haversineM } from '$lib/utils/mapHelpers';
+import { snapToPath } from '$lib/utils/geoMath';
+import { BRAND_PRIORITY } from '$lib/services/fuelBrands';
 
 export interface FuelStopSuggestion {
 	stops: RouteStopEntry[];
@@ -10,6 +12,8 @@ export interface FuelStopSuggestion {
 }
 
 const END_OF_ROUTE_MARGIN_M = 10000;
+const OFF_ROUTE_LIMIT_M = 1500;
+const OFF_ROUTE_RELAXED_M = 5000;
 const DUPLICATE_DISTANCE_M = 500;
 const ON_ROUTE_RADIUS_M = 1000;
 const DETOUR_RADIUS_M = 10000;
@@ -96,13 +100,21 @@ async function stationsForPoint(
 	return fetchFuelStations({ point: routeCoords[sampleIndex], radius: DETOUR_RADIUS_M });
 }
 
-function pickStation(
+interface Candidate {
+	station: FuelStation;
+	coords: LatLng;
+	offRouteM: number;
+	fromSampleM: number;
+}
+
+function buildCandidates(
 	stations: FuelStation[],
+	routeCoords: LatLng[],
+	sampleIndex: number,
 	samplePoint: LatLng,
 	existingStops: RouteStopEntry[]
-): RouteStopEntry | null {
-	let best: RouteStopEntry | null = null;
-	let bestDistance = Infinity;
+): Candidate[] {
+	const candidates: Candidate[] = [];
 
 	for (const station of stations) {
 		const coords: LatLng = [station.lat, station.lon];
@@ -111,13 +123,39 @@ function pickStation(
 		);
 		if (isDuplicate) continue;
 
-		const distance = haversineM(samplePoint, coords);
-		if (distance < bestDistance) {
-			bestDistance = distance;
-			best = { name: station.name, coords, stopType: 'gas_station' };
-		}
+		const snap = snapToPath(routeCoords, coords, Math.max(0, sampleIndex - 40), 80);
+		candidates.push({
+			station,
+			coords,
+			offRouteM: snap.distanceM,
+			fromSampleM: haversineM(samplePoint, coords)
+		});
 	}
-	return best;
+
+	return candidates.sort((a, b) => a.fromSampleM - b.fromSampleM);
+}
+
+function pickByPriority(candidates: Candidate[], limitM: number): Candidate | null {
+	const onRoute = candidates.filter((candidate) => candidate.offRouteM <= limitM);
+	if (onRoute.length === 0) return null;
+
+	for (const brand of BRAND_PRIORITY) {
+		const match = onRoute.find((candidate) => candidate.station.brand === brand);
+		if (match) return match;
+	}
+	return onRoute[0];
+}
+
+function pickStation(
+	stations: FuelStation[],
+	routeCoords: LatLng[],
+	sampleIndex: number,
+	existingStops: RouteStopEntry[]
+): RouteStopEntry | null {
+	const candidates = buildCandidates(stations, routeCoords, sampleIndex, routeCoords[sampleIndex], existingStops);
+	const picked = pickByPriority(candidates, OFF_ROUTE_LIMIT_M) ?? pickByPriority(candidates, OFF_ROUTE_RELAXED_M);
+	if (!picked) return null;
+	return { name: picked.station.name, coords: picked.coords, stopType: 'gas_station' };
 }
 
 export async function findFuelStops(
@@ -134,7 +172,7 @@ export async function findFuelStops(
 	const stops: RouteStopEntry[] = [];
 	let missedPoints = 0;
 	stationsPerPoint.forEach((stations, i) => {
-		const picked = pickStation(stations, routeCoords[refuelIndexes[i]], [...existingStops, ...stops]);
+		const picked = pickStation(stations, routeCoords, refuelIndexes[i], [...existingStops, ...stops]);
 		if (picked) {
 			stops.push(picked);
 		} else {
