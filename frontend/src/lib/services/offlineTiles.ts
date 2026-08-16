@@ -1,4 +1,4 @@
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
 import type { StyleSpecification, VectorSourceSpecification } from 'maplibre-gl';
 import type { LatLng } from './routing';
 import { idbGet, idbPut } from '$lib/utils/idb';
@@ -22,13 +22,13 @@ function decodeJson(buffer: ArrayBuffer): unknown {
 export function registerOfflineProtocol(): void {
 	if (protocolRegistered) return;
 	protocolRegistered = true;
-	maplibregl.addProtocol(PROTOCOL, async (params) => {
+	maplibregl.addProtocol(PROTOCOL, async (params, abortController) => {
 		const url = params.url.replace(`${PROTOCOL}://`, '');
 		const cached = await idbGet<ArrayBuffer>('tiles', url).catch(() => undefined);
 		if (cached !== undefined) {
 			return { data: params.type === 'json' ? decodeJson(cached) : cached };
 		}
-		const response = await fetch(url);
+		const response = await fetch(url, { signal: abortController.signal });
 		if (response.status === 204) return { data: null };
 		if (!response.ok) throw new Error(`Tile ${response.status}: ${url}`);
 		const buffer = await response.arrayBuffer();

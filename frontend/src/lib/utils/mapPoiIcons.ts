@@ -1,4 +1,4 @@
-import type maplibregl from 'maplibre-gl';
+import type * as maplibregl from 'maplibre-gl';
 import type { RoadPoiKind } from '$lib/services/external/overpass';
 import { cssVar } from '$lib/utils/color';
 
