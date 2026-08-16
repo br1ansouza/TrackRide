@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { History, LogOut, ChevronRight, Trash2 } from 'lucide-svelte';
+	import { History, LogOut, ChevronRight } from 'lucide-svelte';
 	import type { AuthUser } from '$lib/services/auth';
 	import PreferenceSelector from '$lib/components/PreferenceSelector.svelte';
 	import FuelRangeEditor from '$lib/components/FuelRangeEditor.svelte';
@@ -70,10 +70,10 @@
 			<ChevronRight size={16} class="text-surface-500" />
 		</button>
 		<div class="profile-legal-links">
-			<a href="/privacidade">Privacidade</a>
-			<a href="/termos">Termos</a>
-			<a class="profile-delete-link" href="/excluir-conta">Excluir conta</a>
+			<a href="/privacidade">Política de Privacidade</a>
+			<a href="/termos">Termos de Uso</a>
 		</div>
+		<a class="profile-delete-text" href="/excluir-conta">Excluir conta</a>
 		<div class="pt-2">
 			<button type="button" onclick={() => { vibrate(); onLogout(); }} class="flex w-full items-center justify-center gap-2 rounded-lg py-3 text-sm font-medium" style="color: var(--color-ride-danger-300);">
 				<LogOut size={16} />
@@ -95,16 +95,12 @@
 					<span class="profile-action-icon"><LogOut size={18} /></span>
 					<span class="profile-action-copy"><strong>Sair da conta</strong><small>Encerrar sessão neste dispositivo</small></span>
 				</button>
-				<a href="/excluir-conta" class="profile-action profile-delete">
-					<span class="profile-action-icon"><Trash2 size={18} /></span>
-					<span class="profile-action-copy"><strong>Excluir conta</strong><small>Apagar permanentemente conta e dados vinculados</small></span>
-					<ChevronRight size={17} class="text-surface-500" />
-				</a>
 			</div>
 			<div class="profile-legal-links">
 				<a href="/privacidade">Política de Privacidade</a>
 				<a href="/termos">Termos de Uso</a>
 			</div>
+			<a class="profile-delete-text" href="/excluir-conta">Excluir conta</a>
 		</section>
 	{/if}
 </div>
