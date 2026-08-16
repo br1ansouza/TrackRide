@@ -63,16 +63,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           cp android/app/build/outputs/apk/debug/app-debug.apk TrackRide.apk
-          notes="Build automatico de \`${GITHUB_SHA::7}\` em $(date -u '+%d/%m/%Y %H:%M UTC').
+          stamp=$(TZ=America/Sao_Paulo date '+%d/%m %H:%M')
+          title="APK — $stamp (${GITHUB_SHA::7})"
+          notes="Build automatico de \`${GITHUB_SHA::7}\` em $stamp (horario de Brasilia).
 
           APK de debug: para instalar por cima de uma versao anterior instalada com outra chave, desinstale antes.
 
           $(git log -1 --pretty=%s)"
           if gh release view apk-latest >/dev/null 2>&1; then
-            gh release edit apk-latest --notes "$notes"
+            gh release edit apk-latest --title "$title" --notes "$notes"
             gh release upload apk-latest TrackRide.apk --clobber
           else
             gh release create apk-latest TrackRide.apk \
-              --title "APK mais recente" \
+              --title "$title" \
               --notes "$notes"
           fi
