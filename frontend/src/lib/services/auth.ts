@@ -70,6 +70,13 @@ export async function updateProfile(params: { name?: string; riding_preference?:
 	return data.user;
 }
 
+export async function deleteAccount(password: string): Promise<void> {
+	await request<void>('/auth/account', {
+		method: 'DELETE',
+		body: JSON.stringify({ password })
+	});
+}
+
 export async function forgotPassword(email: string): Promise<string> {
 	const data = await request<{ message: string }>('/auth/forgot_password', {
 		method: 'POST',

@@ -14,6 +14,11 @@
 	let showPassword = $state(false);
 	let submitting = $state(false);
 
+	function destinationAfterLogin(): string {
+		const candidate = new URLSearchParams(window.location.search).get('redirect');
+		return candidate?.startsWith('/') && !candidate.startsWith('//') ? candidate : '/';
+	}
+
 	async function handleSubmit(event: SubmitEvent) {
 		event.preventDefault();
 		if (!email || !password) return;
@@ -21,7 +26,7 @@
 		try {
 			const user = await login(email, password);
 			auth.setUser(user);
-			goto('/');
+			goto(destinationAfterLogin());
 		} catch (e) {
 			toaster.error({ title: 'Erro ao entrar', description: (e as Error).message });
 		} finally {

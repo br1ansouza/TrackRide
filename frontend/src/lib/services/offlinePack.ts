@@ -52,6 +52,8 @@ export async function clearOfflineUserData(): Promise<void> {
 			idbClear('sync-queue'),
 			idbDelete('cache', 'saved-routes')
 		]);
+		localStorage.removeItem('trackride:last-position');
+		localStorage.removeItem('trackride:background-location-disclosure-v1');
 	} catch (error) {
 		console.error('Falha ao limpar dados offline do usuário:', error);
 	}
