@@ -211,17 +211,26 @@ export function useRouteSearch() {
 	async function suggestFuelStops(intervalKm: number) {
 		if (routeCoords.length < 2) return;
 
-		const { stops: fuelStops, missedPoints } = await findFuelStops(routeCoords, intervalKm, stops);
+		const {
+			stops: fuelStops,
+			missedPoints,
+			lookupFailedPoints
+		} = await findFuelStops(routeCoords, intervalKm, stops);
 		if (fuelStops.length === 0) {
-			if (missedPoints === 0) {
+			if (lookupFailedPoints > 0) {
+				toaster.warning({
+					title: 'Consulta de postos indisponível',
+					description: 'Não foi possível consultar os postos agora. Tente novamente em instantes.'
+				});
+			} else if (missedPoints === 0) {
 				toaster.info({
 					title: 'Rota já coberta',
 					description: `As paradas atuais já cobrem o trajeto a cada ${intervalKm} km.`
 				});
 			} else {
 				toaster.warning({
-					title: 'Nenhum posto encontrado',
-					description: 'Não há postos de combustível próximos aos pontos de abastecimento da rota.'
+					title: 'Nenhum posto adequado encontrado',
+					description: 'Não foi encontrado um posto com acesso seguro no sentido da rota.'
 				});
 			}
 			return;
@@ -233,9 +242,10 @@ export function useRouteSearch() {
 
 		toaster.success({
 			title: 'Paradas de abastecimento',
-			description: missedPoints > 0
-				? `${fuelStops.length} posto(s) adicionado(s). ${missedPoints} ponto(s) sem posto por perto.`
-				: `${fuelStops.length} posto(s) adicionado(s) ao trajeto.`
+			description:
+				missedPoints + lookupFailedPoints > 0
+					? `${fuelStops.length} posto(s) adicionado(s). ${missedPoints + lookupFailedPoints} ponto(s) não atendido(s).`
+					: `${fuelStops.length} posto(s) adicionado(s) ao trajeto.`
 		});
 		await executeRoute(true);
 	}

@@ -9,17 +9,19 @@ import { BRAND_PRIORITY, type FuelBrandKey } from '$lib/services/fuelBrands';
 export interface FuelStopSuggestion {
 	stops: RouteStopEntry[];
 	missedPoints: number;
+	lookupFailedPoints: number;
 }
 
 const END_OF_ROUTE_MARGIN_M = 10000;
-const OFF_ROUTE_LIMIT_M = 1500;
 const OFF_ROUTE_RELAXED_M = 5000;
-const SEARCH_RADIUS_M = 5000;
+const SEARCH_LATERAL_M = 5000;
+const SEARCH_ROUTE_HALF_M = 15000;
+const REFUEL_ANCHOR_TOLERANCE_M = SEARCH_ROUTE_HALF_M + OFF_ROUTE_RELAXED_M;
 const ACCESS_WINDOW_HALF_M = 25000;
 const MAX_ACCESS_DETOUR_M = 2500;
 const BRAND_DETOUR_ALLOWANCE_M = 500;
 const MAX_ROUTING_CANDIDATES = 12;
-const CANDIDATES_PER_BRAND = 2;
+const CANDIDATES_PER_BRAND = 1;
 const DUPLICATE_DISTANCE_M = 500;
 
 function cumulativeDistancesM(routeCoords: LatLng[]): number[] {
@@ -46,17 +48,19 @@ function sampleRefuelIndexes(
 
 	const indexes: number[] = [];
 	let lastRefuelM = 0;
-	let anchorIndex = 0;
-	for (let i = 1; i < routeCoords.length; i++) {
-		const hereM = distances[i];
-		while (anchorIndex < fuelAnchorsM.length && fuelAnchorsM[anchorIndex] <= hereM) {
-			lastRefuelM = Math.max(lastRefuelM, fuelAnchorsM[anchorIndex]);
-			anchorIndex++;
+	for (const anchorM of fuelAnchorsM) {
+		while (anchorM - lastRefuelM > intervalM + REFUEL_ANCHOR_TOLERANCE_M) {
+			const targetM = lastRefuelM + intervalM;
+			if (targetM <= totalM - END_OF_ROUTE_MARGIN_M) {
+				indexes.push(firstIndexAtOrAfter(distances, targetM));
+			}
+			lastRefuelM = targetM;
 		}
-		if (hereM - lastRefuelM >= intervalM) {
-			if (hereM <= totalM - END_OF_ROUTE_MARGIN_M) indexes.push(i);
-			lastRefuelM = hereM;
-		}
+		lastRefuelM = Math.max(lastRefuelM, anchorM);
+	}
+	while (lastRefuelM + intervalM <= totalM - END_OF_ROUTE_MARGIN_M) {
+		lastRefuelM += intervalM;
+		indexes.push(firstIndexAtOrAfter(distances, lastRefuelM));
 	}
 	return indexes;
 }
@@ -78,17 +82,22 @@ function closestIndex(routeCoords: LatLng[], target: LatLng): number {
 
 async function stationsForPoints(
 	routeCoords: LatLng[],
+	distances: number[],
 	refuelIndexes: number[]
-): Promise<FuelStation[][]> {
-	return Promise.all(
-		refuelIndexes.map(async (index) => {
-			const point = routeCoords[index];
-			const stations = await fetchFuelStations({ point, radius: SEARCH_RADIUS_M });
-			return stations.filter(
-				(station) => haversineM(point, [station.lat, station.lon]) <= SEARCH_RADIUS_M
-			);
-		})
-	);
+): Promise<{ stations: FuelStation[]; unavailable: boolean }[]> {
+	const results: { stations: FuelStation[]; unavailable: boolean }[] = [];
+	for (const index of refuelIndexes) {
+		const centerM = distances[index];
+		const start = firstIndexAtOrAfter(distances, Math.max(0, centerM - SEARCH_ROUTE_HALF_M));
+		const end = firstIndexAtOrAfter(distances, centerM + SEARCH_ROUTE_HALF_M);
+		results.push(
+			await fetchFuelStations({
+				path: routeCoords.slice(start, Math.min(routeCoords.length, end + 1)),
+				radius: SEARCH_LATERAL_M
+			})
+		);
+	}
+	return results;
 }
 
 interface Candidate {
@@ -113,9 +122,12 @@ function buildCandidates(
 	const centerM = distances[sampleIndex];
 	const scanStart = firstIndexAtOrAfter(
 		distances,
-		Math.max(0, centerM - SEARCH_RADIUS_M - OFF_ROUTE_RELAXED_M)
+		Math.max(0, centerM - SEARCH_ROUTE_HALF_M - OFF_ROUTE_RELAXED_M)
 	);
-	const scanEnd = firstIndexAtOrAfter(distances, centerM + SEARCH_RADIUS_M + OFF_ROUTE_RELAXED_M);
+	const scanEnd = firstIndexAtOrAfter(
+		distances,
+		centerM + SEARCH_ROUTE_HALF_M + OFF_ROUTE_RELAXED_M
+	);
 	const localPath = routeCoords.slice(scanStart, Math.min(routeCoords.length, scanEnd + 1));
 
 	for (const station of stations) {
@@ -175,7 +187,7 @@ async function routeCandidates(
 	routeCoords: LatLng[],
 	distances: number[],
 	sampleIndex: number
-): Promise<RoutedCandidate[]> {
+): Promise<RoutedCandidate[] | null> {
 	const shortlist = routingShortlist(candidates);
 	if (shortlist.length === 0) return [];
 
@@ -191,7 +203,7 @@ async function routeCandidates(
 	const table = await fetchOsrmTable(coords);
 	const matrix = table?.code === 'Ok' ? table.distances : undefined;
 	const baselineM = matrix?.[0]?.[1];
-	if (baselineM === null || baselineM === undefined) return [];
+	if (baselineM === null || baselineM === undefined) return null;
 
 	return shortlist.flatMap((candidate, index) => {
 		const toStationM = matrix?.[0]?.[index + 2];
@@ -227,18 +239,19 @@ async function pickStation(
 	distances: number[],
 	sampleIndex: number,
 	existingStops: RouteStopEntry[]
-): Promise<RouteStopEntry | null> {
+): Promise<{ stop: RouteStopEntry | null; unavailable: boolean }> {
 	const candidates = buildCandidates(stations, routeCoords, distances, sampleIndex, existingStops);
-	const strict = candidates.filter((candidate) => candidate.offRouteM <= OFF_ROUTE_LIMIT_M);
-	const geometricallyValid =
-		strict.length > 0
-			? strict
-			: candidates.filter((candidate) => candidate.offRouteM <= OFF_ROUTE_RELAXED_M);
-	const picked = pickRoutedCandidate(
-		await routeCandidates(geometricallyValid, routeCoords, distances, sampleIndex)
+	const geometricallyValid = candidates.filter(
+		(candidate) => candidate.offRouteM <= OFF_ROUTE_RELAXED_M
 	);
-	if (!picked) return null;
-	return { name: picked.station.name, coords: picked.coords, stopType: 'gas_station' };
+	const routed = await routeCandidates(geometricallyValid, routeCoords, distances, sampleIndex);
+	if (routed === null) return { stop: null, unavailable: true };
+	const picked = pickRoutedCandidate(routed);
+	if (!picked) return { stop: null, unavailable: false };
+	return {
+		stop: { name: picked.station.name, coords: picked.coords, stopType: 'gas_station' },
+		unavailable: false
+	};
 }
 
 export async function findFuelStops(
@@ -248,16 +261,23 @@ export async function findFuelStops(
 ): Promise<FuelStopSuggestion> {
 	const distances = cumulativeDistancesM(routeCoords);
 	const refuelIndexes = sampleRefuelIndexes(routeCoords, distances, intervalKm, existingStops);
-	const stationsPerPoint = await stationsForPoints(routeCoords, refuelIndexes);
+	const stationsPerPoint = await stationsForPoints(routeCoords, distances, refuelIndexes);
 	const pickedStops = await Promise.all(
-		stationsPerPoint.map((stations, i) =>
-			pickStation(stations, routeCoords, distances, refuelIndexes[i], existingStops)
+		stationsPerPoint.map((result, i) =>
+			result.unavailable
+				? { stop: null, unavailable: true }
+				: pickStation(result.stations, routeCoords, distances, refuelIndexes[i], existingStops)
 		)
 	);
 
 	const stops: RouteStopEntry[] = [];
 	let missedPoints = 0;
-	pickedStops.forEach((picked) => {
+	let lookupFailedPoints = 0;
+	pickedStops.forEach(({ stop: picked, unavailable }) => {
+		if (unavailable) {
+			lookupFailedPoints++;
+			return;
+		}
 		const duplicate =
 			picked &&
 			[...existingStops, ...stops].some(
@@ -270,5 +290,5 @@ export async function findFuelStops(
 		}
 	});
 
-	return { stops, missedPoints };
+	return { stops, missedPoints, lookupFailedPoints };
 }
