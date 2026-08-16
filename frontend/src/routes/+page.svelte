@@ -105,10 +105,13 @@
 	$effect(() => {
 		if (tracking.active && tracking.displayPath.length >= 2) {
 			route.mapRef?.drawTrackedPath(tracking.displayPath);
-			if (!following) return;
 			const path = tracking.displayPath;
 			const current = path[path.length - 1];
 			const prev = path[path.length - 2];
+			if (!following) {
+				route.mapRef?.updateUserPosition(current, navigationBearing(current, prev));
+				return;
+			}
 			route.mapRef?.followPosition(current, prev, navigationBearing(current, prev), tracking.speedKmh);
 		} else if (tracking.active && following && tracking.currentPosition) {
 			const current = tracking.snappedPosition ?? tracking.currentPosition;
