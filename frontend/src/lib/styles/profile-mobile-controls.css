@@ -119,15 +119,6 @@
 	color: var(--color-ride-danger-300);
 }
 
-.profile-delete .profile-action-icon {
-	background: color-mix(in oklch, var(--color-ride-danger-900) 18%, transparent);
-	color: color-mix(in oklch, var(--color-ride-danger-300) 72%, var(--color-surface-400));
-}
-
-.profile-delete .profile-action-copy strong {
-	color: color-mix(in oklch, var(--color-ride-danger-300) 72%, var(--color-surface-300));
-}
-
 .profile-legal-links {
 	display: flex;
 	flex-wrap: wrap;
@@ -146,8 +137,20 @@
 	color: var(--color-surface-300);
 }
 
-.profile-legal-links .profile-delete-link {
-	color: color-mix(in oklch, var(--color-ride-danger-300) 62%, var(--color-surface-500));
+.profile-delete-text {
+	display: block;
+	width: fit-content;
+	margin: 0 auto;
+	padding: 2px 4px;
+	color: var(--color-ride-danger-300);
+	font-size: 11px;
+	font-weight: 550;
+	text-decoration: none;
+	transition: color 150ms ease;
+}
+
+.profile-delete-text:hover {
+	color: var(--color-ride-danger-100);
 }
 
 @media (prefers-reduced-motion: reduce) {
