@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { Eye, EyeOff, LoaderCircle, LogIn } from 'lucide-svelte';
 	import AuthShell from '$lib/components/AuthShell.svelte';
+	import ReleaseNotes from '$lib/components/ReleaseNotes.svelte';
 	import { login } from '$lib/services/auth';
 	import { useAuth } from '$lib/stores/auth.svelte';
 	import { toaster } from '$lib/stores/toaster';
@@ -56,5 +57,8 @@
 		</button>
 	</form>
 
-	<p class="auth-footer">Ainda não tem conta? <a href="/register">Criar conta</a></p>
+	<div class="auth-meta">
+		<p class="auth-footer">Ainda não tem conta? <a href="/register">Criar conta</a></p>
+		<ReleaseNotes />
+	</div>
 </AuthShell>
