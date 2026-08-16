@@ -11,6 +11,7 @@ import {
 } from './external/photon';
 import {
 	fuelBounds,
+	fuelPathBounds,
 	fuelQuery,
 	shapeStations,
 	queryOverpass,
@@ -19,6 +20,7 @@ import {
 	type FuelStation,
 	type RoadPoi
 } from './external/overpass';
+import { queryNominatimFuel } from './external/nominatimFuel';
 import {
 	routeUrl,
 	tableUrl,
@@ -36,6 +38,11 @@ export interface FuelSearchParams {
 	path?: LatLng[];
 	point?: LatLng;
 	radius: number;
+}
+
+export interface FuelSearchResult {
+	stations: FuelStation[];
+	unavailable: boolean;
 }
 
 const forecastCache = new TtlCache<ForecastPayload>(10 * 60 * 1000, 500);
@@ -138,25 +145,34 @@ export async function reverseDistrict(lat: number, lon: number): Promise<string 
 	return pickDistrict((await response.json()) as PhotonResponse);
 }
 
-export async function fetchFuelStations(params: FuelSearchParams): Promise<FuelStation[]> {
-	const around = buildAround(params);
-	if (!around) return [];
-	const cached = fuelCache.get(around);
-	if (cached) return cached;
-	if (!isStandaloneBuild) {
-		const stations = await fetchFuelStationsViaProxy(params);
-		if (stations.length > 0) fuelCache.set(around, stations);
-		return stations;
+export async function fetchFuelStations(params: FuelSearchParams): Promise<FuelSearchResult> {
+	const bounds = buildFuelBounds(params);
+	if (!bounds) return { stations: [], unavailable: false };
+	const cached = fuelCache.get(bounds);
+	if (cached) return { stations: cached, unavailable: false };
+
+	const proxyResult = await fetchFuelStationsViaProxy(params);
+	if (!proxyResult.unavailable) {
+		fuelCache.set(bounds, proxyResult.stations);
+		return proxyResult;
 	}
-	const data = await queryOverpass(fuelQuery(around), true);
-	if (!data) return [];
-	const stations = shapeStations(data.elements);
-	fuelCache.set(around, stations);
-	return stations;
+	if (!isStandaloneBuild) return proxyResult;
+
+	const nominatimStations = await queryNominatimFuel(bounds);
+	if (nominatimStations && nominatimStations.length > 0) {
+		fuelCache.set(bounds, nominatimStations);
+		return { stations: nominatimStations, unavailable: false };
+	}
+	const data = await queryOverpass(fuelQuery(bounds), true);
+	if (!data && nominatimStations === null) return { stations: [], unavailable: true };
+	const stations = data ? shapeStations(data.elements) : (nominatimStations ?? []);
+	fuelCache.set(bounds, stations);
+	return { stations, unavailable: false };
 }
 
 const ROAD_POI_RADIUS_M = 25;
 const roadPoiCache = new TtlCache<RoadPoi[]>(7 * 24 * 60 * 60 * 1000, 100);
+const MAX_FUEL_PATH_POINTS = 80;
 
 export async function fetchRoadPois(path: LatLng[]): Promise<RoadPoi[]> {
 	if (path.length < 2) return [];
@@ -183,34 +199,49 @@ export async function fetchRoadPois(path: LatLng[]): Promise<RoadPoi[]> {
 	return pois;
 }
 
-function buildAround({ path, point, radius }: FuelSearchParams): string | null {
+function buildFuelBounds({ path, point, radius }: FuelSearchParams): string | null {
 	if (path && path.length >= 2) {
-		const flat = path.map(([lat, lon]) => `${lat.toFixed(5)},${lon.toFixed(5)}`).join(',');
-		return `around:${radius},${flat}`;
+		return fuelPathBounds(path, radius);
 	}
 	if (point) return fuelBounds(point[0], point[1], radius);
 	return null;
+}
+
+function compactFuelPath(path: LatLng[]): LatLng[] {
+	if (path.length <= MAX_FUEL_PATH_POINTS) return path;
+	return Array.from({ length: MAX_FUEL_PATH_POINTS }, (_, index) => {
+		const sourceIndex = Math.round((index * (path.length - 1)) / (MAX_FUEL_PATH_POINTS - 1));
+		return path[sourceIndex];
+	});
 }
 
 async function fetchFuelStationsViaProxy({
 	path,
 	point,
 	radius
-}: FuelSearchParams): Promise<FuelStation[]> {
+}: FuelSearchParams): Promise<FuelSearchResult> {
 	let params: string;
 	if (path && path.length >= 2) {
-		params = `path=${path.map(([lat, lon]) => `${lat.toFixed(5)},${lon.toFixed(5)}`).join(';')}&radius=${radius}`;
+		params = `path=${compactFuelPath(path)
+			.map(([lat, lon]) => `${lat.toFixed(5)},${lon.toFixed(5)}`)
+			.join(';')}&radius=${radius}`;
 	} else if (point) {
 		params = `lat=${point[0]}&lon=${point[1]}&radius=${radius}`;
 	} else {
-		return [];
+		return { stations: [], unavailable: false };
 	}
+	const baseUrl = isStandaloneBuild ? proxyBaseUrl : '';
+	if (isStandaloneBuild && !baseUrl) return { stations: [], unavailable: true };
 	try {
-		const response = await fetch(`/api/fuel-stations?${params}`, {
+		const response = await fetch(`${baseUrl}/api/fuel-stations?${params}`, {
 			signal: AbortSignal.timeout(8000)
 		});
-		return response.ok ? response.json() : [];
+		if (!response.ok) return { stations: [], unavailable: true };
+		const stations = (await response.json()) as FuelStation[];
+		return Array.isArray(stations)
+			? { stations, unavailable: false }
+			: { stations: [], unavailable: true };
 	} catch {
-		return [];
+		return { stations: [], unavailable: true };
 	}
 }

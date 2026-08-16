@@ -35,6 +35,23 @@ export function fuelBounds(lat: number, lon: number, radiusM: number): string {
 		.join(',');
 }
 
+export function fuelPathBounds(path: [number, number][], paddingM: number): string {
+	const latitudes = path.map(([lat]) => lat);
+	const longitudes = path.map(([, lon]) => lon);
+	const minLat = Math.min(...latitudes);
+	const maxLat = Math.max(...latitudes);
+	const minLon = Math.min(...longitudes);
+	const maxLon = Math.max(...longitudes);
+	const centerLat = (minLat + maxLat) / 2;
+	const latDelta = paddingM / METERS_PER_LATITUDE_DEGREE;
+	const lonDelta =
+		paddingM / (METERS_PER_LATITUDE_DEGREE * Math.max(0.1, Math.cos((centerLat * Math.PI) / 180)));
+
+	return [minLat - latDelta, minLon - lonDelta, maxLat + latDelta, maxLon + lonDelta]
+		.map((value) => value.toFixed(5))
+		.join(',');
+}
+
 export function fuelQuery(around: string | string[]): string {
 	const areas = Array.isArray(around) ? around : [around];
 	const selectors = areas

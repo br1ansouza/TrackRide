@@ -1,10 +1,12 @@
 import { parseLatLon } from '$lib/server/coords';
 import {
 	fuelBounds,
+	fuelPathBounds,
 	fuelQuery,
 	shapeStations,
 	queryOverpass
 } from '$lib/services/external/overpass';
+import { queryNominatimFuel } from '$lib/services/external/nominatimFuel';
 import { TtlCache } from '$lib/utils/ttlCache';
 import type { RequestHandler } from './$types';
 
@@ -21,7 +23,7 @@ function parseRadius(url: URL): number {
 	return Math.max(MIN_RADIUS_M, Math.min(MAX_RADIUS_M, Math.round(radius)));
 }
 
-function parsePath(url: URL): number[] | null {
+function parsePath(url: URL): [number, number][] | null {
 	const raw = url.searchParams.get('path');
 	if (!raw) return null;
 
@@ -37,7 +39,7 @@ function parsePath(url: URL): number[] | null {
 				lon >= -180 &&
 				lon <= 180
 		);
-	return valid ? pairs.flat() : null;
+	return valid ? (pairs as [number, number][]) : null;
 }
 
 export const GET: RequestHandler = async ({ url }) => {
@@ -45,11 +47,11 @@ export const GET: RequestHandler = async ({ url }) => {
 	const path = parsePath(url);
 	const point = parseLatLon(url);
 
-	let around: string;
+	let bounds: string;
 	if (path) {
-		around = `around:${radius},${path.join(',')}`;
+		bounds = fuelPathBounds(path, radius);
 	} else if (point) {
-		around = fuelBounds(point.lat, point.lon, radius);
+		bounds = fuelBounds(point.lat, point.lon, radius);
 	} else {
 		return new Response(JSON.stringify([]), {
 			status: 400,
@@ -57,7 +59,7 @@ export const GET: RequestHandler = async ({ url }) => {
 		});
 	}
 
-	const cached = cache.get(around);
+	const cached = cache.get(bounds);
 	if (cached) {
 		return new Response(cached, {
 			headers: {
@@ -67,23 +69,37 @@ export const GET: RequestHandler = async ({ url }) => {
 		});
 	}
 
-	const data = await queryOverpass(fuelQuery(around), true);
-	if (!data) {
-		return new Response(JSON.stringify([]), {
+	const nominatimStations = await queryNominatimFuel(bounds);
+	if (nominatimStations && nominatimStations.length > 0) {
+		const body = JSON.stringify(nominatimStations);
+		cache.set(bounds, body);
+		return new Response(body, {
 			headers: {
 				'Content-Type': 'application/json',
-				'Cache-Control': 'no-store',
-				'X-TrackRide-Degraded': 'overpass'
+				'Cache-Control': 'public, max-age=86400',
+				'X-TrackRide-Source': 'nominatim'
 			}
 		});
 	}
 
-	const body = JSON.stringify(shapeStations(data.elements));
-	cache.set(around, body);
+	const data = await queryOverpass(fuelQuery(bounds), true);
+	if (!data && nominatimStations === null) {
+		return new Response(JSON.stringify({ error: 'fuel_search_unavailable' }), {
+			status: 503,
+			headers: {
+				'Content-Type': 'application/json',
+				'Cache-Control': 'no-store'
+			}
+		});
+	}
+
+	const body = JSON.stringify(data ? shapeStations(data.elements) : nominatimStations);
+	cache.set(bounds, body);
 	return new Response(body, {
 		headers: {
 			'Content-Type': 'application/json',
-			'Cache-Control': 'public, max-age=86400'
+			'Cache-Control': 'public, max-age=86400',
+			'X-TrackRide-Source': data ? 'overpass' : 'nominatim'
 		}
 	});
 };
