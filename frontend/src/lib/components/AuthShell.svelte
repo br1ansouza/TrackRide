@@ -9,7 +9,12 @@
 	import '$lib/styles/login-form.css';
 	import { wakeUpApi } from '$lib/services/api';
 
-	let { title, description, children }: { title: string; description: string; children: Snippet } = $props();
+	let {
+		title,
+		description,
+		eyebrow,
+		children
+	}: { title: string; description: string; eyebrow?: string; children: Snippet } = $props();
 
 	onMount(() => {
 		wakeUpApi();
@@ -27,6 +32,9 @@
 					<span>TrackRide</span>
 				</div>
 				<div class="auth-heading">
+					{#if eyebrow}
+						<p class="auth-eyebrow">{eyebrow}</p>
+					{/if}
 					<h1>{title}</h1>
 					<p class="auth-description">{description}</p>
 				</div>

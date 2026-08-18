@@ -1,0 +1,72 @@
+.error-actions {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.auth-secondary-button {
+	display: flex;
+	height: 48px;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	border-radius: 12px;
+	background: color-mix(in oklch, var(--color-surface-50) 6%, transparent);
+	border: 1px solid color-mix(in oklch, var(--color-surface-50) 14%, transparent);
+	color: var(--color-surface-100);
+	font-size: 15px;
+	font-weight: 650;
+	transition:
+		background 150ms ease,
+		border-color 150ms ease,
+		transform 100ms ease;
+}
+
+.auth-secondary-button:hover {
+	background: color-mix(in oklch, var(--color-surface-50) 11%, transparent);
+	border-color: color-mix(in oklch, var(--color-surface-50) 22%, transparent);
+}
+
+.auth-secondary-button:active {
+	transform: scale(0.985);
+}
+
+.auth-secondary-button:focus-visible {
+	outline: 3px solid color-mix(in oklch, var(--color-ride-route-100) 65%, transparent);
+	outline-offset: 2px;
+}
+
+.error-detail {
+	overflow-wrap: anywhere;
+	border-radius: 10px;
+	background: color-mix(in oklch, var(--color-surface-50) 5%, transparent);
+	border: 1px solid color-mix(in oklch, var(--color-surface-50) 10%, transparent);
+	padding: 10px 12px;
+	color: var(--color-surface-400);
+	font-size: 12px;
+	line-height: 1.5;
+}
+
+@media (min-width: 520px) {
+	.error-actions {
+		flex-direction: row;
+	}
+
+	.error-actions > * {
+		flex: 1;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.auth-secondary-button {
+		transition: none;
+	}
+
+	.auth-secondary-button:active {
+		transform: none;
+	}
+}
+
+.error-actions .auth-primary-button {
+	margin-top: 0;
+}
