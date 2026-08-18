@@ -49,19 +49,36 @@ let watchId: string | number | null = null;
 let bgWatcherId: string | null = null;
 
 const LAST_POSITION_KEY = 'trackride:last-position';
+const LAST_POSITION_MAX_AGE_MS = 30 * 60 * 1000;
 
-export function getLastPosition(): LatLng | null {
+type StoredPosition = { coords: LatLng; savedAt: number };
+
+function isLatLng(value: unknown): value is LatLng {
+	return (
+		Array.isArray(value) &&
+		value.length === 2 &&
+		Number.isFinite(value[0]) &&
+		Number.isFinite(value[1])
+	);
+}
+
+export function getLastPosition(maxAgeMs: number = LAST_POSITION_MAX_AGE_MS): LatLng | null {
 	try {
 		const raw = localStorage.getItem(LAST_POSITION_KEY);
 		if (!raw) return null;
-		const parsed = JSON.parse(raw) as LatLng;
-		if (Array.isArray(parsed) && parsed.length === 2) return parsed;
+		const parsed: unknown = JSON.parse(raw);
+		if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+		const stored = parsed as Partial<StoredPosition>;
+		if (!isLatLng(stored.coords) || typeof stored.savedAt !== 'number') return null;
+		if (Date.now() - stored.savedAt > maxAgeMs) return null;
+		return stored.coords;
 	} catch {}
 	return null;
 }
 
 function savePosition(coords: LatLng): void {
-	localStorage.setItem(LAST_POSITION_KEY, JSON.stringify(coords));
+	const stored: StoredPosition = { coords, savedAt: Date.now() };
+	localStorage.setItem(LAST_POSITION_KEY, JSON.stringify(stored));
 }
 
 function geoError(code: number): string {
