@@ -1,5 +1,6 @@
 import { parseCoord } from '$lib/server/coords';
 import { searchUrl, shapePlaces, type PhotonResponse } from '$lib/services/external/photon';
+import { EXTERNAL_USER_AGENT } from '$lib/services/external/userAgent';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ url }) => {
@@ -12,7 +13,9 @@ export const GET: RequestHandler = async ({ url }) => {
 
 	let data: PhotonResponse;
 	try {
-		const response = await fetch(searchUrl(query, proximity));
+		const response = await fetch(searchUrl(query, proximity), {
+			headers: { 'User-Agent': EXTERNAL_USER_AGENT }
+		});
 		if (!response.ok) throw new Error(`Photon respondeu ${response.status}`);
 		data = await response.json();
 	} catch (error) {

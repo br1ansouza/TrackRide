@@ -1,5 +1,6 @@
 import { fetchWithRetry } from '$lib/utils/fetchRetry';
 import { routeUrl } from '$lib/services/external/osrm';
+import { EXTERNAL_USER_AGENT } from '$lib/services/external/userAgent';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ url }) => {
@@ -13,7 +14,11 @@ export const GET: RequestHandler = async ({ url }) => {
 	const rawBearings = url.searchParams.get('bearings');
 	const bearings = rawBearings && /^[\d,;]+$/.test(rawBearings) ? rawBearings : undefined;
 
-	const response = await fetchWithRetry(routeUrl(waypoints, bearings), {}, { delayMs: 500, label: 'OSRM' });
+	const response = await fetchWithRetry(
+		routeUrl(waypoints, bearings),
+		{ headers: { 'User-Agent': EXTERNAL_USER_AGENT } },
+		{ delayMs: 500, label: 'OSRM' }
+	);
 	if (!response) {
 		return new Response(JSON.stringify({ code: 'Error', message: 'Serviço de roteamento indisponível' }), {
 			status: 502,
