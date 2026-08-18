@@ -26,10 +26,16 @@
 	let loading = $state(false);
 	let isMyLocation = $state(false);
 	let debounceTimer: ReturnType<typeof setTimeout>;
+	let latestSearchId = 0;
+
+	function discardPendingSearch() {
+		clearTimeout(debounceTimer);
+		latestSearchId += 1;
+	}
 
 	function handleInput() {
 		isMyLocation = false;
-		clearTimeout(debounceTimer);
+		discardPendingSearch();
 		if (query.length < 5) {
 			results = [];
 			open = false;
@@ -42,17 +48,22 @@
 	}
 
 	async function search(q: string) {
+		const searchId = ++latestSearchId;
 		loading = true;
 		const pos = getLastPosition();
-		results = await searchPlaces(q, pos ? { lat: pos[0], lon: pos[1] } : undefined);
+		const found = await searchPlaces(q, pos ? { lat: pos[0], lon: pos[1] } : undefined);
+		if (searchId !== latestSearchId) return;
+		results = found;
 		loading = false;
-		open = results.length > 0;
+		open = found.length > 0;
 	}
 
 	function selectResult(result: SearchResult) {
+		discardPendingSearch();
 		query = result.label;
 		isMyLocation = false;
 		open = false;
+		loading = false;
 		results = [];
 		onselect(result.label, [result.lat, result.lon]);
 	}
@@ -63,6 +74,7 @@
 	}
 
 	async function selectMyLocation() {
+		discardPendingSearch();
 		const cached = getLastPosition();
 		if (cached) {
 			query = 'Minha localização';
@@ -135,7 +147,7 @@
 			{#if loading}
 				<li class="px-3 py-2 text-sm text-surface-400">Buscando...</li>
 			{/if}
-			{#each results as result}
+			{#each results as result (`${result.lat},${result.lon},${result.label}`)}
 				<li>
 					<button
 						type="button"
