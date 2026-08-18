@@ -1,3 +1,4 @@
+import { EXTERNAL_USER_AGENT } from './userAgent';
 import { brandLabel, detectBrand, sellsLiquidFuel } from '$lib/services/fuelBrands';
 import type { FuelStation } from './overpass';
 
@@ -59,7 +60,7 @@ export async function queryNominatimFuel(bounds: string): Promise<FuelStation[] 
 			headers: {
 				Accept: 'application/json',
 				'Accept-Language': 'pt-BR',
-				'User-Agent': 'TrackRide/1.0 (fuel-stop lookup)'
+				'User-Agent': EXTERNAL_USER_AGENT
 			},
 			signal: AbortSignal.timeout(NOMINATIM_TIMEOUT_MS)
 		});

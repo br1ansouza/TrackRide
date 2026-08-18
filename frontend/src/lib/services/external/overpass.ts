@@ -1,3 +1,4 @@
+import { EXTERNAL_USER_AGENT } from './userAgent';
 import {
 	detectBrand,
 	brandLabel,
@@ -129,7 +130,7 @@ async function fetchOverpass(
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/x-www-form-urlencoded',
-			'User-Agent': 'TrackRide/1.0'
+			'User-Agent': EXTERNAL_USER_AGENT
 		},
 		body: `data=${encodeURIComponent(query)}`,
 		signal
