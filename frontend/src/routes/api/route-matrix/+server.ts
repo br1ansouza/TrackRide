@@ -1,5 +1,6 @@
 import { fetchWithRetry } from '$lib/utils/fetchRetry';
 import { tableUrl } from '$lib/services/external/osrm';
+import { EXTERNAL_USER_AGENT } from '$lib/services/external/userAgent';
 import type { RequestHandler } from './$types';
 
 const MAX_COORDINATES = 14;
@@ -35,7 +36,7 @@ export const GET: RequestHandler = async ({ url }) => {
 
 	const response = await fetchWithRetry(
 		tableUrl(coords),
-		{},
+		{ headers: { 'User-Agent': EXTERNAL_USER_AGENT } },
 		{ retries: 1, delayMs: 500, label: 'OSRM Table' }
 	);
 	if (!response) {

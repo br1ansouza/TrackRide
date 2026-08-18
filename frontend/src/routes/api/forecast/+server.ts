@@ -1,6 +1,7 @@
 import { env } from '$env/dynamic/private';
 import { parseLatLon } from '$lib/server/coords';
 import { forecastUrl } from '$lib/services/external/owm';
+import { EXTERNAL_USER_AGENT } from '$lib/services/external/userAgent';
 import { TtlCache } from '$lib/utils/ttlCache';
 import type { RequestHandler } from './$types';
 
@@ -18,7 +19,9 @@ export const GET: RequestHandler = async ({ url }) => {
 	if (cached) return new Response(cached, { headers: { 'Content-Type': 'application/json' } });
 
 	try {
-		const response = await fetch(forecastUrl(coords.lat, coords.lon, apiKey));
+		const response = await fetch(forecastUrl(coords.lat, coords.lon, apiKey), {
+			headers: { 'User-Agent': EXTERNAL_USER_AGENT }
+		});
 
 		if (!response.ok) {
 			const body = await response.text();
