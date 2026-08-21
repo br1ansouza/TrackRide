@@ -22,18 +22,18 @@
 		"@sveltejs/adapter-cloudflare": "^7.2.9",
 		"@sveltejs/adapter-node": "^5.5.7",
 		"@sveltejs/adapter-static": "^3.0.10",
-		"@sveltejs/kit": "^2.70.2",
+		"@sveltejs/kit": "^2.70.3",
 		"@sveltejs/vite-plugin-svelte": "^7.3.0",
 		"@tailwindcss/vite": "^4.3.3",
 		"@types/node": "^26.2.0",
 		"prettier": "^3.9.6",
 		"prettier-plugin-svelte": "^3.5.1",
-		"svelte": "^5.56.8",
-		"svelte-check": "^4.7.5",
+		"svelte": "^5.56.9",
+		"svelte-check": "^4.7.6",
 		"tailwindcss": "^4.2.2",
 		"typescript": "^6.0.3",
 		"vite": "^8.2.1",
-		"wrangler": "^4.123.0"
+		"wrangler": "^4.124.0"
 	},
 	"dependencies": {
 		"@capacitor-community/background-geolocation": "^1.2.26",
@@ -46,7 +46,7 @@
 		"@hugotomazi/capacitor-navigation-bar": "^4.0.1",
 		"@tanstack/svelte-query": "^6.1.38",
 		"lucide-svelte": "^1.0.1",
-		"maplibre-gl": "^6.3.0",
+		"maplibre-gl": "^6.4.1",
 		"zod": "^4.4.3"
 	}
 }
