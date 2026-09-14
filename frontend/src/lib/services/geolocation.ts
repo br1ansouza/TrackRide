@@ -5,8 +5,8 @@ let bgPlugin: BackgroundGeolocationPlugin | null = null;
 
 async function getBackgroundGeolocation(): Promise<BackgroundGeolocationPlugin> {
 	if (!bgPlugin) {
-		const { Capacitor } = await import('@capacitor/core');
-		bgPlugin = Capacitor.Plugins.BackgroundGeolocation as BackgroundGeolocationPlugin;
+		const { registerPlugin } = await import('@capacitor/core');
+		bgPlugin = registerPlugin<BackgroundGeolocationPlugin>('BackgroundGeolocation');
 	}
 	return bgPlugin;
 }
