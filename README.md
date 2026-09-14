@@ -74,7 +74,7 @@ A ideia era validar se Capacitor serve como caminho de migração pra mobile em 
 - **Frontend:** SvelteKit 2, Svelte 5, TypeScript, Tailwind CSS 4, Skeleton UI
 - **Backend:** Rails 8.1 API-only, Ruby 3.3
 - **Banco:** PostgreSQL 16 + PostGIS 3.4
-- **Mobile:** Capacitor 6 (Android)
+- **Mobile:** Capacitor 8 (Android 7.0/API 24 ou superior; Node.js 22+, JDK 21)
 - **Mapas:** MapLibre GL JS + OSRM (rotas) + Photon (geocoding)
 - **Clima:** OpenWeatherMap (free tier)
 - **Infra local:** Docker Compose (PostgreSQL/PostGIS + Redis + Mailpit)
