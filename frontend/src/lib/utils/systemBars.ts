@@ -1,11 +1,8 @@
-import { Capacitor } from '@capacitor/core';
-import { StatusBar } from '@capacitor/status-bar';
-import { NavigationBar } from '@hugotomazi/capacitor-navigation-bar';
+import { Capacitor, SystemBars } from '@capacitor/core';
 
 export async function hideSystemBars(): Promise<void> {
 	if (!Capacitor.isNativePlatform()) return;
 	try {
-		await StatusBar.hide();
-		await NavigationBar.hide();
+		await SystemBars.hide();
 	} catch {}
 }
