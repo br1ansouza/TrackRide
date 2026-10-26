@@ -15,7 +15,7 @@ const TEMPLATE_CACHE_KEY = 'map-tile-template';
 
 let protocolRegistered = false;
 
-function decodeJson(buffer: ArrayBuffer): unknown {
+function decodeJson(buffer: ArrayBuffer): object {
 	return JSON.parse(new TextDecoder().decode(buffer));
 }
 
@@ -38,7 +38,7 @@ export function registerOfflineProtocol(): void {
 			return { data: params.type === 'json' ? decodeJson(cached) : cached };
 		}
 		const response = await fetch(url, { signal: abortController.signal });
-		if (response.status === 204) return { data: null };
+		if (response.status === 204) return { data: new ArrayBuffer(0) };
 		if (!response.ok) throw new Error(`Tile ${response.status}: ${url}`);
 		const buffer = await response.arrayBuffer();
 		idbPut('tiles', url, buffer).catch((error) => console.error('Falha ao cachear tile:', error));
