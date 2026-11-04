@@ -64,7 +64,7 @@ module Api
             begin
               UserMailer.reset_password(user, raw_token).deliver_now
             rescue StandardError => e
-              Rails.logger.error("[forgot_password] falha no envio: #{e.class} #{e.message}")
+              Rails.logger.error("[forgot_password] falha no envio: #{e.class}")
             end
           else
             Rails.logger.warn("[forgot_password] envio desligado: nenhum provedor configurado")
@@ -97,7 +97,7 @@ module Api
 
         UserMailer.password_changed(user).deliver_now
       rescue StandardError => e
-        Rails.logger.error("[reset_password] falha no aviso de troca: #{e.class} #{e.message}")
+        Rails.logger.error("[reset_password] falha no aviso de troca: #{e.class}")
       end
 
       def register_params

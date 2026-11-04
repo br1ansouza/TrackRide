@@ -60,3 +60,10 @@ vite.config.ts.timestamp-*
 backend/.kamal/secrets
 
 .kiro/
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3-*
+*.bak
+*.backup
