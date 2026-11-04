@@ -33,3 +33,7 @@ API exige autenticação em BaseController. Rotas próprias usam `current_user.r
 - Se houver evidência de exposição anterior: preservar logs, revogar sessões, trocar segredos afetados e revisar usuários/ações. Não alterar produção automaticamente.
 
 Backup/retenção e provedores deste projeto precisam de decisão própria; política de 12 backups da adega não foi automaticamente aplicada ao TrackRide.
+
+## Atualização após CI
+
+A auditoria de dependências detectou versões com advisories no lockfile (não prova de exploração do aplicativo). Lockfile regenerado via Bundler com Rails 8.1.4.1, Rack 3.2.8, Nokogiri 1.19.7, Loofah 2.25.3 e rails-html-sanitizer 1.7.2. Ajustado também espaçamento exigido pelo RuboCop no teste JWT. Nenhum alerta foi suprimido.

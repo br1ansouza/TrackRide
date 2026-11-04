@@ -41,6 +41,6 @@ class JwtServiceTest < Minitest::Test
     legacy = JWT.encode({ user_id: 7, exp: 1.hour.from_now.to_i }, JwtService::SECRET, "HS256")
     expired = JWT.encode({ user_id: 7, exp: 1.hour.ago.to_i, session_version: "x" }, JwtService::SECRET, "HS256")
     forged = JWT.encode({ user_id: 7, exp: 1.hour.from_now.to_i, session_version: "x" }, "wrong-key", "HS256")
-    [legacy, expired, forged].each { |token| assert_nil JwtService.decode(token) }
+    [ legacy, expired, forged ].each { |token| assert_nil JwtService.decode(token) }
   end
 end
