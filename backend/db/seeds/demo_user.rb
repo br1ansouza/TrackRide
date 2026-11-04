@@ -1,7 +1,9 @@
+raise "Demo seed is disabled in production" if Rails.env.production?
+
 user = User.find_or_create_by!(email: ENV["SEED_USER_EMAIL"]) do |u|
   u.name = ENV.fetch("SEED_USER_NAME", "Admin")
-  u.password = ENV.fetch("SEED_USER_PASSWORD", "123456")
-  u.password_confirmation = ENV.fetch("SEED_USER_PASSWORD", "123456")
+  u.password = ENV.fetch("SEED_USER_PASSWORD")
+  u.password_confirmation = ENV.fetch("SEED_USER_PASSWORD")
   u.riding_preference = :mixed
 end
 

@@ -24,16 +24,14 @@ export const GET: RequestHandler = async ({ url }) => {
 		});
 
 		if (!response.ok) {
-			const body = await response.text();
-			console.error(`OpenWeatherMap forecast error (${response.status}):`, body);
-			return new Response(body, { status: response.status, headers: { 'Content-Type': 'application/json' } });
+			return new Response(JSON.stringify({ error: 'Weather service unavailable' }), { status: 502, headers: { 'Content-Type': 'application/json' } });
 		}
 
 		const body = await response.text();
 		cache.set(key, body);
 		return new Response(body, { headers: { 'Content-Type': 'application/json' } });
 	} catch (error) {
-		console.error('Forecast fetch failed:', error);
+		console.error('Forecast fetch failed');
 		return new Response(JSON.stringify({ error: 'Failed to fetch forecast data' }), { status: 502 });
 	}
 };
