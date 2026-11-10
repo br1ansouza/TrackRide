@@ -81,7 +81,9 @@
 			isMyLocation = true;
 			open = false;
 			results = [];
+			onselect('Minha localização', cached);
 			const label = await resolveLocationLabel(cached);
+			if (!isMyLocation) return;
 			query = label;
 			onselect(label, cached);
 			return;
@@ -92,7 +94,9 @@
 				isMyLocation = true;
 				open = false;
 				results = [];
+				onselect('Minha localização', fix.coords);
 				const label = await resolveLocationLabel(fix.coords);
+				if (!isMyLocation) return;
 				query = label;
 				onselect(label, fix.coords);
 			},

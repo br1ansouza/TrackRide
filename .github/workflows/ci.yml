@@ -86,11 +86,20 @@ jobs:
           node --test ../scripts/check-public-files.test.mjs
           node ../scripts/check-public-files.mjs static ../backend/public
 
+      - name: Test connection and trip synchronization
+        run: node ../scripts/connection-sync.test.mjs
+
       - name: Type-check with svelte-check
         run: npm run check
 
       - name: Build
         run: npm run build
+
+      - name: Install browser for offline trip regressions
+        run: npx playwright install chromium --with-deps
+
+      - name: Test cold start and offline trips in browser
+        run: npm run test:e2e
 
   android:
     name: Android debug
@@ -131,3 +140,35 @@ jobs:
       - name: Assemble debug APK
         run: ./gradlew assembleDebug --no-daemon
         working-directory: frontend/android
+
+  trip_sync:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: trackride
+          POSTGRES_PASSWORD: test-only-password
+          POSTGRES_DB: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U trackride"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      RAILS_ENV: test
+      POSTGRES_HOST: localhost
+      POSTGRES_USER: trackride
+      POSTGRES_PASSWORD: test-only-password
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ruby/setup-ruby@v1
+        with:
+          working-directory: backend
+          bundler-cache: true
+      - run: bin/rails db:create db:migrate
+      - run: bin/rails test test/record_ride_test.rb

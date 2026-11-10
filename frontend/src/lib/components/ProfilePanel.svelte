@@ -5,7 +5,7 @@
 	import FuelRangeEditor from '#lib/components/FuelRangeEditor.svelte';
 	import OfflineMapToggle from '#lib/components/OfflineMapToggle.svelte';
 	import { vibrate } from '#lib/utils/haptics.js';
-	import backgroundImg from '#lib/assets/background-trackride.png';
+	import backgroundImg from '#lib/assets/background-trackride.webp';
 	import '#lib/styles/profile-mobile.css';
 	import '#lib/styles/profile-mobile-controls.css';
 

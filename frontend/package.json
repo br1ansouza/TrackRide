@@ -13,10 +13,12 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"cap:sync": "npm run build:standalone && npx cap sync android && find android/app/src/main/assets/public -name '*.gz' -delete",
-		"cap:build": "npm run cap:sync && cd android && ./gradlew assembleDebug"
+		"cap:build": "npm run cap:sync && cd android && ./gradlew assembleDebug",
+		"test:e2e": "playwright test"
 	},
 	"devDependencies": {
 		"@capacitor/cli": "^8.6.0",
+		"@playwright/test": "^1.65.0",
 		"@skeletonlabs/skeleton": "^5.0.1",
 		"@skeletonlabs/skeleton-svelte": "^5.0.1",
 		"@sveltejs/adapter-cloudflare": "^8.0.2",

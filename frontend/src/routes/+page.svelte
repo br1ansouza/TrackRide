@@ -4,14 +4,13 @@
 	import { scale, fade, fly } from 'svelte/transition';
 	import { transitions } from '#lib/utils/transitions.js';
 	import { X, Compass, Play, Maximize2, LocateFixed, WifiOff } from 'lucide-svelte';
-	import Map from '#lib/components/Map.svelte';
+	import RideSummary from '#lib/components/RideSummary.svelte';
+	import { syncStatus } from '#lib/stores/syncStatus.svelte.js';
+	import { idbGet } from '#lib/utils/idb.js';
 	import RouteWeather from '#lib/components/RouteWeather.svelte';
 	import TrackingOverlay from '#lib/components/TrackingOverlay.svelte';
 	import BottomNav from '#lib/components/BottomNav.svelte';
 	import MobileSearch from '#lib/components/MobileSearch.svelte';
-	import ProfilePanel from '#lib/components/ProfilePanel.svelte';
-	import RouteHistory from '#lib/components/RouteHistory.svelte';
-	import ExplorePanel from '#lib/components/ExplorePanel.svelte';
 	import DesktopHeader from '#lib/components/DesktopHeader.svelte';
 	import LocationDisclosure from '#lib/components/LocationDisclosure.svelte';
 	import { useMobile } from '#lib/stores/mobile.svelte.js';
@@ -19,8 +18,8 @@
 	import { useConnectivity } from '#lib/stores/connectivity.svelte.js';
 	import { useRouteSearch } from '#lib/stores/useRouteSearch.svelte.js';
 	import { useTracking } from '#lib/stores/useTracking.svelte.js';
-	import { createRoute, completeRoute, type CreateRouteParams } from '#lib/services/routes.js';
-	import { enqueueRide, flushRides } from '#lib/services/syncQueue.js';
+	import { type CreateRouteParams } from '#lib/services/routes.js';
+	import { enqueueRide, flushRides, refreshPendingCount } from '#lib/services/syncQueue.js';
 	import type { LatLng } from '#lib/services/routing.js';
 	import { safeTop, safeBottom, safeBottomNav, safeLeft, safeRight } from '#lib/utils/safeArea.js';
 	import { bearingAlongPath, haversineM, closestRouteIndex } from '#lib/utils/mapHelpers.js';
@@ -39,7 +38,14 @@
 	});
 
 	onMount(() => {
-		syncPendingRides();
+		void refreshPendingCount().catch(() => {});
+		const interval = setInterval(() => {
+			if (auth.isLoggedIn && connectivity.serverReady) void syncPendingRides();
+		}, 15000);
+		return () => clearInterval(interval);
+	});
+	$effect(() => {
+		if (auth.isLoggedIn && connectivity.serverReady) void syncPendingRides();
 	});
 
 	let offlineRestoreAttempted = false;
@@ -74,12 +80,31 @@
 	});
 
 	async function syncPendingRides() {
+		if (!auth.isLoggedIn || !connectivity.serverReady) return;
 		const synced = await flushRides();
-		if (synced > 0) {
+		const currentSummary = summary;
+		if (currentSummary && summaryStatus === 'local') {
+			const pending = await idbGet('sync-queue', currentSummary.client_id!).catch(() => true);
+			if (!pending && summary === currentSummary) summaryStatus = 'synced';
+		}
+		if (synced > 0 && !summary)
 			toaster.success({
 				title: 'Percursos sincronizados',
-				description: `${synced} percurso(s) offline enviado(s) ao histórico.`
+				description: `${synced} percurso(s) enviado(s) ao histórico.`
 			});
+	}
+	let summary = $state<CreateRouteParams | null>(null);
+	let summaryStatus = $state<'saving' | 'local' | 'synced' | 'failed'>('saving');
+	let summaryExploreId: number | null = null;
+	async function saveSummary() {
+		if (!summary) return;
+		summaryStatus = 'saving';
+		try {
+			await enqueueRide($state.snapshot(summary), summaryExploreId);
+			summaryStatus = 'local';
+			void syncPendingRides();
+		} catch {
+			summaryStatus = 'failed';
 		}
 	}
 
@@ -259,17 +284,23 @@
 			return;
 		}
 
-		const lastPoint = result.path[result.path.length - 1];
-		const completed = route.destCoords
-			? haversineM(lastPoint, route.destCoords) <= ARRIVAL_RADIUS_M
-			: false;
+		const completed = !!(
+			result.positionFresh &&
+			result.lastPosition &&
+			route.destCoords &&
+			haversineM(result.lastPosition, route.destCoords) <= ARRIVAL_RADIUS_M
+		);
 
 		const rideParams: CreateRouteParams = {
+			client_id: crypto.randomUUID(),
 			name: `${route.originLabel} → ${route.destLabel}`,
 			origin_name: route.originLabel,
 			destination_name: route.destLabel,
-			origin_coords: [route.originCoords![1], route.originCoords![0]],
-			destination_coords: [route.destCoords![1], route.destCoords![0]],
+			origin_coords: [result.path[0][1], result.path[0][0]],
+			destination_coords: [
+				result.path[result.path.length - 1][1],
+				result.path[result.path.length - 1][0]
+			],
 			path_coords: result.path.flatMap((p) => [p[1], p[0]]),
 			distance_km: result.distanceKm,
 			duration_minutes: result.durationMinutes,
@@ -277,33 +308,14 @@
 			completed
 		};
 
-		try {
-			await createRoute(rideParams);
-			toaster.success({
-				title: 'Percurso salvo',
-				description: `${result.distanceKm} km registrados no histórico.`
-			});
-			if (route.exploreRouteId && completed) {
-				completeRoute(route.exploreRouteId).catch(() => {});
-			}
-		} catch (err) {
-			if (err instanceof TypeError) {
-				await enqueueRide(rideParams, route.exploreRouteId);
-				toaster.info({
-					title: 'Sem conexão',
-					description: 'Percurso salvo no aparelho. Sincroniza quando houver rede.'
-				});
-			} else {
-				toaster.error({
-					title: 'Erro ao salvar',
-					description: 'Não foi possível salvar o percurso.'
-				});
-			}
-		}
+		summary = rideParams;
+		summaryExploreId = route.exploreRouteId;
+		await saveSummary();
 	}
 
 	let showStartButton = $derived(
 		mobile.isMobile &&
+			!summary &&
 			route.hasRoute &&
 			!tracking.active &&
 			(mobile.activeTab === 'map' || mobile.activeTab === 'weather') &&
@@ -315,9 +327,7 @@
 
 {#if auth.loading || !auth.isLoggedIn}
 	<div class="flex h-dvh items-center justify-center bg-surface-900">
-		<div
-			class="h-6 w-6 animate-spin rounded-full border-2 border-surface-400 border-t-primary-400"
-		></div>
+		<p role="status" class="text-sm text-surface-300">Preparando sua sessão…</p>
 	</div>
 {:else}
 	<div class="flex h-dvh flex-col {mobile.isMobile ? '' : 'h-screen'}">
@@ -346,11 +356,20 @@
 				class={mobile.isMobile ? 'absolute inset-0' : 'flex-1'}
 				class:bottom-[52px]={mobile.isMobile && !tracking.active}
 			>
-				<Map
-					bind:this={route.mapRef}
-					controlsVisible={!mobile.isMobile ||
-						(mobile.activeTab === 'map' && !historyOpen && !exploreOpen)}
-				/>
+				{#await import('#lib/components/Map.svelte')}<p
+						class="p-4 text-sm text-surface-300"
+						role="status"
+					>
+						Carregando…
+					</p>{:then { default: Map }}
+					<Map
+						bind:this={route.mapRef}
+						controlsVisible={!mobile.isMobile ||
+							(mobile.activeTab === 'map' && !historyOpen && !exploreOpen)}
+					/>
+				{:catch}<p class="p-4 text-sm text-surface-300">
+						Não foi possível carregar este painel. Reabra o app para tentar novamente.
+					</p>{/await}
 
 				{#if tracking.active}
 					<TrackingOverlay
@@ -432,13 +451,22 @@
 			{#if !mobile.isMobile}
 				{#if exploreOpen}
 					<aside class="flex w-80 flex-col gap-2 overflow-y-auto bg-surface-800 p-4">
-						<ExplorePanel
-							onSelect={(r) => {
-								exploreOpen = false;
-								route.handleSelectExploreRoute(r);
-							}}
-							onClose={() => (exploreOpen = false)}
-						/>
+						{#await import('#lib/components/ExplorePanel.svelte')}<p
+								class="p-4 text-sm text-surface-300"
+								role="status"
+							>
+								Carregando…
+							</p>{:then { default: ExplorePanel }}
+							<ExplorePanel
+								onSelect={(r) => {
+									exploreOpen = false;
+									route.handleSelectExploreRoute(r);
+								}}
+								onClose={() => (exploreOpen = false)}
+							/>
+						{:catch}<p class="p-4 text-sm text-surface-300">
+								Não foi possível carregar este painel. Reabra o app para tentar novamente.
+							</p>{/await}
 					</aside>
 				{:else if historyOpen}
 					<aside class="flex w-80 flex-col gap-2 overflow-y-auto bg-surface-800 p-4">
@@ -450,12 +478,21 @@
 								class="text-surface-400 hover:text-surface-200"><X size={18} /></button
 							>
 						</div>
-						<RouteHistory
-							onSelect={(r) => {
-								historyOpen = false;
-								route.handleSelectSavedRoute(r);
-							}}
-						/>
+						{#await import('#lib/components/RouteHistory.svelte')}<p
+								class="p-4 text-sm text-surface-300"
+								role="status"
+							>
+								Carregando…
+							</p>{:then { default: RouteHistory }}
+							<RouteHistory
+								onSelect={(r) => {
+									historyOpen = false;
+									route.handleSelectSavedRoute(r);
+								}}
+							/>
+						{:catch}<p class="p-4 text-sm text-surface-300">
+								Não foi possível carregar este painel. Reabra o app para tentar novamente.
+							</p>{/await}
 					</aside>
 				{:else}
 					<RouteWeather
@@ -537,12 +574,21 @@
 						style="padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right)"
 						transition:fly={transitions.panel}
 					>
-						<ProfilePanel
-							user={auth.user}
-							onLogout={() => auth.logout()}
-							onUserUpdate={(u) => auth.setUser(u)}
-							onViewAllRoutes={openHistory}
-						/>
+						{#await import('#lib/components/ProfilePanel.svelte')}<p
+								class="p-4 text-sm text-surface-300"
+								role="status"
+							>
+								Carregando…
+							</p>{:then { default: ProfilePanel }}
+							<ProfilePanel
+								user={auth.user}
+								onLogout={() => auth.logout()}
+								onUserUpdate={(u) => auth.setUser(u)}
+								onViewAllRoutes={openHistory}
+							/>
+						{:catch}<p class="p-4 text-sm text-surface-300">
+								Não foi possível carregar este painel. Reabra o app para tentar novamente.
+							</p>{/await}
 					</div>
 				{/if}
 
@@ -560,12 +606,21 @@
 								class="text-surface-400 hover:text-surface-200"><X size={18} /></button
 							>
 						</div>
-						<RouteHistory
-							onSelect={(r) => {
-								historyOpen = false;
-								route.handleSelectSavedRoute(r);
-							}}
-						/>
+						{#await import('#lib/components/RouteHistory.svelte')}<p
+								class="p-4 text-sm text-surface-300"
+								role="status"
+							>
+								Carregando…
+							</p>{:then { default: RouteHistory }}
+							<RouteHistory
+								onSelect={(r) => {
+									historyOpen = false;
+									route.handleSelectSavedRoute(r);
+								}}
+							/>
+						{:catch}<p class="p-4 text-sm text-surface-300">
+								Não foi possível carregar este painel. Reabra o app para tentar novamente.
+							</p>{/await}
 					</div>
 				{/if}
 
@@ -575,13 +630,22 @@
 						style="padding-top: {safeTop}; bottom: calc(52px + env(safe-area-inset-bottom)); padding-left: {safeLeft}; padding-right: {safeRight}"
 						transition:fly={transitions.panel}
 					>
-						<ExplorePanel
-							onSelect={(r) => {
-								exploreOpen = false;
-								route.handleSelectExploreRoute(r);
-							}}
-							onClose={() => (exploreOpen = false)}
-						/>
+						{#await import('#lib/components/ExplorePanel.svelte')}<p
+								class="p-4 text-sm text-surface-300"
+								role="status"
+							>
+								Carregando…
+							</p>{:then { default: ExplorePanel }}
+							<ExplorePanel
+								onSelect={(r) => {
+									exploreOpen = false;
+									route.handleSelectExploreRoute(r);
+								}}
+								onClose={() => (exploreOpen = false)}
+							/>
+						{:catch}<p class="p-4 text-sm text-surface-300">
+								Não foi possível carregar este painel. Reabra o app para tentar novamente.
+							</p>{/await}
 					</div>
 				{/if}
 
@@ -641,4 +705,35 @@
 		onConfirm={acceptLocationDisclosure}
 		onCancel={() => (showLocationDisclosure = false)}
 	/>
+{/if}
+
+{#if summary}
+	<RideSummary
+		ride={summary}
+		status={summaryStatus}
+		onClose={() => (summary = null)}
+		onRetry={saveSummary}
+	/>
+{/if}
+
+{#if auth.isLoggedIn && syncStatus.pending > 0 && !summary && !tracking.active}
+	<div
+		class="fixed left-4 right-4 z-[850] mx-auto max-w-sm rounded-xl bg-surface-900 p-3 text-center text-xs text-surface-200 shadow-lg"
+		style="bottom: calc(128px + env(safe-area-inset-bottom));"
+		role="status"
+	>
+		<span
+			>{syncStatus.pending} viagem(ns) salva(s) no aparelho · {syncStatus.syncing
+				? 'sincronizando…'
+				: 'aguardando envio'}</span
+		>
+		{#if syncStatus.error}<p class="mt-1">{syncStatus.error}</p>{/if}
+		<button
+			class="mt-1 block w-full underline"
+			disabled={syncStatus.syncing}
+			onclick={async () => {
+				if (await connectivity.checkNow()) await syncPendingRides();
+			}}>Tentar sincronizar</button
+		>
+	</div>
 {/if}

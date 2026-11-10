@@ -1,4 +1,6 @@
-import { request, setToken, clearToken, isAuthenticated } from './api';
+import { idbGetAll, idbPut } from '#lib/utils/idb.js';
+import { clearOfflineUserData } from './offlinePack';
+import { request, setToken, clearToken, isAuthenticated, getToken } from './api';
 
 export { clearToken, isAuthenticated };
 
@@ -30,19 +32,42 @@ export function clearCachedUser(): void {
 	localStorage.removeItem(USER_KEY);
 }
 
+export async function claimLegacyPendingRides(): Promise<void> {
+	const previous = getCachedUser();
+	if (!previous) return;
+	const entries = await idbGetAll<{ id: string; userId?: number }>('sync-queue');
+	await Promise.all(
+		entries
+			.filter((entry) => entry.userId === undefined)
+			.map((entry) => idbPut('sync-queue', entry.id, { ...entry, userId: previous.id }))
+	);
+}
+
+async function acceptSession(data: AuthResponse): Promise<AuthUser> {
+	const previous = getCachedUser();
+	if (previous) await claimLegacyPendingRides();
+	if (previous && previous.id !== data.user.id) await clearOfflineUserData(true);
+	setToken(data.token);
+	cacheUser(data.user);
+	return data.user;
+}
+
 interface AuthResponse {
 	token: string;
 	user: AuthUser;
 }
 
-export async function register(name: string, email: string, password: string, passwordConfirmation: string): Promise<AuthUser> {
+export async function register(
+	name: string,
+	email: string,
+	password: string,
+	passwordConfirmation: string
+): Promise<AuthUser> {
 	const data = await request<AuthResponse>('/auth/register', {
 		method: 'POST',
 		body: JSON.stringify({ name, email, password, password_confirmation: passwordConfirmation })
 	});
-	setToken(data.token);
-	cacheUser(data.user);
-	return data.user;
+	return acceptSession(data);
 }
 
 export async function login(email: string, password: string): Promise<AuthUser> {
@@ -50,18 +75,21 @@ export async function login(email: string, password: string): Promise<AuthUser> 
 		method: 'POST',
 		body: JSON.stringify({ email, password })
 	});
-	setToken(data.token);
-	cacheUser(data.user);
-	return data.user;
+	return acceptSession(data);
 }
 
 export async function fetchMe(): Promise<AuthUser> {
+	const token = getToken();
 	const data = await request<{ user: AuthUser }>('/auth/me');
-	cacheUser(data.user);
+	if (getToken() === token) cacheUser(data.user);
 	return data.user;
 }
 
-export async function updateProfile(params: { name?: string; riding_preference?: string; fuel_range_km?: number }): Promise<AuthUser> {
+export async function updateProfile(params: {
+	name?: string;
+	riding_preference?: string;
+	fuel_range_km?: number;
+}): Promise<AuthUser> {
 	const data = await request<{ user: AuthUser }>('/auth/profile', {
 		method: 'PATCH',
 		body: JSON.stringify(params)
@@ -85,7 +113,11 @@ export async function forgotPassword(email: string): Promise<string> {
 	return data.message;
 }
 
-export async function resetPassword(token: string, password: string, passwordConfirmation: string): Promise<string> {
+export async function resetPassword(
+	token: string,
+	password: string,
+	passwordConfirmation: string
+): Promise<string> {
 	const data = await request<{ message: string }>('/auth/reset_password', {
 		method: 'POST',
 		body: JSON.stringify({ token, password, password_confirmation: passwordConfirmation })

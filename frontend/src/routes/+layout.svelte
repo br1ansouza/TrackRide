@@ -3,6 +3,7 @@
 	import { Toast } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '#lib/stores/toaster.js';
 	import { hideSystemBars } from '#lib/utils/systemBars.js';
+	import ConnectionStatus from '#lib/components/ConnectionStatus.svelte';
 	import favicon from '#lib/assets/favicon.png';
 	import '../app.css';
 
@@ -18,6 +19,7 @@
 </svelte:head>
 
 {@render children()}
+<ConnectionStatus />
 
 <Toast.Group {toaster}>
 	{#snippet children(toast)}

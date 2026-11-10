@@ -27,8 +27,10 @@
 
 	let mapContainer: HTMLDivElement;
 	let map = $state<maplibregl.Map | null>(null);
-	let mapReady: Promise<void>;
 	let resolveReady: () => void;
+	const mapReady = new Promise<void>((resolve) => {
+		resolveReady = resolve;
+	});
 	let hasInitialPosition = false;
 	let gpsLoading = $state(true);
 	let markerController: MapMarkerController | null = null;
@@ -84,9 +86,6 @@
 
 	onMount(() => {
 		maplibregl.setWorkerUrl(mapWorkerUrl);
-		mapReady = new Promise((r) => {
-			resolveReady = r;
-		});
 		registerOfflineProtocol();
 
 		let disposed = false;
@@ -293,8 +292,8 @@
 		skipFit = false,
 		bearingDeg: number | null = null
 	): Promise<RouteData | null> {
-		if (!map) return null;
 		await mapReady;
+		if (!map) return null;
 		clearRoute();
 		placeRouteMarkers(originCoords, destCoords);
 		const routeData = await fetchRoute(originCoords, destCoords, waypoints, { bearingDeg });
@@ -307,8 +306,8 @@
 		destCoords: LatLng,
 		routeData: RouteData
 	): Promise<void> {
-		if (!map) return;
 		await mapReady;
+		if (!map) return;
 		clearRoute();
 		placeRouteMarkers(originCoords, destCoords);
 		renderRouteLine(originCoords, destCoords, routeData, false);

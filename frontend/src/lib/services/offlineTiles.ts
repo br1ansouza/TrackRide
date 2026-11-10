@@ -47,14 +47,23 @@ export function registerOfflineProtocol(): void {
 }
 
 export async function prepareMapStyle(): Promise<StyleSpecification | string> {
+	const cached = await idbGet<StyleSpecification>('cache', STYLE_CACHE_KEY).catch(() => undefined);
+	if (cached) {
+		void refreshMapStyle();
+		return cached;
+	}
+	return refreshMapStyle();
+}
+
+async function refreshMapStyle(): Promise<StyleSpecification | string> {
 	try {
-		const styleResponse = await fetch(STYLE_URL);
+		const styleResponse = await fetch(STYLE_URL, { signal: AbortSignal.timeout(8000) });
 		if (!styleResponse.ok) throw new Error(`Style ${styleResponse.status}`);
 		const style: StyleSpecification = await styleResponse.json();
 
 		for (const source of Object.values(style.sources)) {
 			if (source.type !== 'vector' || !source.url) continue;
-			const tileJsonResponse = await fetch(source.url);
+			const tileJsonResponse = await fetch(source.url, { signal: AbortSignal.timeout(8000) });
 			if (!tileJsonResponse.ok) throw new Error(`TileJSON ${tileJsonResponse.status}`);
 			const tileJson: { tiles: string[]; minzoom?: number; maxzoom?: number } =
 				await tileJsonResponse.json();

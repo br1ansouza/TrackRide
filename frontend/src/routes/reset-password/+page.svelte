@@ -5,7 +5,7 @@
 	import { transitions } from '#lib/utils/transitions.js';
 	import { resetPassword } from '#lib/services/auth.js';
 	import { toaster } from '#lib/stores/toaster.js';
-	import backgroundImg from '#lib/assets/background-trackride.png';
+	import backgroundImg from '#lib/assets/background-trackride.webp';
 
 	let { data }: { data: { token: string } } = $props();
 	const token = $derived(data.token);
