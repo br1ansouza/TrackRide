@@ -1,51 +1,45 @@
-import { API_ORIGIN } from '#lib/services/api.js';
-
-const PROBE_TIMEOUT_MS = 4000;
-const OFFLINE_RECHECK_MS = 30000;
-
+import { wakeUpApi } from '#lib/services/api.js';
+import { apiStatus } from './apiStatus.svelte';
 let online = $state(true);
 let bound = false;
 
-async function probe(): Promise<boolean> {
-	try {
-		await fetch(`${API_ORIGIN}/up`, {
-			method: 'HEAD',
-			cache: 'no-store',
-			signal: AbortSignal.timeout(PROBE_TIMEOUT_MS)
-		});
-		return true;
-	} catch {
+async function checkNow(): Promise<boolean> {
+	online = navigator.onLine;
+	if (!online) {
+		apiStatus.state = 'offline';
 		return false;
 	}
+	return wakeUpApi();
 }
-
-async function checkNow(): Promise<boolean> {
-	online = await probe();
-	return online;
-}
-
-function markOffline(): void {
-	online = false;
-}
-
 export function useConnectivity() {
 	if (!bound && typeof window !== 'undefined') {
 		bound = true;
 		online = navigator.onLine;
 		window.addEventListener('online', () => {
-			checkNow();
+			void checkNow();
 		});
-		window.addEventListener('offline', markOffline);
+		window.addEventListener('offline', () => {
+			online = false;
+			apiStatus.state = 'offline';
+		});
+		window.addEventListener('focus', () => {
+			void checkNow();
+		});
+		document.addEventListener('visibilitychange', () => {
+			if (!document.hidden) void checkNow();
+		});
 		setInterval(() => {
-			if (!online) checkNow();
-		}, OFFLINE_RECHECK_MS);
-		checkNow();
+			if (!document.hidden && apiStatus.state !== 'ready') void checkNow();
+		}, 15000);
+		void checkNow();
 	}
 	return {
 		get online() {
 			return online;
 		},
-		checkNow,
-		markOffline
+		get serverReady() {
+			return online && apiStatus.state === 'ready';
+		},
+		checkNow
 	};
 }

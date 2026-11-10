@@ -1,4 +1,8 @@
-import type { BackgroundGeolocationPlugin, Location, CallbackError } from '@capacitor-community/background-geolocation';
+import type {
+	BackgroundGeolocationPlugin,
+	Location,
+	CallbackError
+} from '@capacitor-community/background-geolocation';
 import type { LatLng } from './routing';
 
 let bgPlugin: BackgroundGeolocationPlugin | null = null;
@@ -47,6 +51,9 @@ function toFix(pos: PositionLike): GeoFix {
 
 let watchId: string | number | null = null;
 let bgWatcherId: string | null = null;
+let backgroundWebWatchId: number | null = null;
+let backgroundFallbackId: string | null = null;
+let backgroundGeneration = 0;
 
 const LAST_POSITION_KEY = 'trackride:last-position';
 const LAST_POSITION_MAX_AGE_MS = 30 * 60 * 1000;
@@ -92,11 +99,12 @@ function geoError(code: number): string {
 
 async function waitForCapacitor(): Promise<boolean> {
 	if (typeof window === 'undefined') return false;
-	if ('Capacitor' in window) return true;
+	const { Capacitor } = await import('@capacitor/core');
+	if (Capacitor.isNativePlatform()) return true;
 	if (!('AndroidBridge' in window || 'webkit' in window)) return false;
 	for (let i = 0; i < 10; i++) {
 		await new Promise((r) => setTimeout(r, 300));
-		if ('Capacitor' in window) return true;
+		if (Capacitor.isNativePlatform()) return true;
 	}
 	return false;
 }
@@ -107,7 +115,10 @@ export async function getCurrentPosition(callbacks: GeoCallbacks): Promise<void>
 	if (isNative) {
 		try {
 			const { Geolocation } = await import('@capacitor/geolocation');
-			const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
+			const pos = await Geolocation.getCurrentPosition({
+				enableHighAccuracy: true,
+				timeout: 10000
+			});
 			const fix = toFix(pos);
 			savePosition(fix.coords);
 			callbacks.onPosition(fix);
@@ -146,7 +157,11 @@ export async function watchPosition(callbacks: GeoCallbacks): Promise<void> {
 		return;
 	}
 
-	watchId = navigator.geolocation.watchPosition(
+	watchId = watchBrowserPosition(callbacks);
+}
+
+function watchBrowserPosition(callbacks: GeoCallbacks): number {
+	return navigator.geolocation.watchPosition(
 		(pos) => {
 			const fix = toFix(pos);
 			savePosition(fix.coords);
@@ -181,17 +196,18 @@ async function requestNotificationPermission(): Promise<void> {
 }
 
 export async function startBackgroundWatch(callbacks: GeoCallbacks): Promise<void> {
+	const generation = ++backgroundGeneration;
 	const isNative = await waitForCapacitor();
+	if (generation !== backgroundGeneration) return;
 	if (!isNative) {
-		watchPosition(callbacks);
+		backgroundWebWatchId = watchBrowserPosition(callbacks);
 		return;
 	}
-
 	await requestNotificationPermission();
-
+	if (generation !== backgroundGeneration) return;
 	try {
 		const bg = await getBackgroundGeolocation();
-		const callbackId = bg.addWatcher(
+		const id = await bg.addWatcher(
 			{
 				backgroundMessage: 'Rota em andamento',
 				backgroundTitle: 'TrackRide',
@@ -200,8 +216,9 @@ export async function startBackgroundWatch(callbacks: GeoCallbacks): Promise<voi
 				distanceFilter: 0
 			},
 			(location?: Location, error?: CallbackError) => {
+				if (generation !== backgroundGeneration) return;
 				if (error) {
-					if (error.code !== 'NOT_AUTHORIZED') callbacks.onError(error.message ?? 'Erro de GPS');
+					callbacks.onError(error.message ?? 'Erro de GPS');
 					return;
 				}
 				if (!location) return;
@@ -216,24 +233,50 @@ export async function startBackgroundWatch(callbacks: GeoCallbacks): Promise<voi
 				callbacks.onPosition(fix);
 			}
 		);
-		if (callbackId && typeof callbackId.then === 'function') {
-			callbackId.then((id: string) => { bgWatcherId = id; });
-		} else {
-			bgWatcherId = callbackId as unknown as string;
-		}
+		if (generation !== backgroundGeneration) await bg.removeWatcher({ id });
+		else bgWatcherId = id;
 	} catch {
-		watchPosition(callbacks);
+		if (generation !== backgroundGeneration) return;
+		try {
+			const { Geolocation } = await import('@capacitor/geolocation');
+			const id = await Geolocation.watchPosition({ enableHighAccuracy: true }, (pos, err) => {
+				if (generation !== backgroundGeneration) return;
+				if (err || !pos) {
+					callbacks.onError('Não foi possível rastrear sua localização.');
+					return;
+				}
+				const fix = toFix(pos);
+				savePosition(fix.coords);
+				callbacks.onPosition(fix);
+			});
+			if (generation !== backgroundGeneration) await Geolocation.clearWatch({ id });
+			else backgroundFallbackId = id;
+		} catch {
+			callbacks.onError('Não foi possível rastrear sua localização.');
+		}
 	}
 }
 
 export async function stopBackgroundWatch(): Promise<void> {
-	if (bgWatcherId !== null) {
+	++backgroundGeneration;
+	const id = bgWatcherId;
+	const fallbackId = backgroundFallbackId;
+	bgWatcherId = null;
+	backgroundFallbackId = null;
+	if (backgroundWebWatchId !== null) {
+		navigator.geolocation.clearWatch(backgroundWebWatchId);
+		backgroundWebWatchId = null;
+	}
+	if (id !== null) {
 		try {
 			const bg = await getBackgroundGeolocation();
-			bg.removeWatcher({ id: bgWatcherId });
+			await bg.removeWatcher({ id });
 		} catch {}
-		bgWatcherId = null;
-		return;
 	}
-	await clearWatch();
+	if (fallbackId !== null) {
+		try {
+			const { Geolocation } = await import('@capacitor/geolocation');
+			await Geolocation.clearWatch({ id: fallbackId });
+		} catch {}
+	}
 }

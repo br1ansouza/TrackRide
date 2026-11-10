@@ -1,6 +1,5 @@
 <script lang="ts">
 	import SearchInput from '#lib/components/SearchInput.svelte';
-	import ProfilePanel from '#lib/components/ProfilePanel.svelte';
 	import type { AuthUser } from '#lib/services/auth.js';
 	import type { LatLng } from '#lib/services/routing.js';
 
@@ -65,7 +64,9 @@
 						</div>
 					</div>
 					<hr class="border-surface-700" />
-					<ProfilePanel {user} {onLogout} {onUserUpdate} {onViewAllRoutes} compact />
+					{#await import('#lib/components/ProfilePanel.svelte') then { default: ProfilePanel }}
+						<ProfilePanel {user} {onLogout} {onUserUpdate} {onViewAllRoutes} compact />
+					{/await}
 				</div>
 			</div>
 		{/if}

@@ -10,13 +10,13 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_15_210000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_10_180000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "fuzzystrmatch"
   enable_extension "pg_catalog.plpgsql"
   enable_extension "postgis"
 
-  create_table "public.route_completions", force: :cascade do |t|
+  create_table "route_completions", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.bigint "route_id", null: false
     t.datetime "updated_at", null: false
@@ -25,7 +25,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_15_210000) do
     t.index ["user_id"], name: "index_route_completions_on_user_id"
   end
 
-  create_table "public.route_likes", force: :cascade do |t|
+  create_table "route_likes", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.bigint "route_id", null: false
     t.datetime "updated_at", null: false
@@ -35,7 +35,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_15_210000) do
     t.index ["user_id"], name: "index_route_likes_on_user_id"
   end
 
-  create_table "public.route_stops", force: :cascade do |t|
+  create_table "route_stops", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "name", null: false
     t.geography "position", limit: {:srid=>4326, :type=>"st_point", :geographic=>true}, null: false
@@ -46,7 +46,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_15_210000) do
     t.index ["route_id"], name: "index_route_stops_on_route_id"
   end
 
-  create_table "public.routes", force: :cascade do |t|
+  create_table "routes", force: :cascade do |t|
     t.boolean "completed", default: false, null: false
     t.datetime "created_at", null: false
     t.geography "destination_coords", limit: {:srid=>4326, :type=>"st_point", :geographic=>true}, null: false
@@ -62,11 +62,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_15_210000) do
     t.integer "times_completed", default: 0, null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
+    t.uuid "client_id"
+    t.index ["origin_coords"], name: "index_routes_on_origin_coords", using: :gist
     t.index ["public"], name: "index_routes_on_public"
+    t.index ["user_id", "client_id"], name: "index_routes_on_user_id_and_client_id", unique: true
+    t.index ["user_id", "created_at"], name: "index_routes_on_user_id_and_created_at"
     t.index ["user_id"], name: "index_routes_on_user_id"
   end
 
-  create_table "public.users", force: :cascade do |t|
+  create_table "users", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "email", null: false
     t.integer "fuel_range_km"
@@ -80,10 +84,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_15_210000) do
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end
 
-  add_foreign_key "public.route_completions", "public.routes"
-  add_foreign_key "public.route_completions", "public.users"
-  add_foreign_key "public.route_likes", "public.routes"
-  add_foreign_key "public.route_likes", "public.users"
-  add_foreign_key "public.route_stops", "public.routes"
-  add_foreign_key "public.routes", "public.users"
+  add_foreign_key "route_completions", "routes"
+  add_foreign_key "route_completions", "users"
+  add_foreign_key "route_likes", "routes"
+  add_foreign_key "route_likes", "users"
+  add_foreign_key "route_stops", "routes"
+  add_foreign_key "routes", "users"
 end

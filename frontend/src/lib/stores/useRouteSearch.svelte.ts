@@ -17,7 +17,6 @@ import {
 } from '#lib/services/routes.js';
 import { findFuelStops } from '#lib/services/fuelStops.js';
 import { savePack, loadPack, WEATHER_TTL_MS } from '#lib/services/offlinePack.js';
-import { prefetchRouteTiles } from '#lib/services/offlineTiles.js';
 import { closestRouteIndex, haversineM } from '#lib/utils/mapHelpers.js';
 import { getLastPosition } from '#lib/services/geolocation.js';
 import { fetchRoadPois } from '#lib/services/gateway.js';
@@ -79,7 +78,7 @@ export function useRouteSearch() {
 	let tilesDownloaded = $state(false);
 
 	let canSearch = $derived(!!originCoords && !!destCoords);
-	let hasRoute = $derived(weatherPoints.length > 0);
+	let hasRoute = $derived(routeCoords.length >= 2);
 	let weatherStale = $derived(
 		weatherSavedAt !== null && Date.now() - weatherSavedAt > WEATHER_TTL_MS
 	);
@@ -145,6 +144,8 @@ export function useRouteSearch() {
 	}
 
 	async function processWeather(routeData: RouteData) {
+		routeCoords = routeData.coords;
+		persistPack(routeData);
 		weatherLoading = true;
 		try {
 			const weatherStops = stops.map((s) => ({
@@ -368,10 +369,12 @@ export function useRouteSearch() {
 		mapRef.showWeatherMarkers(pack.weatherPoints);
 		mapRef.showRouteConditions(pack.routeData.coords, pack.weatherPoints);
 		alerts = analyzeRoute(pack.weatherPoints);
-		score = calculateRouteScore(
-			pack.weatherPoints,
-			(auth.user?.riding_preference ?? 'mixed') as RidingPreference
-		);
+		score = pack.weatherPoints.length
+			? calculateRouteScore(
+					pack.weatherPoints,
+					(auth.user?.riding_preference ?? 'mixed') as RidingPreference
+				)
+			: null;
 		weatherSavedAt = pack.savedAt;
 		routeSaved = true;
 		drawStraightApproach(pack.routeData.coords);
@@ -398,6 +401,7 @@ export function useRouteSearch() {
 		downloadingTiles = true;
 		tileProgress = 0;
 		try {
+			const { prefetchRouteTiles } = await import('#lib/services/offlineTiles.js');
 			const result = await prefetchRouteTiles($state.snapshot(routeCoords), (done, total) => {
 				tileProgress = Math.round((done / total) * 100);
 			});

@@ -1,7 +1,7 @@
 import type { LatLng, RouteData } from './routing';
 import type { WeatherPoint } from './weather';
 import type { RouteStopEntry } from '#lib/types/routeStop.js';
-import { idbGet, idbPut, idbDelete, idbClear } from '#lib/utils/idb.js';
+import { idbGet, idbPut, idbDelete, idbClear, idbGetAll } from '#lib/utils/idb.js';
 
 export interface RoutePack {
 	originLabel: string;
@@ -45,11 +45,25 @@ export async function clearPack(): Promise<void> {
 	}
 }
 
-export async function clearOfflineUserData(): Promise<void> {
+export async function clearOfflineUserData(
+	preservePending = false,
+	userId?: number
+): Promise<void> {
 	try {
 		await Promise.all([
 			idbClear('route-packs'),
-			idbClear('sync-queue'),
+			...(preservePending
+				? []
+				: [
+						(async () => {
+							const entries = await idbGetAll<{ id: string; userId?: number }>('sync-queue');
+							await Promise.all(
+								entries
+									.filter((entry) => entry.userId === undefined || entry.userId === userId)
+									.map((entry) => idbDelete('sync-queue', entry.id))
+							);
+						})()
+					]),
 			idbDelete('cache', 'saved-routes')
 		]);
 		localStorage.removeItem('trackride:last-position');
