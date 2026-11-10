@@ -1,5 +1,5 @@
 import { Fuel, UtensilsCrossed, BedDouble, Mountain, MapPin } from 'lucide-svelte';
-import type { StopType } from '$lib/types/routeStop';
+import type { StopType } from '#lib/types/routeStop.js';
 
 export const STOP_ICONS: Record<StopType, typeof MapPin> = {
 	gas_station: Fuel,

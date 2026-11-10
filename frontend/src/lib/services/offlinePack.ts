@@ -1,7 +1,7 @@
 import type { LatLng, RouteData } from './routing';
 import type { WeatherPoint } from './weather';
-import type { RouteStopEntry } from '$lib/types/routeStop';
-import { idbGet, idbPut, idbDelete, idbClear } from '$lib/utils/idb';
+import type { RouteStopEntry } from '#lib/types/routeStop.js';
+import { idbGet, idbPut, idbDelete, idbClear } from '#lib/utils/idb.js';
 
 export interface RoutePack {
 	originLabel: string;

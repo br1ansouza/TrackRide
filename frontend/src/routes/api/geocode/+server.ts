@@ -1,6 +1,6 @@
-import { parseCoord } from '$lib/server/coords';
-import { searchUrl, shapePlaces, type PhotonResponse } from '$lib/services/external/photon';
-import { EXTERNAL_USER_AGENT } from '$lib/services/external/userAgent';
+import { parseCoord } from '#lib/server/coords.js';
+import { searchUrl, shapePlaces, type PhotonResponse } from '#lib/services/external/photon.js';
+import { EXTERNAL_USER_AGENT } from '#lib/services/external/userAgent.js';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ url }) => {

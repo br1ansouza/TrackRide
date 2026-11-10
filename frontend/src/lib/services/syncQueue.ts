@@ -1,5 +1,5 @@
 import { createRoute, completeRoute, type CreateRouteParams } from './routes';
-import { idbPut, idbDelete, idbGetAll } from '$lib/utils/idb';
+import { idbPut, idbDelete, idbGetAll } from '#lib/utils/idb.js';
 
 export interface PendingRide {
 	id: string;
@@ -8,7 +8,10 @@ export interface PendingRide {
 	queuedAt: number;
 }
 
-export async function enqueueRide(routeParams: CreateRouteParams, exploreRouteId: number | null): Promise<void> {
+export async function enqueueRide(
+	routeParams: CreateRouteParams,
+	exploreRouteId: number | null
+): Promise<void> {
 	const entry: PendingRide = {
 		id: crypto.randomUUID(),
 		routeParams,

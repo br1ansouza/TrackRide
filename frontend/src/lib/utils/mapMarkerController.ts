@@ -1,9 +1,9 @@
 import * as maplibregl from 'maplibre-gl';
-import type { RouteStopEntry } from '$lib/types/routeStop';
-import type { LatLng } from '$lib/services/routing';
-import { haversineM, toLngLat } from '$lib/utils/mapHelpers';
-import { stopColor } from '$lib/utils/stopColors';
-import { stopIcon } from '$lib/utils/stopIcons';
+import type { RouteStopEntry } from '#lib/types/routeStop.js';
+import type { LatLng } from '#lib/services/routing.js';
+import { haversineM, toLngLat } from '#lib/utils/mapHelpers.js';
+import { stopColor } from '#lib/utils/stopColors.js';
+import { stopIcon } from '#lib/utils/stopIcons.js';
 import {
 	createEndpointMarker,
 	createRiderMarker,
@@ -12,7 +12,7 @@ import {
 	setRiderAccuracy,
 	setRiderNavigating,
 	type MarkerVisual
-} from '$lib/utils/mapMarkers';
+} from '#lib/utils/mapMarkers.js';
 
 interface ManagedMarker {
 	marker: maplibregl.Marker;
@@ -43,7 +43,11 @@ export class MapMarkerController {
 
 	constructor(private map: maplibregl.Map) {}
 
-	private create(visual: MarkerVisual, coords: LatLng, options: maplibregl.MarkerOptions = {}): ManagedMarker {
+	private create(
+		visual: MarkerVisual,
+		coords: LatLng,
+		options: maplibregl.MarkerOptions = {}
+	): ManagedMarker {
 		const marker = new maplibregl.Marker({ ...options, element: visual.element })
 			.setLngLat(toLngLat(coords))
 			.addTo(this.map);
@@ -75,13 +79,18 @@ export class MapMarkerController {
 
 	updateOriginVisibility(userPosition: LatLng): void {
 		if (!this.origin || !this.originPoint) return;
-		setMarkerHidden(this.origin.visual.element, haversineM(userPosition, this.originPoint) < ORIGIN_HIDE_RADIUS_M);
+		setMarkerHidden(
+			this.origin.visual.element,
+			haversineM(userPosition, this.originPoint) < ORIGIN_HIDE_RADIUS_M
+		);
 	}
 
 	placeEndpoints(originCoords: LatLng, destinationCoords: LatLng): void {
 		this.origin = this.create(createEndpointMarker('origin'), originCoords, { anchor: 'bottom' });
 		this.origin.marker.setPopup(new maplibregl.Popup().setText('Início'));
-		const destination = this.create(createEndpointMarker('destination'), destinationCoords, { anchor: 'bottom' });
+		const destination = this.create(createEndpointMarker('destination'), destinationCoords, {
+			anchor: 'bottom'
+		});
 		destination.marker.setPopup(new maplibregl.Popup().setText('Destino'));
 		this.originPoint = originCoords;
 		this.routeMarkers = [this.origin, destination];
@@ -91,7 +100,10 @@ export class MapMarkerController {
 		this.stopMarkers.forEach((entry) => this.remove(entry));
 		this.stopMarkers = stops.map((stop) => {
 			const colors = stopColor(stop.stopType);
-			const entry = this.create(createStopMarker(stopIcon(stop.stopType), colors.marker), stop.coords);
+			const entry = this.create(
+				createStopMarker(stopIcon(stop.stopType), colors.marker),
+				stop.coords
+			);
 			entry.marker.setPopup(new maplibregl.Popup().setText(stop.name));
 			return entry;
 		});
@@ -144,7 +156,8 @@ export class MapMarkerController {
 				rider.marker.setRotation(this.markerBearing);
 			}
 			if (t < 1) this.markerFrame = requestAnimationFrame(step);
-			else if (this.markerBearing !== null) this.markerBearing = normalizeBearing(this.markerBearing);
+			else if (this.markerBearing !== null)
+				this.markerBearing = normalizeBearing(this.markerBearing);
 		};
 		this.markerFrame = requestAnimationFrame(step);
 	}

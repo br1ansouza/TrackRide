@@ -2,13 +2,13 @@
 	import { Plus, X, Fuel } from 'lucide-svelte';
 	import { slide } from 'svelte/transition';
 	import { flip } from 'svelte/animate';
-	import { transitions } from '$lib/utils/transitions';
-	import { STOP_ICONS, stopIcon } from '$lib/utils/stopIcons';
-	import SearchInput from '$lib/components/SearchInput.svelte';
-	import type { LatLng } from '$lib/services/routing';
-	import { stopColor } from '$lib/utils/stopColors';
-	import { vibrate } from '$lib/utils/haptics';
-	import type { StopType, RouteStopEntry } from '$lib/types/routeStop';
+	import { transitions } from '#lib/utils/transitions.js';
+	import { STOP_ICONS, stopIcon } from '#lib/utils/stopIcons.js';
+	import SearchInput from '#lib/components/SearchInput.svelte';
+	import type { LatLng } from '#lib/services/routing.js';
+	import { stopColor } from '#lib/utils/stopColors.js';
+	import { vibrate } from '#lib/utils/haptics.js';
+	import type { StopType, RouteStopEntry } from '#lib/types/routeStop.js';
 
 	export type { StopType, RouteStopEntry };
 
@@ -34,17 +34,26 @@
 	let suggestingFuel = $state(false);
 
 	function loadFuelInterval(profileRangeKm: number | null): number {
-		if (profileRangeKm && profileRangeKm >= FUEL_INTERVAL_MIN && profileRangeKm <= FUEL_INTERVAL_MAX) {
+		if (
+			profileRangeKm &&
+			profileRangeKm >= FUEL_INTERVAL_MIN &&
+			profileRangeKm <= FUEL_INTERVAL_MAX
+		) {
 			return profileRangeKm;
 		}
 		if (typeof localStorage === 'undefined') return 200;
 		const saved = Number(localStorage.getItem(FUEL_INTERVAL_KEY));
-		return Number.isFinite(saved) && saved >= FUEL_INTERVAL_MIN && saved <= FUEL_INTERVAL_MAX ? saved : 200;
+		return Number.isFinite(saved) && saved >= FUEL_INTERVAL_MIN && saved <= FUEL_INTERVAL_MAX
+			? saved
+			: 200;
 	}
 
 	async function applyFuelSuggestion() {
 		if (!onSuggestFuel || suggestingFuel) return;
-		const interval = Math.max(FUEL_INTERVAL_MIN, Math.min(FUEL_INTERVAL_MAX, Math.round(fuelIntervalKm)));
+		const interval = Math.max(
+			FUEL_INTERVAL_MIN,
+			Math.min(FUEL_INTERVAL_MAX, Math.round(fuelIntervalKm))
+		);
 		fuelIntervalKm = interval;
 		localStorage.setItem(FUEL_INTERVAL_KEY, String(interval));
 		vibrate();
@@ -80,14 +89,20 @@
 	function onPointerDown(e: PointerEvent) {
 		dragging = true;
 		const idx = indexFromX(e.clientX);
-		if (idx !== selectedIndex) { selectedIndex = idx; vibrate(); }
+		if (idx !== selectedIndex) {
+			selectedIndex = idx;
+			vibrate();
+		}
 		(e.target as HTMLElement).setPointerCapture(e.pointerId);
 	}
 
 	function onPointerMove(e: PointerEvent) {
 		if (!dragging) return;
 		const idx = indexFromX(e.clientX);
-		if (idx !== selectedIndex) { selectedIndex = idx; vibrate(); }
+		if (idx !== selectedIndex) {
+			selectedIndex = idx;
+			vibrate();
+		}
 	}
 
 	function onPointerUp() {
@@ -99,7 +114,6 @@
 		adding = false;
 		selectedIndex = 0;
 	}
-
 </script>
 
 <div class="mt-4 flex flex-col gap-2">
@@ -109,10 +123,18 @@
 		{#each stops as stop, i (stop)}
 			{@const Icon = stopIcon(stop.stopType)}
 			{@const colors = stopColor(stop.stopType)}
-			<div class="flex items-center gap-2 rounded-lg bg-surface-700 px-3 py-2" transition:slide={transitions.quick} animate:flip={transitions.quick}>
+			<div
+				class="flex items-center gap-2 rounded-lg bg-surface-700 px-3 py-2"
+				transition:slide={transitions.quick}
+				animate:flip={transitions.quick}
+			>
 				<Icon size={14} style="color: var({colors.fg});" />
 				<span class="min-w-0 flex-1 truncate text-sm text-white">{stop.name}</span>
-				<button type="button" onclick={() => onRemove(i)} class="shrink-0 text-surface-500 hover:text-surface-300">
+				<button
+					type="button"
+					onclick={() => onRemove(i)}
+					class="shrink-0 text-surface-500 hover:text-surface-300"
+				>
 					<X size={14} />
 				</button>
 			</div>
@@ -128,12 +150,22 @@
 						{@const c = stopColor(st.value)}
 						<button
 							type="button"
-							onclick={() => { selectedIndex = i; vibrate(); }}
+							onclick={() => {
+								selectedIndex = i;
+								vibrate();
+							}}
 							class="flex flex-col items-center gap-0.5 transition-colors"
 							title={st.label}
 						>
-							<Icon size={16} style="color: var({selectedIndex === i ? c.fg : '--color-surface-500'});" />
-							<span class="text-[9px] leading-tight {selectedIndex === i ? 'text-white' : 'text-surface-500'}">{st.label}</span>
+							<Icon
+								size={16}
+								style="color: var({selectedIndex === i ? c.fg : '--color-surface-500'});"
+							/>
+							<span
+								class="text-[9px] leading-tight {selectedIndex === i
+									? 'text-white'
+									: 'text-surface-500'}">{st.label}</span
+							>
 						</button>
 					{/each}
 				</div>
@@ -146,13 +178,16 @@
 					onpointermove={onPointerMove}
 					onpointerup={onPointerUp}
 				>
-					<div class="absolute top-1/2 h-1 w-full -translate-y-1/2 rounded-full bg-surface-600"></div>
+					<div
+						class="absolute top-1/2 h-1 w-full -translate-y-1/2 rounded-full bg-surface-600"
+					></div>
 
 					{#each STOP_TYPES as st, i}
 						{@const c = stopColor(st.value)}
 						<div
 							class="absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full"
-							style="left: {(i / (STOP_TYPES.length - 1)) * 100}%; background-color: var({selectedIndex === i ? c.fg : '--color-surface-500'});"
+							style="left: {(i / (STOP_TYPES.length - 1)) *
+								100}%; background-color: var({selectedIndex === i ? c.fg : '--color-surface-500'});"
 						></div>
 					{/each}
 
@@ -187,7 +222,8 @@
 						style="background-color: var(--color-ride-alert-500);"
 					>
 						{#if suggestingFuel}
-							<span class="h-3 w-3 animate-spin rounded-full border border-white/40 border-t-white"></span>
+							<span class="h-3 w-3 animate-spin rounded-full border border-white/40 border-t-white"
+							></span>
 							Buscando postos…
 						{:else}
 							<Fuel size={12} />
@@ -197,14 +233,21 @@
 				</div>
 			{/if}
 
-			<button type="button" onclick={() => adding = false} class="text-xs text-surface-400 hover:text-surface-200">
+			<button
+				type="button"
+				onclick={() => (adding = false)}
+				class="text-xs text-surface-400 hover:text-surface-200"
+			>
 				Cancelar
 			</button>
 		</div>
 	{:else}
 		<button
 			type="button"
-			onclick={() => { fuelIntervalKm = loadFuelInterval(fuelRangeKm); adding = true; }}
+			onclick={() => {
+				fuelIntervalKm = loadFuelInterval(fuelRangeKm);
+				adding = true;
+			}}
 			class="flex items-center gap-2 rounded-lg border border-dashed border-surface-600 px-3 py-2 text-sm text-surface-400 transition-colors hover:border-surface-400 hover:text-surface-200"
 		>
 			<Plus size={14} />

@@ -1,4 +1,4 @@
-import type { LatLng } from '$lib/services/routing';
+import type { LatLng } from '#lib/services/routing.js';
 import * as maplibregl from 'maplibre-gl';
 
 export function toLngLat(coords: LatLng): [number, number] {
@@ -55,7 +55,10 @@ export function closestRouteIndex(routeCoords: LatLng[], target: LatLng): number
 		const dlat = routeCoords[i][0] - target[0];
 		const dlon = routeCoords[i][1] - target[1];
 		const dist = dlat * dlat + dlon * dlon;
-		if (dist < bestDist) { bestDist = dist; bestIdx = i; }
+		if (dist < bestDist) {
+			bestDist = dist;
+			bestIdx = i;
+		}
 	}
 	return bestIdx;
 }

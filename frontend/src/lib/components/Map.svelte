@@ -3,19 +3,25 @@
 	import * as maplibregl from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
 	import mapWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
-	import type { RouteStopEntry } from '$lib/types/routeStop';
-	import { cssVar } from '$lib/utils/color';
-	import { safeTop } from '$lib/utils/safeArea';
-	import { toLngLat, toLineCoords, boundsFromCoords, calculateBearing, closestRouteIndex } from '$lib/utils/mapHelpers';
-	import { fetchRoute, type LatLng, type RouteData } from '$lib/services/routing';
-	import type { WeatherPoint } from '$lib/services/weather';
-	import type { RoadPoi } from '$lib/services/external/overpass';
-	import { classifyPoint } from '$lib/services/alerts';
-	import { toaster } from '$lib/stores/toaster';
-	import { watchPosition, clearWatch, getLastPosition } from '$lib/services/geolocation';
-	import { registerOfflineProtocol, prepareMapStyle } from '$lib/services/offlineTiles';
-	import { MapMarkerController } from '$lib/utils/mapMarkerController';
-	import { registerRoadPoiIcons, roadPoiPriority } from '$lib/utils/mapPoiIcons';
+	import type { RouteStopEntry } from '#lib/types/routeStop.js';
+	import { cssVar } from '#lib/utils/color.js';
+	import { safeTop } from '#lib/utils/safeArea.js';
+	import {
+		toLngLat,
+		toLineCoords,
+		boundsFromCoords,
+		calculateBearing,
+		closestRouteIndex
+	} from '#lib/utils/mapHelpers.js';
+	import { fetchRoute, type LatLng, type RouteData } from '#lib/services/routing.js';
+	import type { WeatherPoint } from '#lib/services/weather.js';
+	import type { RoadPoi } from '#lib/services/external/overpass.js';
+	import { classifyPoint } from '#lib/services/alerts.js';
+	import { toaster } from '#lib/stores/toaster.js';
+	import { watchPosition, clearWatch, getLastPosition } from '#lib/services/geolocation.js';
+	import { registerOfflineProtocol, prepareMapStyle } from '#lib/services/offlineTiles.js';
+	import { MapMarkerController } from '#lib/utils/mapMarkerController.js';
+	import { registerRoadPoiIcons, roadPoiPriority } from '#lib/utils/mapPoiIcons.js';
 
 	let { controlsVisible = true }: { controlsVisible?: boolean } = $props();
 
@@ -29,15 +35,29 @@
 
 	const GPS_LOADING_TIMEOUT_MS = 20000;
 	const LINE_LAYOUT = { 'line-cap': 'round', 'line-join': 'round' } as const;
-	const NAV_ZOOM_BY_KMH: [number, number][] = [[0, 18], [30, 17.2], [60, 16.4], [90, 15.8], [120, 15.2]];
-	const NAV_PITCH_BY_KMH: [number, number][] = [[0, 60], [60, 55], [120, 48]];
+	const NAV_ZOOM_BY_KMH: [number, number][] = [
+		[0, 18],
+		[30, 17.2],
+		[60, 16.4],
+		[90, 15.8],
+		[120, 15.2]
+	];
+	const NAV_PITCH_BY_KMH: [number, number][] = [
+		[0, 60],
+		[60, 55],
+		[120, 48]
+	];
 
 	const FOLLOW_DURATION_MS = 1000;
 
 	let navigating = false;
 	let drawnRouteCoords: LatLng[] = [];
 
-	function widthByZoom(near: number, mid: number, far: number): maplibregl.DataDrivenPropertyValueSpecification<number> {
+	function widthByZoom(
+		near: number,
+		mid: number,
+		far: number
+	): maplibregl.DataDrivenPropertyValueSpecification<number> {
 		return ['interpolate', ['linear'], ['zoom'], 10, near, 15, mid, 18, far];
 	}
 
@@ -56,11 +76,17 @@
 	let weatherMarkerEls: maplibregl.Marker[] = [];
 	let trackedSourceAdded = false;
 
-	const emptyLine = () => ({ type: 'Feature' as const, properties: {}, geometry: { type: 'LineString' as const, coordinates: [] as [number, number][] } });
+	const emptyLine = () => ({
+		type: 'Feature' as const,
+		properties: {},
+		geometry: { type: 'LineString' as const, coordinates: [] as [number, number][] }
+	});
 
 	onMount(() => {
 		maplibregl.setWorkerUrl(mapWorkerUrl);
-		mapReady = new Promise((r) => { resolveReady = r; });
+		mapReady = new Promise((r) => {
+			resolveReady = r;
+		});
 		registerOfflineProtocol();
 
 		let disposed = false;
@@ -81,13 +107,18 @@
 			markerController = new MapMarkerController(map);
 			markerController.setNavigating(navigating);
 			map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
-			map.on('load', () => { addEmptySources(); resolveReady(); });
+			map.on('load', () => {
+				addEmptySources();
+				resolveReady();
+			});
 			map.on('zoom', updateWeatherVisibility);
 
 			const resizeObserver = new ResizeObserver(() => map?.resize());
 			resizeObserver.observe(mapContainer);
 
-			const gpsTimeout = setTimeout(() => { gpsLoading = false; }, GPS_LOADING_TIMEOUT_MS);
+			const gpsTimeout = setTimeout(() => {
+				gpsLoading = false;
+			}, GPS_LOADING_TIMEOUT_MS);
 			watchPosition({
 				onPosition(fix) {
 					if (!map) return;
@@ -96,9 +127,15 @@
 					clearTimeout(gpsTimeout);
 					markerController?.updateRider(coords, fix.accuracyM);
 					markerController?.updateOriginVisibility(coords);
-					if (!hasInitialPosition) { map.flyTo({ center: toLngLat(coords), zoom: 13 }); hasInitialPosition = true; }
+					if (!hasInitialPosition) {
+						map.flyTo({ center: toLngLat(coords), zoom: 13 });
+						hasInitialPosition = true;
+					}
 				},
-				onError(msg) { gpsLoading = false; toaster.warning({ title: 'Localização indisponível', description: msg }); }
+				onError(msg) {
+					gpsLoading = false;
+					toaster.warning({ title: 'Localização indisponível', description: msg });
+				}
 			});
 
 			cleanup = () => {
@@ -112,19 +149,69 @@
 			};
 		})();
 
-		return () => { disposed = true; cleanup?.(); };
+		return () => {
+			disposed = true;
+			cleanup?.();
+		};
 	});
 
 	function addEmptySources() {
 		if (!map) return;
 		map.addSource('route', { type: 'geojson', data: emptyLine() });
-		map.addLayer({ id: 'route-casing', type: 'line', source: 'route', layout: LINE_LAYOUT, paint: { 'line-color': cssVar('--color-surface-950'), 'line-width': widthByZoom(6, 15, 24), 'line-opacity': 0.85 } });
-		map.addLayer({ id: 'route-line', type: 'line', source: 'route', layout: LINE_LAYOUT, paint: { 'line-color': cssVar('--color-ride-route-300'), 'line-width': widthByZoom(4, 10, 17), 'line-opacity': 0.95 } });
-		map.addSource('conditions', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-		map.addLayer({ id: 'conditions-line', type: 'line', source: 'conditions', layout: LINE_LAYOUT, paint: { 'line-color': ['get', 'color'], 'line-width': widthByZoom(5, 11, 18), 'line-opacity': ['get', 'opacity'] } });
+		map.addLayer({
+			id: 'route-casing',
+			type: 'line',
+			source: 'route',
+			layout: LINE_LAYOUT,
+			paint: {
+				'line-color': cssVar('--color-surface-950'),
+				'line-width': widthByZoom(6, 15, 24),
+				'line-opacity': 0.85
+			}
+		});
+		map.addLayer({
+			id: 'route-line',
+			type: 'line',
+			source: 'route',
+			layout: LINE_LAYOUT,
+			paint: {
+				'line-color': cssVar('--color-ride-route-300'),
+				'line-width': widthByZoom(4, 10, 17),
+				'line-opacity': 0.95
+			}
+		});
+		map.addSource('conditions', {
+			type: 'geojson',
+			data: { type: 'FeatureCollection', features: [] }
+		});
+		map.addLayer({
+			id: 'conditions-line',
+			type: 'line',
+			source: 'conditions',
+			layout: LINE_LAYOUT,
+			paint: {
+				'line-color': ['get', 'color'],
+				'line-width': widthByZoom(5, 11, 18),
+				'line-opacity': ['get', 'opacity']
+			}
+		});
 		map.addSource('approach', { type: 'geojson', data: emptyLine() });
-		map.addLayer({ id: 'approach-line', type: 'line', source: 'approach', layout: LINE_LAYOUT, paint: { 'line-color': cssVar('--color-ride-location-300'), 'line-width': widthByZoom(3, 7, 11), 'line-opacity': 0.8, 'line-dasharray': [2, 3] } });
-		map.addSource('road-pois', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+		map.addLayer({
+			id: 'approach-line',
+			type: 'line',
+			source: 'approach',
+			layout: LINE_LAYOUT,
+			paint: {
+				'line-color': cssVar('--color-ride-location-300'),
+				'line-width': widthByZoom(3, 7, 11),
+				'line-opacity': 0.8,
+				'line-dasharray': [2, 3]
+			}
+		});
+		map.addSource('road-pois', {
+			type: 'geojson',
+			data: { type: 'FeatureCollection', features: [] }
+		});
 		registerRoadPoiIcons(map);
 		map.addLayer({
 			id: 'road-pois-symbol',
@@ -140,7 +227,17 @@
 			}
 		});
 		map.addSource('tracked', { type: 'geojson', data: emptyLine() });
-		map.addLayer({ id: 'tracked-line', type: 'line', source: 'tracked', layout: LINE_LAYOUT, paint: { 'line-color': cssVar('--color-ride-safe-500'), 'line-width': widthByZoom(3, 6, 9), 'line-opacity': 0.95 } });
+		map.addLayer({
+			id: 'tracked-line',
+			type: 'line',
+			source: 'tracked',
+			layout: LINE_LAYOUT,
+			paint: {
+				'line-color': cssVar('--color-ride-safe-500'),
+				'line-width': widthByZoom(3, 6, 9),
+				'line-opacity': 0.95
+			}
+		});
 		trackedSourceAdded = true;
 	}
 
@@ -148,11 +245,18 @@
 		if (!map) return;
 		drawnRouteCoords = [];
 		(map.getSource('route') as maplibregl.GeoJSONSource | undefined)?.setData(emptyLine());
-		(map.getSource('conditions') as maplibregl.GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features: [] });
+		(map.getSource('conditions') as maplibregl.GeoJSONSource | undefined)?.setData({
+			type: 'FeatureCollection',
+			features: []
+		});
 		(map.getSource('approach') as maplibregl.GeoJSONSource | undefined)?.setData(emptyLine());
-		(map.getSource('road-pois') as maplibregl.GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features: [] });
+		(map.getSource('road-pois') as maplibregl.GeoJSONSource | undefined)?.setData({
+			type: 'FeatureCollection',
+			features: []
+		});
 		markerController?.clearRoute();
-		weatherMarkerEls.forEach((m) => m.remove()); weatherMarkerEls = [];
+		weatherMarkerEls.forEach((m) => m.remove());
+		weatherMarkerEls = [];
 	}
 
 	function placeRouteMarkers(originCoords: LatLng, destCoords: LatLng) {
@@ -161,16 +265,34 @@
 		if (lastPosition) markerController?.updateOriginVisibility(lastPosition);
 	}
 
-	function renderRouteLine(originCoords: LatLng, destCoords: LatLng, routeData: RouteData, skipFit: boolean): boolean {
+	function renderRouteLine(
+		originCoords: LatLng,
+		destCoords: LatLng,
+		routeData: RouteData,
+		skipFit: boolean
+	): boolean {
 		const src = map?.getSource('route') as maplibregl.GeoJSONSource | undefined;
 		if (!map || !src) return false;
-		src.setData({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: toLineCoords(routeData.coords) } });
+		src.setData({
+			type: 'Feature',
+			properties: {},
+			geometry: { type: 'LineString', coordinates: toLineCoords(routeData.coords) }
+		});
 		drawnRouteCoords = routeData.coords;
-		if (!skipFit) map.fitBounds(boundsFromCoords([originCoords, destCoords, ...routeData.coords]), { padding: 40 });
+		if (!skipFit)
+			map.fitBounds(boundsFromCoords([originCoords, destCoords, ...routeData.coords]), {
+				padding: 40
+			});
 		return true;
 	}
 
-	export async function drawRoute(originCoords: LatLng, destCoords: LatLng, waypoints: LatLng[] = [], skipFit = false, bearingDeg: number | null = null): Promise<RouteData | null> {
+	export async function drawRoute(
+		originCoords: LatLng,
+		destCoords: LatLng,
+		waypoints: LatLng[] = [],
+		skipFit = false,
+		bearingDeg: number | null = null
+	): Promise<RouteData | null> {
 		if (!map) return null;
 		await mapReady;
 		clearRoute();
@@ -180,7 +302,11 @@
 		return renderRouteLine(originCoords, destCoords, routeData, skipFit) ? routeData : null;
 	}
 
-	export async function drawStoredRoute(originCoords: LatLng, destCoords: LatLng, routeData: RouteData): Promise<void> {
+	export async function drawStoredRoute(
+		originCoords: LatLng,
+		destCoords: LatLng,
+		routeData: RouteData
+	): Promise<void> {
 		if (!map) return;
 		await mapReady;
 		clearRoute();
@@ -195,7 +321,11 @@
 	export function showRouteConditions(routeCoords: LatLng[], points: WeatherPoint[]) {
 		if (!map || points.length < 2) return;
 		const indices = points.map((p) => closestRouteIndex(routeCoords, p.coords));
-		const features: { type: 'Feature'; properties: Record<string, unknown>; geometry: { type: 'LineString'; coordinates: [number, number][] } }[] = [];
+		const features: {
+			type: 'Feature';
+			properties: Record<string, unknown>;
+			geometry: { type: 'LineString'; coordinates: [number, number][] };
+		}[] = [];
 		for (let i = 0; i < points.length - 1; i++) {
 			const alerts = classifyPoint(points[i]);
 			if (alerts.length === 0) continue;
@@ -204,13 +334,28 @@
 			const weatherAlerts = alerts.filter((a) => a.type !== 'night');
 			const isNight = alerts.some((a) => a.type === 'night');
 			if (weatherAlerts.length > 0) {
-				const color = cssVar(weatherAlerts.some((a) => a.severity === 'danger') ? '--color-ride-danger-300' : '--color-ride-alert-300');
-				features.push({ type: 'Feature', properties: { color, opacity: 0.9 }, geometry: { type: 'LineString', coordinates: toLineCoords(segment) } });
+				const color = cssVar(
+					weatherAlerts.some((a) => a.severity === 'danger')
+						? '--color-ride-danger-300'
+						: '--color-ride-alert-300'
+				);
+				features.push({
+					type: 'Feature',
+					properties: { color, opacity: 0.9 },
+					geometry: { type: 'LineString', coordinates: toLineCoords(segment) }
+				});
 			} else if (isNight) {
-				features.push({ type: 'Feature', properties: { color: cssVar('--color-ride-route-300'), opacity: 0.5 }, geometry: { type: 'LineString', coordinates: toLineCoords(segment) } });
+				features.push({
+					type: 'Feature',
+					properties: { color: cssVar('--color-ride-route-300'), opacity: 0.5 },
+					geometry: { type: 'LineString', coordinates: toLineCoords(segment) }
+				});
 			}
 		}
-		(map.getSource('conditions') as maplibregl.GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features });
+		(map.getSource('conditions') as maplibregl.GeoJSONSource | undefined)?.setData({
+			type: 'FeatureCollection',
+			features
+		});
 	}
 
 	export function showWeatherMarkers(points: WeatherPoint[]) {
@@ -228,8 +373,17 @@
 		if (!map || weatherMarkerEls.length === 0) return;
 		const zoom = map.getZoom();
 		const total = weatherMarkerEls.length;
-		const step = zoom >= 11 ? 1 : zoom >= 9 ? Math.ceil(total / 8) : zoom >= 7 ? Math.ceil(total / 4) : Math.ceil(total / 2);
-		weatherMarkerEls.forEach((m, i) => { m.getElement().style.display = i === 0 || i === total - 1 || i % step === 0 ? '' : 'none'; });
+		const step =
+			zoom >= 11
+				? 1
+				: zoom >= 9
+					? Math.ceil(total / 8)
+					: zoom >= 7
+						? Math.ceil(total / 4)
+						: Math.ceil(total / 2);
+		weatherMarkerEls.forEach((m, i) => {
+			m.getElement().style.display = i === 0 || i === total - 1 || i % step === 0 ? '' : 'none';
+		});
 	}
 
 	export function fitRoute() {
@@ -240,7 +394,11 @@
 	export function zoomStreet() {
 		if (!map) return;
 		const last = getLastPosition();
-		map.easeTo({ center: last ? toLngLat(last) : map.getCenter().toArray() as [number, number], zoom: 18, duration: 500 });
+		map.easeTo({
+			center: last ? toLngLat(last) : (map.getCenter().toArray() as [number, number]),
+			zoom: 18,
+			duration: 500
+		});
 	}
 
 	export function showRoadPois(pois: RoadPoi[]) {
@@ -258,7 +416,11 @@
 
 	export function drawTrackedPath(path: LatLng[]) {
 		if (!map || !trackedSourceAdded || path.length < 2) return;
-		(map.getSource('tracked') as maplibregl.GeoJSONSource).setData({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: toLineCoords(path) } });
+		(map.getSource('tracked') as maplibregl.GeoJSONSource).setData({
+			type: 'Feature',
+			properties: {},
+			geometry: { type: 'LineString', coordinates: toLineCoords(path) }
+		});
 	}
 
 	export function setNavigating(active: boolean) {
@@ -271,9 +433,15 @@
 		markerController?.moveRider(coords, bearingOverride ?? map.getBearing(), FOLLOW_DURATION_MS);
 	}
 
-	export function followPosition(coords: LatLng, prevCoords?: LatLng, bearingOverride?: number, speedKmh = 0) {
+	export function followPosition(
+		coords: LatLng,
+		prevCoords?: LatLng,
+		bearingOverride?: number,
+		speedKmh = 0
+	) {
 		if (!map) return;
-		const bearing = bearingOverride ?? (prevCoords ? calculateBearing(prevCoords, coords) : map.getBearing());
+		const bearing =
+			bearingOverride ?? (prevCoords ? calculateBearing(prevCoords, coords) : map.getBearing());
 		const duration = FOLLOW_DURATION_MS;
 		map.easeTo({
 			center: toLngLat(coords),
@@ -288,7 +456,11 @@
 
 	export function drawApproachRoute(coords: LatLng[]) {
 		if (!map || coords.length < 2) return;
-		(map.getSource('approach') as maplibregl.GeoJSONSource | undefined)?.setData({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: toLineCoords(coords) } });
+		(map.getSource('approach') as maplibregl.GeoJSONSource | undefined)?.setData({
+			type: 'Feature',
+			properties: {},
+			geometry: { type: 'LineString', coordinates: toLineCoords(coords) }
+		});
 	}
 
 	export function clearApproachRoute() {
@@ -314,11 +486,23 @@
 </script>
 
 <div class="relative h-full w-full">
-	<div bind:this={mapContainer} class="h-full w-full rounded-lg" class:hide-controls={!controlsVisible} style="min-height: 100%;"></div>
+	<div
+		bind:this={mapContainer}
+		class="h-full w-full rounded-lg"
+		class:hide-controls={!controlsVisible}
+		style="min-height: 100%;"
+	></div>
 	{#if gpsLoading}
-		<div class="pointer-events-none absolute inset-x-0 z-[600] flex justify-center" style="top: {safeTop};">
-			<div class="flex items-center gap-2 rounded-full bg-surface-900/90 px-4 py-2 shadow-lg backdrop-blur-sm">
-				<div class="h-4 w-4 animate-spin rounded-full border-2 border-surface-400 border-t-primary-400"></div>
+		<div
+			class="pointer-events-none absolute inset-x-0 z-[600] flex justify-center"
+			style="top: {safeTop};"
+		>
+			<div
+				class="flex items-center gap-2 rounded-full bg-surface-900/90 px-4 py-2 shadow-lg backdrop-blur-sm"
+			>
+				<div
+					class="h-4 w-4 animate-spin rounded-full border-2 border-surface-400 border-t-primary-400"
+				></div>
 				<span class="text-sm text-surface-300">Localizando…</span>
 			</div>
 		</div>
@@ -327,5 +511,7 @@
 
 <style>
 	.hide-controls :global(.maplibregl-ctrl-attrib),
-	.hide-controls :global(.maplibregl-ctrl) { display: none; }
+	.hide-controls :global(.maplibregl-ctrl) {
+		display: none;
+	}
 </style>

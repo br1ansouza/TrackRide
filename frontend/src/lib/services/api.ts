@@ -1,4 +1,4 @@
-import { configuredApiUrl, isStandaloneBuild, standaloneApiHost } from '$lib/utils/platform';
+import { configuredApiUrl, isStandaloneBuild, standaloneApiHost } from '#lib/utils/platform.js';
 
 const TOKEN_KEY = 'trackride:token';
 
