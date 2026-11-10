@@ -1,11 +1,16 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { Route, Clock, Trash2, ChevronRight, Globe, Lock, ArrowDown } from 'lucide-svelte';
-	import { fetchSavedRoutes, deleteRoute, updateRoute, type SavedRoute } from '$lib/services/routes';
-	import { reverseDistrict } from '$lib/services/gateway';
-	import { toaster } from '$lib/stores/toaster';
-	import { stopColor } from '$lib/utils/stopColors';
-	import { stopIcon } from '$lib/utils/stopIcons';
+	import {
+		fetchSavedRoutes,
+		deleteRoute,
+		updateRoute,
+		type SavedRoute
+	} from '#lib/services/routes.js';
+	import { reverseDistrict } from '#lib/services/gateway.js';
+	import { toaster } from '#lib/stores/toaster.js';
+	import { stopColor } from '#lib/utils/stopColors.js';
+	import { stopIcon } from '#lib/utils/stopIcons.js';
 
 	interface Props {
 		limit?: number;
@@ -31,8 +36,15 @@
 			const enriched = `Minha localização (${district})`;
 			route.origin_name = enriched;
 			routes = [...routes];
-			updateRoute(route.id, { name: `${enriched} → ${route.destination_name}`, origin_name: enriched })
-				.catch(() => toaster.warning({ title: 'Aviso', description: 'Não foi possível atualizar o nome da rota.' }));
+			updateRoute(route.id, {
+				name: `${enriched} → ${route.destination_name}`,
+				origin_name: enriched
+			}).catch(() =>
+				toaster.warning({
+					title: 'Aviso',
+					description: 'Não foi possível atualizar o nome da rota.'
+				})
+			);
 		}
 	}
 
@@ -55,7 +67,7 @@
 	async function handleDelete(id: number) {
 		try {
 			await deleteRoute(id);
-			routes = routes.filter(r => r.id !== id);
+			routes = routes.filter((r) => r.id !== id);
 			total--;
 			toaster.success({ title: 'Rota removida', description: 'A rota foi excluída.' });
 		} catch {
@@ -68,15 +80,31 @@
 			await updateRoute(route.id, { public: !route.public });
 			route.public = !route.public;
 			routes = [...routes];
-			toaster.success({ title: route.public ? 'Rota pública' : 'Rota privada', description: route.public ? 'Outros motociclistas podem ver esta rota.' : 'Apenas você pode ver esta rota.' });
+			toaster.success({
+				title: route.public ? 'Rota pública' : 'Rota privada',
+				description: route.public
+					? 'Outros motociclistas podem ver esta rota.'
+					: 'Apenas você pode ver esta rota.'
+			});
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : '';
 			if (msg.includes('Já existe')) {
-				toaster.warning({ title: 'Trajeto já compartilhado', description: 'Outro motociclista já publicou uma rota com origem e destino semelhantes.' });
+				toaster.warning({
+					title: 'Trajeto já compartilhado',
+					description: 'Outro motociclista já publicou uma rota com origem e destino semelhantes.'
+				});
 			} else if (msg.includes('curta')) {
-				toaster.warning({ title: 'Rota muito curta', description: 'Rotas com menos de 2 km não podem ser compartilhadas. A análise de clima não seria relevante.' });
+				toaster.warning({
+					title: 'Rota muito curta',
+					description:
+						'Rotas com menos de 2 km não podem ser compartilhadas. A análise de clima não seria relevante.'
+				});
 			} else if (msg.includes('longa')) {
-				toaster.warning({ title: 'Rota muito longa', description: 'Rotas acima de 1.000 km não podem ser compartilhadas. Divida em etapas menores.' });
+				toaster.warning({
+					title: 'Rota muito longa',
+					description:
+						'Rotas acima de 1.000 km não podem ser compartilhadas. Divida em etapas menores.'
+				});
 			} else {
 				toaster.error({ title: 'Erro', description: 'Não foi possível alterar a visibilidade.' });
 			}
@@ -84,7 +112,11 @@
 	}
 
 	function formatDate(date: string): string {
-		return new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+		return new Date(date).toLocaleDateString('pt-BR', {
+			day: '2-digit',
+			month: 'short',
+			year: 'numeric'
+		});
 	}
 
 	function formatDuration(minutes: number | null): string {
@@ -94,7 +126,6 @@
 		const m = minutes % 60;
 		return m > 0 ? `${h}h ${m}min` : `${h}h`;
 	}
-
 </script>
 
 <div class="flex flex-col gap-2">
@@ -110,26 +141,40 @@
 				role="button"
 				tabindex="0"
 				onclick={() => onSelect?.(route)}
-				onkeydown={(e) => { if (e.key === 'Enter') onSelect?.(route); }}
-				class="flex items-center gap-3 rounded-lg bg-surface-700 p-3 text-left transition-colors {onSelect ? 'hover:bg-surface-600' : ''}"
+				onkeydown={(e) => {
+					if (e.key === 'Enter') onSelect?.(route);
+				}}
+				class="flex items-center gap-3 rounded-lg bg-surface-700 p-3 text-left transition-colors {onSelect
+					? 'hover:bg-surface-600'
+					: ''}"
 			>
 				<div class="flex flex-1 flex-col gap-1">
 					<div class="flex flex-col text-sm font-medium text-white">
 						<span>{route.origin_name}</span>
-						<span class="flex items-center gap-1 text-xs text-surface-400" title={route.completed ? 'Viagem concluída' : 'Viagem não concluída'}>
-							<ArrowDown size={10} style="color: var({route.completed ? '--color-ride-safe-300' : '--color-ride-danger-300'});" />
+						<span
+							class="flex items-center gap-1 text-xs text-surface-400"
+							title={route.completed ? 'Viagem concluída' : 'Viagem não concluída'}
+						>
+							<ArrowDown
+								size={10}
+								style="color: var({route.completed
+									? '--color-ride-safe-300'
+									: '--color-ride-danger-300'});"
+							/>
 							{route.destination_name}
 						</span>
 					</div>
 					<div class="flex flex-wrap gap-3 text-xs text-surface-400">
 						{#if route.distance_km}
 							<span class="flex items-center gap-1">
-								<Route size={12} /> {Math.round(route.distance_km)} km
+								<Route size={12} />
+								{Math.round(route.distance_km)} km
 							</span>
 						{/if}
 						{#if route.duration_minutes}
 							<span class="flex items-center gap-1">
-								<Clock size={12} /> {formatDuration(route.duration_minutes)}
+								<Clock size={12} />
+								{formatDuration(route.duration_minutes)}
 							</span>
 						{/if}
 						<span>{formatDate(route.created_at)}</span>
@@ -139,21 +184,35 @@
 							{#each route.stops as stop}
 								{@const Icon = stopIcon(stop.stop_type)}
 								{@const sc = stopColor(stop.stop_type)}
-								<span class="flex items-center gap-1 rounded-md bg-surface-600 px-2 py-0.5 text-xs" style="color: var({sc.fg});">
-									<Icon size={10} /> {stop.name}
+								<span
+									class="flex items-center gap-1 rounded-md bg-surface-600 px-2 py-0.5 text-xs"
+									style="color: var({sc.fg});"
+								>
+									<Icon size={10} />
+									{stop.name}
 								</span>
 							{/each}
 						</div>
 					{/if}
 				</div>
 				{#if route.score}
-					<span class="text-sm font-bold" style="color: var({route.score >= 80 ? '--color-ride-safe-300' : route.score >= 55 ? '--color-ride-alert-300' : '--color-ride-danger-300'});">
+					<span
+						class="text-sm font-bold"
+						style="color: var({route.score >= 80
+							? '--color-ride-safe-300'
+							: route.score >= 55
+								? '--color-ride-alert-300'
+								: '--color-ride-danger-300'});"
+					>
 						{route.score}
 					</span>
 				{/if}
 				<button
 					type="button"
-					onclick={(e) => { e.stopPropagation(); togglePublic(route); }}
+					onclick={(e) => {
+						e.stopPropagation();
+						togglePublic(route);
+					}}
 					class="text-surface-500 hover:text-surface-300"
 					title={route.public ? 'Tornar privada' : 'Tornar pública'}
 				>
@@ -165,7 +224,10 @@
 				</button>
 				<button
 					type="button"
-					onclick={(e) => { e.stopPropagation(); handleDelete(route.id); }}
+					onclick={(e) => {
+						e.stopPropagation();
+						handleDelete(route.id);
+					}}
 					class="text-surface-500 hover:text-surface-300"
 				>
 					<Trash2 size={16} />

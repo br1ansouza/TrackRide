@@ -1,4 +1,4 @@
-import type { LatLng } from '$lib/services/routing';
+import type { LatLng } from '#lib/services/routing.js';
 
 export type StopType = 'other' | 'gas_station' | 'restaurant' | 'rest' | 'viewpoint';
 

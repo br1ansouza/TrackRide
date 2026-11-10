@@ -1,9 +1,14 @@
 <script lang="ts">
 	import { Compass, Route, Clock, User, X, ArrowDown, Heart, Flag } from 'lucide-svelte';
 	import { Tooltip } from '@skeletonlabs/skeleton-svelte';
-	import { fetchNearbyRoutes, likeRoute, unlikeRoute, type ExploreRoute } from '$lib/services/routes';
-	import { getLastPosition } from '$lib/services/geolocation';
-	import { toaster } from '$lib/stores/toaster';
+	import {
+		fetchNearbyRoutes,
+		likeRoute,
+		unlikeRoute,
+		type ExploreRoute
+	} from '#lib/services/routes.js';
+	import { getLastPosition } from '#lib/services/geolocation.js';
+	import { toaster } from '#lib/stores/toaster.js';
 
 	interface Props {
 		onSelect: (route: ExploreRoute) => void;
@@ -18,7 +23,10 @@
 	async function load() {
 		const pos = getLastPosition();
 		if (!pos) {
-			toaster.warning({ title: 'Localização necessária', description: 'Ative o GPS para ver rotas próximas.' });
+			toaster.warning({
+				title: 'Localização necessária',
+				description: 'Ative o GPS para ver rotas próximas.'
+			});
 			loading = false;
 			return;
 		}
@@ -63,7 +71,11 @@
 <div class="flex flex-col gap-3">
 	<div class="flex items-center justify-between">
 		<div class="flex items-center gap-2">
-			<Tooltip positioning={{ placement: 'bottom', strategy: 'fixed' }} openDelay={200} closeDelay={0}>
+			<Tooltip
+				positioning={{ placement: 'bottom', strategy: 'fixed' }}
+				openDelay={200}
+				closeDelay={0}
+			>
 				<Tooltip.Trigger>
 					<Compass size={18} style="color: var(--color-ride-route-300);" />
 				</Tooltip.Trigger>
@@ -90,23 +102,38 @@
 				role="button"
 				tabindex="0"
 				onclick={() => onSelect(route)}
-				onkeydown={(e) => { if (e.key === 'Enter') onSelect(route); }}
+				onkeydown={(e) => {
+					if (e.key === 'Enter') onSelect(route);
+				}}
 				class="flex flex-col gap-1 rounded-lg bg-surface-700 p-3 text-left transition-colors hover:bg-surface-600"
 			>
 				<span class="text-sm font-medium text-white">{route.origin_name}</span>
-				<span class="flex items-center gap-1 text-xs text-surface-400"><ArrowDown size={10} /> {route.destination_name}</span>
+				<span class="flex items-center gap-1 text-xs text-surface-400"
+					><ArrowDown size={10} /> {route.destination_name}</span
+				>
 				<div class="flex flex-wrap gap-3 text-xs text-surface-400">
 					{#if route.distance_km}
-						<span class="flex items-center gap-1"><Route size={12} /> {Math.round(route.distance_km)} km</span>
+						<span class="flex items-center gap-1"
+							><Route size={12} /> {Math.round(route.distance_km)} km</span
+						>
 					{/if}
 					{#if route.duration_minutes}
-						<span class="flex items-center gap-1"><Clock size={12} /> {formatDuration(route.duration_minutes)}</span>
+						<span class="flex items-center gap-1"
+							><Clock size={12} /> {formatDuration(route.duration_minutes)}</span
+						>
 					{/if}
 					<span class="flex items-center gap-1"><User size={12} /> {route.author_name}</span>
 				</div>
 				{#if route.score}
 					<div class="mt-1">
-						<span class="text-xs font-bold" style="color: var({route.score >= 80 ? '--color-ride-safe-300' : route.score >= 55 ? '--color-ride-alert-300' : '--color-ride-danger-300'});">
+						<span
+							class="text-xs font-bold"
+							style="color: var({route.score >= 80
+								? '--color-ride-safe-300'
+								: route.score >= 55
+									? '--color-ride-alert-300'
+									: '--color-ride-danger-300'});"
+						>
 							Condição da rota: {route.score}
 						</span>
 					</div>
@@ -115,14 +142,18 @@
 					<button
 						type="button"
 						onclick={(e) => toggleLike(e, route)}
-						class="flex items-center gap-1 text-xs transition-colors {route.liked_by_user ? '' : 'text-surface-400 hover:text-surface-200'}"
+						class="flex items-center gap-1 text-xs transition-colors {route.liked_by_user
+							? ''
+							: 'text-surface-400 hover:text-surface-200'}"
 						style={route.liked_by_user ? 'color: var(--color-ride-danger-300);' : ''}
 					>
 						<Heart size={14} fill={route.liked_by_user ? 'currentColor' : 'none'} />
 						{route.likes_count}
 					</button>
 					<span
-						class="flex items-center gap-1 text-xs {route.completed_by_user ? '' : 'text-surface-400'}"
+						class="flex items-center gap-1 text-xs {route.completed_by_user
+							? ''
+							: 'text-surface-400'}"
 						style={route.completed_by_user ? 'color: var(--color-ride-alert-300);' : ''}
 					>
 						<Flag size={14} fill={route.completed_by_user ? 'currentColor' : 'none'} />

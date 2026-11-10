@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { LoaderCircle, Mail } from 'lucide-svelte';
-	import AuthShell from '$lib/components/AuthShell.svelte';
-	import { forgotPassword } from '$lib/services/auth';
-	import { toaster } from '$lib/stores/toaster';
+	import AuthShell from '#lib/components/AuthShell.svelte';
+	import { forgotPassword } from '#lib/services/auth.js';
+	import { toaster } from '#lib/stores/toaster.js';
 
 	let email = $state('');
 	let submitting = $state(false);
@@ -29,7 +29,9 @@
 
 <AuthShell
 	title={sent ? 'Confira seu email' : 'Recupere o acesso'}
-	description={sent ? 'Enviamos as próximas instruções para o endereço informado.' : 'Informe seu email para receber um link seguro de redefinição.'}
+	description={sent
+		? 'Enviamos as próximas instruções para o endereço informado.'
+		: 'Informe seu email para receber um link seguro de redefinição.'}
 >
 	{#if sent}
 		<div class="auth-feedback">
@@ -39,9 +41,25 @@
 	{:else}
 		<form onsubmit={handleSubmit} class="auth-form">
 			<label for="forgot-email">Email</label>
-			<input id="forgot-email" type="email" bind:value={email} placeholder="seu@email.com" autocomplete="email" inputmode="email" required class="auth-input" />
-			<button type="submit" disabled={submitting || !email} class="auth-primary-button" aria-busy={submitting}>
-				{#if submitting}<LoaderCircle size={18} class="animate-spin" />{:else}<Mail size={18} />{/if}
+			<input
+				id="forgot-email"
+				type="email"
+				bind:value={email}
+				placeholder="seu@email.com"
+				autocomplete="email"
+				inputmode="email"
+				required
+				class="auth-input"
+			/>
+			<button
+				type="submit"
+				disabled={submitting || !email}
+				class="auth-primary-button"
+				aria-busy={submitting}
+			>
+				{#if submitting}<LoaderCircle size={18} class="animate-spin" />{:else}<Mail
+						size={18}
+					/>{/if}
 				{submitting ? 'Enviando…' : 'Enviar link'}
 			</button>
 		</form>

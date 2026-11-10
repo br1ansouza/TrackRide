@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { Eye, EyeOff, LoaderCircle, LogIn } from 'lucide-svelte';
-	import AuthShell from '$lib/components/AuthShell.svelte';
-	import ReleaseNotes from '$lib/components/ReleaseNotes.svelte';
-	import { login } from '$lib/services/auth';
-	import { useAuth } from '$lib/stores/auth.svelte';
-	import { toaster } from '$lib/stores/toaster';
+	import AuthShell from '#lib/components/AuthShell.svelte';
+	import ReleaseNotes from '#lib/components/ReleaseNotes.svelte';
+	import { login } from '#lib/services/auth.js';
+	import { useAuth } from '#lib/stores/auth.svelte.js';
+	import { toaster } from '#lib/stores/toaster.js';
 
 	const auth = useAuth();
 
@@ -37,26 +37,60 @@
 
 <svelte:head>
 	<title>Entrar | TrackRide</title>
-	<meta name="description" content="Entre no TrackRide para planejar rotas com clima e segurança ao longo do caminho." />
+	<meta
+		name="description"
+		content="Entre no TrackRide para planejar rotas com clima e segurança ao longo do caminho."
+	/>
 </svelte:head>
 
-<AuthShell title="Bem-vindo de volta" description="Planeje rotas com clima e segurança ao longo do caminho.">
+<AuthShell
+	title="Bem-vindo de volta"
+	description="Planeje rotas com clima e segurança ao longo do caminho."
+>
 	<form onsubmit={handleSubmit} class="auth-form">
 		<label for="login-email">Email</label>
-		<input id="login-email" type="email" bind:value={email} placeholder="seu@email.com" autocomplete="email" inputmode="email" required class="auth-input" />
+		<input
+			id="login-email"
+			type="email"
+			bind:value={email}
+			placeholder="seu@email.com"
+			autocomplete="email"
+			inputmode="email"
+			required
+			class="auth-input"
+		/>
 
 		<div class="password-heading">
 			<label for="login-password">Senha</label>
 			<a href="/forgot-password">Esqueci minha senha</a>
 		</div>
 		<div class="password-field">
-			<input id="login-password" type={showPassword ? 'text' : 'password'} bind:value={password} placeholder="Sua senha" autocomplete="current-password" required class="auth-input" />
-			<button type="button" class="password-toggle" onclick={() => showPassword = !showPassword} aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'} title={showPassword ? 'Ocultar senha' : 'Mostrar senha'}>
+			<input
+				id="login-password"
+				type={showPassword ? 'text' : 'password'}
+				bind:value={password}
+				placeholder="Sua senha"
+				autocomplete="current-password"
+				required
+				class="auth-input"
+			/>
+			<button
+				type="button"
+				class="password-toggle"
+				onclick={() => (showPassword = !showPassword)}
+				aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+				title={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+			>
 				{#if showPassword}<EyeOff size={19} />{:else}<Eye size={19} />{/if}
 			</button>
 		</div>
 
-		<button type="submit" disabled={submitting || !email || !password} class="auth-primary-button" aria-busy={submitting}>
+		<button
+			type="submit"
+			disabled={submitting || !email || !password}
+			class="auth-primary-button"
+			aria-busy={submitting}
+		>
 			{#if submitting}<LoaderCircle size={18} class="animate-spin" />{:else}<LogIn size={18} />{/if}
 			{submitting ? 'Entrando…' : 'Entrar'}
 		</button>

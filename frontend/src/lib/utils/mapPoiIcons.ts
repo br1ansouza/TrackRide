@@ -1,6 +1,6 @@
 import type * as maplibregl from 'maplibre-gl';
-import type { RoadPoiKind } from '$lib/services/external/overpass';
-import { cssVar } from '$lib/utils/color';
+import type { RoadPoiKind } from '#lib/services/external/overpass.js';
+import { cssVar } from '#lib/utils/color.js';
 
 const SIZE = 64;
 const PIXEL_RATIO = 2;
@@ -81,12 +81,21 @@ function speedCamera(): ImageData {
 
 function stopSign(): ImageData {
 	return canvas((context) => {
-		const points = [[23, 6], [41, 6], [58, 23], [58, 41], [41, 58], [23, 58], [6, 41], [6, 23]];
+		const points = [
+			[23, 6],
+			[41, 6],
+			[58, 23],
+			[58, 41],
+			[41, 58],
+			[23, 58],
+			[6, 41],
+			[6, 23]
+		];
 		context.fillStyle = tone('--color-ride-danger-500', '#ef4444');
 		context.strokeStyle = tone('--color-surface-50', '#f8fafc');
 		context.lineWidth = 5;
 		context.beginPath();
-		points.forEach(([x, y], index) => index === 0 ? context.moveTo(x, y) : context.lineTo(x, y));
+		points.forEach(([x, y], index) => (index === 0 ? context.moveTo(x, y) : context.lineTo(x, y)));
 		context.closePath();
 		context.fill();
 		context.stroke();

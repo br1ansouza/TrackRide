@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Square, Route, Clock, Gauge } from 'lucide-svelte';
-	import { safeTop, safeBottom } from '$lib/utils/safeArea';
+	import { safeTop, safeBottom } from '#lib/utils/safeArea.js';
 
 	interface Props {
 		distanceKm: number;
@@ -33,25 +33,36 @@
 	class="pointer-events-none absolute inset-x-0 z-[700] flex justify-center px-4 landscape:justify-start"
 	style="top: {safeTop}; padding-left: calc(1rem + env(safe-area-inset-left));"
 >
-	<div class="flex items-center gap-4 rounded-2xl bg-surface-900/90 px-5 py-3 shadow-lg backdrop-blur-sm">
+	<div
+		class="flex items-center gap-4 rounded-2xl bg-surface-900/90 px-5 py-3 shadow-lg backdrop-blur-sm"
+	>
 		<div class="flex flex-col items-center">
 			<span class="text-lg font-bold text-white">{distanceKm}</span>
-			<span class="flex items-center gap-1 text-[10px] text-surface-400"><Route size={10} /> km</span>
+			<span class="flex items-center gap-1 text-[10px] text-surface-400"
+				><Route size={10} /> km</span
+			>
 		</div>
 		<div class="h-8 w-px bg-surface-700"></div>
 		<div class="flex flex-col items-center">
 			<span class="text-lg font-bold text-white">{elapsed}</span>
-			<span class="flex items-center gap-1 text-[10px] text-surface-400"><Clock size={10} /> tempo</span>
+			<span class="flex items-center gap-1 text-[10px] text-surface-400"
+				><Clock size={10} /> tempo</span
+			>
 		</div>
 		<div class="h-8 w-px bg-surface-700"></div>
 		<div class="flex flex-col items-center">
 			<span class="text-lg font-bold text-white tabular-nums">{Math.round(displaySpeed)}</span>
-			<span class="flex items-center gap-1 text-[10px] text-surface-400"><Gauge size={10} /> km/h</span>
+			<span class="flex items-center gap-1 text-[10px] text-surface-400"
+				><Gauge size={10} /> km/h</span
+			>
 		</div>
 	</div>
 </div>
 
-<div class="pointer-events-none absolute inset-x-0 z-[700] flex justify-center" style="bottom: {safeBottom};">
+<div
+	class="pointer-events-none absolute inset-x-0 z-[700] flex justify-center"
+	style="bottom: {safeBottom};"
+>
 	<button
 		type="button"
 		onclick={onStop}

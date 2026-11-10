@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { Fuel, Minus, Plus, ChevronRight } from 'lucide-svelte';
 	import { slide } from 'svelte/transition';
-	import { transitions } from '$lib/utils/transitions';
-	import { updateProfile, type AuthUser } from '$lib/services/auth';
-	import { toaster } from '$lib/stores/toaster';
-	import { vibrate } from '$lib/utils/haptics';
+	import { transitions } from '#lib/utils/transitions.js';
+	import { updateProfile, type AuthUser } from '#lib/services/auth.js';
+	import { toaster } from '#lib/stores/toaster.js';
+	import { vibrate } from '#lib/utils/haptics.js';
 
 	interface Props {
 		user: AuthUser;
@@ -46,7 +46,10 @@
 		try {
 			onUserUpdate(await updateProfile({ fuel_range_km: rangeInput }));
 			editing = false;
-			toaster.success({ title: 'Autonomia atualizada', description: `Postos sugeridos a cada ${rangeInput} km.` });
+			toaster.success({
+				title: 'Autonomia atualizada',
+				description: `Postos sugeridos a cada ${rangeInput} km.`
+			});
 		} catch {
 			toaster.error({ title: 'Erro', description: 'Não foi possível salvar a autonomia.' });
 		} finally {
@@ -58,7 +61,10 @@
 <div class="flex flex-col gap-2">
 	<span class="text-xs font-medium text-surface-400">Autonomia da moto</span>
 	{#if editing}
-		<div class="flex flex-col gap-3 rounded-xl bg-surface-700 p-4" transition:slide={transitions.quick}>
+		<div
+			class="flex flex-col gap-3 rounded-xl bg-surface-700 p-4"
+			transition:slide={transitions.quick}
+		>
 			<div class="flex items-center justify-center gap-4">
 				<button
 					type="button"
@@ -88,11 +94,13 @@
 					<Plus size={18} />
 				</button>
 			</div>
-			<p class="text-center text-xs text-surface-500">Distância que a moto roda com um tanque cheio</p>
+			<p class="text-center text-xs text-surface-500">
+				Distância que a moto roda com um tanque cheio
+			</p>
 			<div class="flex gap-2">
 				<button
 					type="button"
-					onclick={() => editing = false}
+					onclick={() => (editing = false)}
 					disabled={saving}
 					class="flex-1 rounded-lg bg-surface-800 py-2.5 text-xs font-medium text-surface-400 transition-colors hover:text-surface-200"
 				>
@@ -115,7 +123,10 @@
 			onclick={openEditor}
 			class="flex items-center gap-3 rounded-xl bg-surface-700 p-3 text-left transition-colors hover:bg-surface-600"
 		>
-			<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg" style="background-color: var(--color-ride-alert-900);">
+			<div
+				class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+				style="background-color: var(--color-ride-alert-900);"
+			>
 				<Fuel size={20} style="color: var(--color-ride-alert-300);" />
 			</div>
 			<div class="flex flex-1 flex-col gap-0.5">

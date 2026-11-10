@@ -1,5 +1,5 @@
 import { EXTERNAL_USER_AGENT } from './userAgent';
-import { brandLabel, detectBrand, sellsLiquidFuel } from '$lib/services/fuelBrands';
+import { brandLabel, detectBrand, sellsLiquidFuel } from '#lib/services/fuelBrands.js';
 import type { FuelStation } from './overpass';
 
 interface NominatimFuelPlace {

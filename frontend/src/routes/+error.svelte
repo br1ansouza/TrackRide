@@ -2,9 +2,9 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { House, RefreshCw, WifiOff } from 'lucide-svelte';
-	import AuthShell from '$lib/components/AuthShell.svelte';
-	import { copyForStatus, OFFLINE_COPY } from '$lib/utils/errorCopy';
-	import '$lib/styles/error-page.css';
+	import AuthShell from '#lib/components/AuthShell.svelte';
+	import { copyForStatus, OFFLINE_COPY } from '#lib/utils/errorCopy.js';
+	import '#lib/styles/error-page.css';
 
 	let offline = $state(false);
 
@@ -21,7 +21,9 @@
 
 	const copy = $derived(offline ? OFFLINE_COPY : copyForStatus(page.status));
 	const detail = $derived(page.error?.message ?? '');
-	const showDetail = $derived(!offline && !!detail && detail !== 'Not Found' && page.status !== 404);
+	const showDetail = $derived(
+		!offline && !!detail && detail !== 'Not Found' && page.status !== 404
+	);
 
 	function retry() {
 		location.reload();
@@ -53,6 +55,8 @@
 		</button>
 	</div>
 	<p class="auth-footer">
-		Se o problema continuar, fale com <a href="mailto:trackride.app@gmail.com">trackride.app@gmail.com</a>.
+		Se o problema continuar, fale com <a href="mailto:trackride.app@gmail.com"
+			>trackride.app@gmail.com</a
+		>.
 	</p>
 </AuthShell>

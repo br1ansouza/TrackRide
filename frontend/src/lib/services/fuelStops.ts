@@ -1,10 +1,10 @@
-import type { LatLng } from '$lib/services/routing';
-import type { RouteStopEntry } from '$lib/types/routeStop';
-import type { FuelStation } from '$lib/services/external/overpass';
-import { fetchFuelStations, fetchOsrmTable } from '$lib/services/gateway';
-import { haversineM } from '$lib/utils/mapHelpers';
-import { snapToPath } from '$lib/utils/geoMath';
-import { BRAND_PRIORITY, type FuelBrandKey } from '$lib/services/fuelBrands';
+import type { LatLng } from '#lib/services/routing.js';
+import type { RouteStopEntry } from '#lib/types/routeStop.js';
+import type { FuelStation } from '#lib/services/external/overpass.js';
+import { fetchFuelStations, fetchOsrmTable } from '#lib/services/gateway.js';
+import { haversineM } from '#lib/utils/mapHelpers.js';
+import { snapToPath } from '#lib/utils/geoMath.js';
+import { BRAND_PRIORITY, type FuelBrandKey } from '#lib/services/fuelBrands.js';
 
 export interface FuelStopSuggestion {
 	stops: RouteStopEntry[];

@@ -1,9 +1,9 @@
 import * as maplibregl from 'maplibre-gl';
 import type { StyleSpecification, VectorSourceSpecification } from 'maplibre-gl';
 import type { LatLng } from './routing';
-import { idbGet, idbPut } from '$lib/utils/idb';
-import { corridorTiles } from '$lib/utils/tileMath';
-import { haversineM } from '$lib/utils/mapHelpers';
+import { idbGet, idbPut } from '#lib/utils/idb.js';
+import { corridorTiles } from '#lib/utils/tileMath.js';
+import { haversineM } from '#lib/utils/mapHelpers.js';
 
 const STYLE_URL = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
 const PROTOCOL = 'offline';
@@ -56,22 +56,30 @@ export async function prepareMapStyle(): Promise<StyleSpecification | string> {
 			if (source.type !== 'vector' || !source.url) continue;
 			const tileJsonResponse = await fetch(source.url);
 			if (!tileJsonResponse.ok) throw new Error(`TileJSON ${tileJsonResponse.status}`);
-			const tileJson: { tiles: string[]; minzoom?: number; maxzoom?: number } = await tileJsonResponse.json();
+			const tileJson: { tiles: string[]; minzoom?: number; maxzoom?: number } =
+				await tileJsonResponse.json();
 			const template = tileJson.tiles[0];
 			const vectorSource = source as VectorSourceSpecification;
 			delete vectorSource.url;
 			vectorSource.tiles = [toProtocolUrl(template)];
 			vectorSource.minzoom = tileJson.minzoom ?? 0;
 			vectorSource.maxzoom = tileJson.maxzoom ?? 14;
-			idbPut('cache', TEMPLATE_CACHE_KEY, template).catch((error) => console.error('Falha ao cachear template:', error));
+			idbPut('cache', TEMPLATE_CACHE_KEY, template).catch((error) =>
+				console.error('Falha ao cachear template:', error)
+			);
 		}
 		if (style.glyphs) style.glyphs = toProtocolUrl(style.glyphs);
-		if (style.sprite && typeof style.sprite === 'string') style.sprite = toProtocolUrl(style.sprite);
+		if (style.sprite && typeof style.sprite === 'string')
+			style.sprite = toProtocolUrl(style.sprite);
 
-		idbPut('cache', STYLE_CACHE_KEY, style).catch((error) => console.error('Falha ao cachear style:', error));
+		idbPut('cache', STYLE_CACHE_KEY, style).catch((error) =>
+			console.error('Falha ao cachear style:', error)
+		);
 		return style;
 	} catch {
-		const cached = await idbGet<StyleSpecification>('cache', STYLE_CACHE_KEY).catch(() => undefined);
+		const cached = await idbGet<StyleSpecification>('cache', STYLE_CACHE_KEY).catch(
+			() => undefined
+		);
 		return cached ?? STYLE_URL;
 	}
 }

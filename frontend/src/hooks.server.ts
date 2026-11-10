@@ -1,4 +1,4 @@
-import type { Handle } from '@sveltejs/kit';
+import type { Handle } from '@sveltejs/kit/hooks';
 
 const ALLOWED_ORIGINS = new Set(['http://localhost', 'https://localhost', 'capacitor://localhost']);
 

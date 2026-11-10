@@ -4,7 +4,7 @@ import {
 	brandLabel,
 	sellsLiquidFuel,
 	type FuelBrandKey
-} from '$lib/services/fuelBrands';
+} from '#lib/services/fuelBrands.js';
 
 export interface FuelStation {
 	name: string;
