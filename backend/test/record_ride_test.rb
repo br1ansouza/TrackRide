@@ -68,4 +68,49 @@ class RecordRideTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_equal @attributes[:client_id], Route.find(id).client_id
   end
+  test "completion failure rolls back the trip and public completion counter together" do
+    source = @user.routes.create!(name: "Community ride", origin_name: "Start", destination_name: "End",
+      origin_coords: "POINT(-48.5 -27.5)", destination_coords: "POINT(-48.6 -27.6)", public: true)
+    abort_completion = proc { throw :abort }
+    RouteCompletion.set_callback(:create, :before, abort_completion)
+    assert_raises(ActiveRecord::RecordNotSaved) do
+      RecordRide.call(user: @user,
+        attributes: @attributes.except(:path_coords).merge(origin_coords: "POINT(-48.5 -27.5)", destination_coords: "POINT(-48.6 -27.6)"),
+        completed_route_id: source.id)
+    end
+    assert_equal 0, @user.routes.where(client_id: @attributes[:client_id]).count
+    assert_equal 0, source.reload.times_completed
+    assert_equal 0, source.route_completions.count
+  ensure
+    RouteCompletion.skip_callback(:create, :before, abort_completion)
+  end
+end
+
+class RecordRideConcurrencyTest < ActiveSupport::TestCase
+  self.use_transactional_tests = false
+
+  test "simultaneous requests with the same UUID create one trip" do
+    user = User.create!(name: "Concurrent rider", email: "concurrent-#{SecureRandom.hex(6)}@example.test", password: "test-password")
+    attributes = { name: "Concurrent ride", origin_name: "A", destination_name: "B",
+      origin_coords: "POINT(-48.5 -27.5)", destination_coords: "POINT(-48.6 -27.6)", client_id: SecureRandom.uuid }
+    ready = Queue.new
+    start = Queue.new
+    workers = 2.times.map do
+      Thread.new do
+        ActiveRecord::Base.connection_pool.with_connection do
+          rider = User.find(user.id)
+          ready << true
+          start.pop
+          RecordRide.call(user: rider, attributes: attributes).id
+        end
+      end
+    end
+    2.times { ready.pop }
+    2.times { start << true }
+    assert_equal 1, workers.map(&:value).uniq.length
+    assert_equal 1, user.routes.count
+  ensure
+    workers&.each(&:join)
+    user&.destroy!
+  end
 end

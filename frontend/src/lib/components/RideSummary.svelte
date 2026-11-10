@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { CreateRouteParams } from '$lib/services/routes';
+	import type { CreateRouteParams } from '#lib/services/routes.js';
 	let {
 		ride,
 		status,

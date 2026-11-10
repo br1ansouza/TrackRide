@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { MapPin } from 'lucide-svelte';
-	import type { LatLng } from '$lib/services/routing';
-	import { getCurrentPosition, getLastPosition } from '$lib/services/geolocation';
-	import { searchPlaces, reverseDistrict } from '$lib/services/gateway';
-	import { toaster } from '$lib/stores/toaster';
+	import type { LatLng } from '#lib/services/routing.js';
+	import { getCurrentPosition, getLastPosition } from '#lib/services/geolocation.js';
+	import { searchPlaces, reverseDistrict } from '#lib/services/gateway.js';
+	import { toaster } from '#lib/stores/toaster.js';
 
 	export type SearchResult = {
 		label: string;
@@ -130,7 +130,9 @@
 			oninput={handleInput}
 			onfocus={handleFocus}
 			onblur={handleBlur}
-			class="input w-full rounded-md bg-surface-800 text-white placeholder-surface-400 {isMyLocation ? 'pl-8' : 'pl-3'} {large ? 'py-3 pr-3 text-base' : 'py-2 pr-3 text-sm'}"
+			class="input w-full rounded-md bg-surface-800 text-white placeholder-surface-400 {isMyLocation
+				? 'pl-8'
+				: 'pl-3'} {large ? 'py-3 pr-3 text-base' : 'py-2 pr-3 text-sm'}"
 		/>
 	</div>
 	{#if open}
@@ -139,7 +141,10 @@
 				<li>
 					<button
 						type="button"
-						onmousedown={(e) => { e.preventDefault(); selectMyLocation(); }}
+						onmousedown={(e) => {
+							e.preventDefault();
+							selectMyLocation();
+						}}
 						class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-white hover:bg-surface-700"
 					>
 						<MapPin size={16} />
@@ -155,7 +160,10 @@
 				<li>
 					<button
 						type="button"
-						onmousedown={(e) => { e.preventDefault(); selectResult(result); }}
+						onmousedown={(e) => {
+							e.preventDefault();
+							selectResult(result);
+						}}
 						class="w-full px-3 py-2 text-left text-sm text-white hover:bg-surface-700"
 					>
 						{result.label}

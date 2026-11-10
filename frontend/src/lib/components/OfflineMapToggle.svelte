@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { HardDriveDownload } from 'lucide-svelte';
-	import { useSettings } from '$lib/stores/settings.svelte';
-	import { vibrate } from '$lib/utils/haptics';
+	import { useSettings } from '#lib/stores/settings.svelte.js';
+	import { vibrate } from '#lib/utils/haptics.js';
 
 	const settings = useSettings();
 
@@ -32,10 +32,16 @@
 			</div>
 		</div>
 		<div
-			class="h-6 w-11 shrink-0 rounded-full p-0.5 transition-colors {settings.autoOfflineMaps ? '' : 'bg-surface-600'}"
+			class="h-6 w-11 shrink-0 rounded-full p-0.5 transition-colors {settings.autoOfflineMaps
+				? ''
+				: 'bg-surface-600'}"
 			style={settings.autoOfflineMaps ? 'background-color: var(--color-ride-safe-500);' : ''}
 		>
-			<div class="h-5 w-5 rounded-full bg-white shadow transition-transform {settings.autoOfflineMaps ? 'translate-x-5' : ''}"></div>
+			<div
+				class="h-5 w-5 rounded-full bg-white shadow transition-transform {settings.autoOfflineMaps
+					? 'translate-x-5'
+					: ''}"
+			></div>
 		</div>
 	</button>
 </div>

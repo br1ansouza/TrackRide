@@ -1,7 +1,12 @@
-import type { LatLng } from '$lib/services/routing';
-import { calculateBearing, haversineM } from '$lib/utils/mapHelpers';
-import { snapToPath } from '$lib/utils/geoMath';
-import { getLastPosition, startBackgroundWatch, stopBackgroundWatch, type GeoFix } from '$lib/services/geolocation';
+import type { LatLng } from '#lib/services/routing.js';
+import { calculateBearing, haversineM } from '#lib/utils/mapHelpers.js';
+import { snapToPath } from '#lib/utils/geoMath.js';
+import {
+	getLastPosition,
+	startBackgroundWatch,
+	stopBackgroundWatch,
+	type GeoFix
+} from '#lib/services/geolocation.js';
 
 const OFF_ROUTE_BASE_M = 40;
 const OFF_ROUTE_MAX_M = 90;
@@ -114,7 +119,8 @@ export function useTracking() {
 		offRouteFixes++;
 		const traveledM = haversineM(offRouteAnchor, fix.coords);
 		const confirmed =
-			offRouteFixes >= 2 && (traveledM >= OFF_ROUTE_CONFIRM_TRAVEL_M || now - offRouteSince >= OFF_ROUTE_CONFIRM_MS);
+			offRouteFixes >= 2 &&
+			(traveledM >= OFF_ROUTE_CONFIRM_TRAVEL_M || now - offRouteSince >= OFF_ROUTE_CONFIRM_MS);
 		if (confirmed) fireReroute(fix, now);
 	}
 
@@ -213,7 +219,12 @@ export function useTracking() {
 		}, 1000);
 		speedInterval = setInterval(tickSpeed, SPEED_TICK_MS);
 
-		startBackgroundWatch({ onPosition: addPoint, onError() { gpsLost = true; } });
+		startBackgroundWatch({
+			onPosition: addPoint,
+			onError() {
+				gpsLost = true;
+			}
+		});
 	}
 
 	function updatePlannedRoute(route: LatLng[]) {
@@ -262,17 +273,39 @@ export function useTracking() {
 	let speedKmh = $derived(speedMs * 3.6);
 
 	return {
-		get active() { return active; },
-		get gpsLost() { return gpsLost; },
-		get trackedPath() { return trackedPath; },
-		get displayPath() { return displayPath; },
-		get snappedPosition() { return snappedPosition; },
-		get currentPosition() { return currentPosition; },
-		get plannedRoute() { return plannedRoute; },
-		get inApproach() { return inApproach; },
-		get distanceKm() { return distanceKm; },
-		get elapsedFormatted() { return elapsedFormatted; },
-		get speedKmh() { return speedKmh; },
+		get active() {
+			return active;
+		},
+		get gpsLost() {
+			return gpsLost;
+		},
+		get trackedPath() {
+			return trackedPath;
+		},
+		get displayPath() {
+			return displayPath;
+		},
+		get snappedPosition() {
+			return snappedPosition;
+		},
+		get currentPosition() {
+			return currentPosition;
+		},
+		get plannedRoute() {
+			return plannedRoute;
+		},
+		get inApproach() {
+			return inApproach;
+		},
+		get distanceKm() {
+			return distanceKm;
+		},
+		get elapsedFormatted() {
+			return elapsedFormatted;
+		},
+		get speedKmh() {
+			return speedKmh;
+		},
 		start,
 		stop,
 		updatePlannedRoute

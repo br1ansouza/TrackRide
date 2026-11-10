@@ -1,11 +1,12 @@
-import { parseLatLon } from '$lib/server/coords';
-import { reverseUrl, pickDistrict } from '$lib/services/external/photon';
-import { EXTERNAL_USER_AGENT } from '$lib/services/external/userAgent';
+import { parseLatLon } from '#lib/server/coords.js';
+import { reverseUrl, pickDistrict } from '#lib/services/external/photon.js';
+import { EXTERNAL_USER_AGENT } from '#lib/services/external/userAgent.js';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ url }) => {
 	const coords = parseLatLon(url);
-	if (!coords) return new Response(JSON.stringify({ error: 'lat and lon required' }), { status: 400 });
+	if (!coords)
+		return new Response(JSON.stringify({ error: 'lat and lon required' }), { status: 400 });
 
 	try {
 		const response = await fetch(reverseUrl(coords.lat, coords.lon), {

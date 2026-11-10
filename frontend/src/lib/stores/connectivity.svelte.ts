@@ -1,4 +1,4 @@
-import { wakeUpApi } from '$lib/services/api';
+import { wakeUpApi } from '#lib/services/api.js';
 import { apiStatus } from './apiStatus.svelte';
 let online = $state(true);
 let bound = false;

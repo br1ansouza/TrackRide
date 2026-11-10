@@ -67,3 +67,6 @@ backend/.kamal/secrets
 *.sqlite3-*
 *.bak
 *.backup
+
+frontend/test-results/
+frontend/playwright-report/

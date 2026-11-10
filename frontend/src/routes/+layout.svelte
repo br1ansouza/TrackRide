@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { Toast } from '@skeletonlabs/skeleton-svelte';
-	import { toaster } from '$lib/stores/toaster';
-	import { hideSystemBars } from '$lib/utils/systemBars';
-	import ConnectionStatus from '$lib/components/ConnectionStatus.svelte';
-	import favicon from '$lib/assets/favicon.png';
+	import { toaster } from '#lib/stores/toaster.js';
+	import { hideSystemBars } from '#lib/utils/systemBars.js';
+	import ConnectionStatus from '#lib/components/ConnectionStatus.svelte';
+	import favicon from '#lib/assets/favicon.png';
 	import '../app.css';
 
 	let { children } = $props();
@@ -23,7 +23,16 @@
 
 <Toast.Group {toaster}>
 	{#snippet children(toast)}
-		<Toast {toast} class="preset-filled-{toast.type === 'error' ? 'error' : toast.type === 'warning' ? 'warning' : toast.type === 'success' ? 'primary' : 'surface'}-500">
+		<Toast
+			{toast}
+			class="preset-filled-{toast.type === 'error'
+				? 'error'
+				: toast.type === 'warning'
+					? 'warning'
+					: toast.type === 'success'
+						? 'primary'
+						: 'surface'}-500"
+		>
 			<div class="flex flex-1 flex-col">
 				<Toast.Title class="font-bold">{toast.title}</Toast.Title>
 				{#if toast.description}

@@ -1,8 +1,8 @@
 import { createRoute, type CreateRouteParams } from './routes';
-import { idbPut, idbDelete, idbGetAll } from '$lib/utils/idb';
+import { idbPut, idbDelete, idbGetAll } from '#lib/utils/idb.js';
 import { getCachedUser } from './auth';
-import { getToken, isTemporaryError } from './api';
-import { syncStatus } from '$lib/stores/syncStatus.svelte';
+import { getToken, isTemporaryError, ApiError } from './api';
+import { syncStatus } from '#lib/stores/syncStatus.svelte.js';
 
 export interface PendingRide {
 	id: string;
@@ -31,7 +31,7 @@ export async function enqueueRide(
 		queuedAt: Date.now()
 	};
 	await idbPut('sync-queue', id, entry);
-	await refreshPendingCount();
+	await refreshPendingCount().catch(() => {});
 	return id;
 }
 
@@ -83,7 +83,7 @@ async function flush(): Promise<number> {
 				: 'Há um percurso que ainda não pôde ser enviado. Ele continua salvo no aparelho.';
 			// Keep every unacknowledged ride, including validation/auth/server failures.
 			// The UUID makes retrying a lost success response safe.
-			break;
+			if (isTemporaryError(error) || (error instanceof ApiError && error.status === 401)) break;
 		}
 	}
 	await refreshPendingCount().catch(() => {});

@@ -1,7 +1,7 @@
 <script lang="ts">
-	import SearchInput from '$lib/components/SearchInput.svelte';
-	import type { AuthUser } from '$lib/services/auth';
-	import type { LatLng } from '$lib/services/routing';
+	import SearchInput from '#lib/components/SearchInput.svelte';
+	import type { AuthUser } from '#lib/services/auth.js';
+	import type { LatLng } from '#lib/services/routing.js';
 
 	interface Props {
 		user: AuthUser;
@@ -15,7 +15,17 @@
 		onViewAllRoutes: () => void;
 	}
 
-	let { user, profileOpen, onOriginSelect, onDestSelect, onSearch, onProfileToggle, onLogout, onUserUpdate, onViewAllRoutes }: Props = $props();
+	let {
+		user,
+		profileOpen,
+		onOriginSelect,
+		onDestSelect,
+		onSearch,
+		onProfileToggle,
+		onLogout,
+		onUserUpdate,
+		onViewAllRoutes
+	}: Props = $props();
 </script>
 
 <header class="flex items-center gap-4 bg-surface-900 p-4">
@@ -23,7 +33,9 @@
 	<div class="flex flex-1 items-center gap-2">
 		<SearchInput placeholder="Origem" showMyLocation onselect={onOriginSelect} />
 		<SearchInput placeholder="Destino" onselect={onDestSelect} />
-		<button onclick={onSearch} class="btn preset-filled-primary-500 rounded-md px-4 py-2 text-sm">Buscar rota</button>
+		<button onclick={onSearch} class="btn preset-filled-primary-500 rounded-md px-4 py-2 text-sm"
+			>Buscar rota</button
+		>
 	</div>
 	<div class="relative">
 		<button
@@ -34,10 +46,16 @@
 			{user.name.charAt(0).toUpperCase()}
 		</button>
 		{#if profileOpen}
-			<div class="absolute right-0 top-10 z-[1000] w-72 overflow-y-auto rounded-xl border border-surface-700 bg-surface-900 p-4 shadow-xl" style="max-height: 80vh;">
+			<div
+				class="absolute right-0 top-10 z-[1000] w-72 overflow-y-auto rounded-xl border border-surface-700 bg-surface-900 p-4 shadow-xl"
+				style="max-height: 80vh;"
+			>
 				<div class="flex flex-col gap-3">
 					<div class="flex items-center gap-3">
-						<div class="flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold text-white" style="background-color: var(--color-ride-alert-500);">
+						<div
+							class="flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold text-white"
+							style="background-color: var(--color-ride-alert-500);"
+						>
 							{user.name.charAt(0).toUpperCase()}
 						</div>
 						<div>
@@ -46,9 +64,9 @@
 						</div>
 					</div>
 					<hr class="border-surface-700" />
-					{#await import('$lib/components/ProfilePanel.svelte') then { default: ProfilePanel }}
-<ProfilePanel {user} {onLogout} {onUserUpdate} onViewAllRoutes={onViewAllRoutes} compact />
-{/await}
+					{#await import('#lib/components/ProfilePanel.svelte') then { default: ProfilePanel }}
+						<ProfilePanel {user} {onLogout} {onUserUpdate} {onViewAllRoutes} compact />
+					{/await}
 				</div>
 			</div>
 		{/if}

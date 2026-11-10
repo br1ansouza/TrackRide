@@ -6,10 +6,11 @@ import {
 	clearToken,
 	getCachedUser,
 	clearCachedUser,
+	claimLegacyPendingRides,
 	deleteAccount as deleteAccountRequest
-} from '$lib/services/auth';
-import { clearOfflineUserData } from '$lib/services/offlinePack';
-import { isTemporaryError, getToken } from '$lib/services/api';
+} from '#lib/services/auth.js';
+import { clearOfflineUserData } from '#lib/services/offlinePack.js';
+import { isTemporaryError, getToken } from '#lib/services/api.js';
 
 let user = $state<AuthUser | null>(null);
 let loading = $state(true);
@@ -39,7 +40,7 @@ async function initialize() {
 				initializedToken = token;
 			}
 		} catch (error) {
-			if (!isTemporaryError(error)) user = null;
+			if (getToken() === token && !isTemporaryError(error)) user = null;
 		} finally {
 			loading = false;
 			initialization = null;
@@ -75,10 +76,11 @@ export function useAuth() {
 			user = null;
 			goto('/login?conta_excluida=1');
 		},
-		logout() {
+		async logout() {
+			await claimLegacyPendingRides();
 			clearToken();
 			clearCachedUser();
-			void clearOfflineUserData(true);
+			await clearOfflineUserData(true);
 			user = null;
 			goto('/login');
 		}

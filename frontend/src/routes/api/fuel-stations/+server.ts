@@ -1,13 +1,13 @@
-import { parseLatLon } from '$lib/server/coords';
+import { parseLatLon } from '#lib/server/coords.js';
 import {
 	fuelBounds,
 	fuelPathBounds,
 	fuelQuery,
 	shapeStations,
 	queryOverpass
-} from '$lib/services/external/overpass';
-import { queryNominatimFuel } from '$lib/services/external/nominatimFuel';
-import { TtlCache } from '$lib/utils/ttlCache';
+} from '#lib/services/external/overpass.js';
+import { queryNominatimFuel } from '#lib/services/external/nominatimFuel.js';
+import { TtlCache } from '#lib/utils/ttlCache.js';
 import type { RequestHandler } from './$types';
 
 const DEFAULT_RADIUS_M = 10000;

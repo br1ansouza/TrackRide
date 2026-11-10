@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { latestRelease } from '$lib/config/release';
-	import '$lib/styles/login-release.css';
+	import { latestRelease } from '#lib/config/release.js';
+	import '#lib/styles/login-release.css';
 
 	let open = $state(false);
 	const tooltipId = 'release-tooltip';

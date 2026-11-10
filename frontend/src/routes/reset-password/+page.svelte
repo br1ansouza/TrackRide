@@ -2,10 +2,10 @@
 	import { goto } from '$app/navigation';
 	import { KeyRound } from 'lucide-svelte';
 	import { fly } from 'svelte/transition';
-	import { transitions } from '$lib/utils/transitions';
-	import { resetPassword } from '$lib/services/auth';
-	import { toaster } from '$lib/stores/toaster';
-	import backgroundImg from '$lib/assets/background-trackride.webp';
+	import { transitions } from '#lib/utils/transitions.js';
+	import { resetPassword } from '#lib/services/auth.js';
+	import { toaster } from '#lib/stores/toaster.js';
+	import backgroundImg from '#lib/assets/background-trackride.webp';
 
 	let { data }: { data: { token: string } } = $props();
 	const token = $derived(data.token);
@@ -37,7 +37,10 @@
 </script>
 
 <div class="relative flex h-dvh items-center justify-center overflow-hidden bg-surface-900 p-6">
-	<div class="absolute inset-0 scale-110 bg-cover bg-center opacity-5" style="background-image: url({backgroundImg});"></div>
+	<div
+		class="absolute inset-0 scale-110 bg-cover bg-center opacity-5"
+		style="background-image: url({backgroundImg});"
+	></div>
 	<div class="relative flex w-full max-w-sm flex-col gap-6" in:fly={transitions.panel}>
 		<div class="flex flex-col items-center gap-2">
 			<h1 class="text-2xl font-bold text-white">Nova senha</h1>
@@ -46,7 +49,9 @@
 
 		{#if !token && !done}
 			<div class="flex flex-col items-center gap-3 rounded-lg bg-surface-800 p-6">
-				<p class="text-center text-sm text-surface-300">Link inválido. Solicite um novo link de recuperação.</p>
+				<p class="text-center text-sm text-surface-300">
+					Link inválido. Solicite um novo link de recuperação.
+				</p>
 			</div>
 		{:else}
 			<form onsubmit={handleSubmit} class="flex flex-col gap-4">
@@ -86,7 +91,9 @@
 		{/if}
 
 		<p class="text-center text-sm text-surface-400">
-			<a href="/login" class="font-medium" style="color: var(--color-ride-route-300);">Voltar ao login</a>
+			<a href="/login" class="font-medium" style="color: var(--color-ride-route-300);"
+				>Voltar ao login</a
+			>
 		</p>
 	</div>
 </div>

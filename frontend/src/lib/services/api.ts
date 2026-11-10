@@ -1,5 +1,5 @@
-import { apiStatus } from '$lib/stores/apiStatus.svelte';
-import { configuredApiUrl, isStandaloneBuild, standaloneApiHost } from '$lib/utils/platform';
+import { apiStatus } from '#lib/stores/apiStatus.svelte.js';
+import { configuredApiUrl, isStandaloneBuild, standaloneApiHost } from '#lib/utils/platform.js';
 
 const TOKEN_KEY = 'trackride:token';
 
@@ -50,6 +50,10 @@ export function wakeUpApi(): Promise<boolean> {
 					cache: 'no-store',
 					signal: AbortSignal.timeout(Math.min(10000, deadline - Date.now()))
 				});
+				if (isOffline()) {
+					apiStatus.state = 'offline';
+					return false;
+				}
 				if (response.ok) {
 					apiStatus.state = 'ready';
 					return true;
@@ -133,6 +137,7 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
 	};
 
 	const response = await fetchWakingApi(`${API_URL}${path}`, { ...options, headers });
+	if (token && token !== getToken()) throw new ApiError('A sessão mudou. Entre novamente.', 401);
 	if (response.status === 204) return undefined as T;
 
 	if (response.status === 401 && token) {
@@ -140,7 +145,16 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
 		throw new ApiError('Sessão expirada. Faça login novamente.', 401);
 	}
 
-	const data = await response.json().catch(() => ({}));
+	let data;
+	try {
+		data = await response.json();
+	} catch {
+		throw new ApiError(
+			'Não foi possível confirmar a resposta do servidor. Tente novamente em instantes.',
+			response.status,
+			true
+		);
+	}
 	if (!response.ok) {
 		throw new ApiError(
 			data.error ?? data.errors?.join(', ') ?? 'O servidor não conseguiu concluir a solicitação.',

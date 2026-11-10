@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { apiStatus } from '$lib/stores/apiStatus.svelte';
-	import { useConnectivity } from '$lib/stores/connectivity.svelte';
+	import { apiStatus } from '#lib/stores/apiStatus.svelte.js';
+	import { useConnectivity } from '#lib/stores/connectivity.svelte.js';
 	const connectivity = useConnectivity();
 </script>
 

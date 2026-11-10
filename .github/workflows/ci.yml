@@ -95,6 +95,12 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Install browser for offline trip regressions
+        run: npx playwright install chromium --with-deps
+
+      - name: Test cold start and offline trips in browser
+        run: npm run test:e2e
+
   android:
     name: Android debug
     runs-on: ubuntu-latest

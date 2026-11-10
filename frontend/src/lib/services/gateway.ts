@@ -1,6 +1,6 @@
-import { isStandaloneBuild, proxyBaseUrl } from '$lib/utils/platform';
-import { fetchWithRetry } from '$lib/utils/fetchRetry';
-import { TtlCache } from '$lib/utils/ttlCache';
+import { isStandaloneBuild, proxyBaseUrl } from '#lib/utils/platform.js';
+import { fetchWithRetry } from '#lib/utils/fetchRetry.js';
+import { TtlCache } from '#lib/utils/ttlCache.js';
 import {
 	searchUrl,
 	reverseUrl,

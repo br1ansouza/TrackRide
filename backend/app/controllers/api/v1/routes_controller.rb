@@ -6,6 +6,7 @@ module Api
 
       def index
         routes = current_user.routes.includes(:route_stops).recent
+        routes = routes.select(Route.column_names - [ "path_coords" ]) if params[:summary] == "1"
         since = parse_since_date(params[:since])
         routes = routes.where("created_at >= ?", since) if since
         routes = routes.limit(page_limit(20)).offset([ params[:offset].to_i, 0 ].max)
@@ -22,6 +23,7 @@ module Api
         radius = [ (params[:radius] || 80).to_i, 200 ].min * 1000
 
         routes = Route.publicly_visible
+          .select(Route.column_names - [ "path_coords" ])
           .includes(:user, :route_stops, :route_likes, :route_completions)
           .where.not(user_id: current_user.id)
           .where("ST_DWithin(origin_coords, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography, ?)", lon, lat, radius)

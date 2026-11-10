@@ -32,7 +32,8 @@ novo preserva pendências quando um backend antigo não confirma o UUID.
 
 ## Verificações
 
-- `node scripts/connection-sync.test.mjs` (a partir da raiz).
+- `node scripts/connection-sync.test.mjs` (14 cenários de rede, fila, sessão e GPS).
+- `cd frontend && npx playwright install chromium && npm run test:e2e` (inicialização, viagem offline, reabertura e falha de armazenamento).
 - `cd frontend && npm run check && npm run build && npm run build:standalone`.
 - `cd backend && RAILS_ENV=test bin/rails db:prepare` e
   `RAILS_ENV=test bin/rails test test/record_ride_test.rb` com PostgreSQL/PostGIS de teste.
@@ -42,3 +43,9 @@ novo preserva pendências quando um backend antigo não confirma o UUID.
 O cache local do usuário permite abrir o mapa enquanto a sessão é revalidada.
 O histórico usa páginas de 20 resultados e omite geometrias nas listagens;
 mapa e painéis são carregados sob demanda. O fundo foi comprimido para WebP.
+
+A restauração aguarda o mapa estar pronto. Uma rota sem previsão de clima continua
+disponível para navegação, sem atribuir uma nota de segurança fictícia. No navegador,
+o GPS usa a API web; no Android, o watcher nativo é removido mesmo se sua inicialização
+terminar depois de o usuário encerrar a viagem. Os watchers do mapa e da viagem
+são independentes.

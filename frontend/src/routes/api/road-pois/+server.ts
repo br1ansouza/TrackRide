@@ -1,5 +1,5 @@
-import { roadPoiQuery, shapeRoadPois, queryOverpass } from '$lib/services/external/overpass';
-import { TtlCache } from '$lib/utils/ttlCache';
+import { roadPoiQuery, shapeRoadPois, queryOverpass } from '#lib/services/external/overpass.js';
+import { TtlCache } from '#lib/utils/ttlCache.js';
 import type { RequestHandler } from './$types';
 
 const DEFAULT_RADIUS_M = 25;
@@ -24,7 +24,12 @@ function parsePath(url: URL): number[] | null {
 		pairs.length >= 2 &&
 		pairs.every(
 			([lat, lon]) =>
-				Number.isFinite(lat) && Number.isFinite(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180
+				Number.isFinite(lat) &&
+				Number.isFinite(lon) &&
+				lat >= -90 &&
+				lat <= 90 &&
+				lon >= -180 &&
+				lon <= 180
 		);
 	return valid ? pairs.flat() : null;
 }
@@ -32,7 +37,10 @@ function parsePath(url: URL): number[] | null {
 export const GET: RequestHandler = async ({ url }) => {
 	const path = parsePath(url);
 	if (!path) {
-		return new Response(JSON.stringify([]), { status: 400, headers: { 'Content-Type': 'application/json' } });
+		return new Response(JSON.stringify([]), {
+			status: 400,
+			headers: { 'Content-Type': 'application/json' }
+		});
 	}
 
 	const around = `around:${parseRadius(url)},${path.join(',')}`;

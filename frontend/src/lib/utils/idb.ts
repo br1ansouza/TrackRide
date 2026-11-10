@@ -18,7 +18,10 @@ function openDb(): Promise<IDBDatabase> {
 				}
 			};
 			request.onsuccess = () => resolve(request.result);
-			request.onerror = () => reject(request.error);
+			request.onerror = () => {
+				dbPromise = null;
+				reject(request.error);
+			};
 		});
 	}
 	return dbPromise;
@@ -38,12 +41,12 @@ export async function idbGet<T>(store: StoreName, key: string): Promise<T | unde
 
 export async function idbPut<T>(store: StoreName, key: string, value: T): Promise<void> {
 	const db = await openDb();
-	await committedWrite(db, store, objectStore => objectStore.put(value, key));
+	await committedWrite(db, store, (objectStore) => objectStore.put(value, key));
 }
 
 export async function idbDelete(store: StoreName, key: string): Promise<void> {
 	const db = await openDb();
-	await committedWrite(db, store, objectStore => objectStore.delete(key));
+	await committedWrite(db, store, (objectStore) => objectStore.delete(key));
 }
 
 export async function idbGetAll<T>(store: StoreName): Promise<T[]> {
@@ -53,15 +56,20 @@ export async function idbGetAll<T>(store: StoreName): Promise<T[]> {
 
 export async function idbClear(store: StoreName): Promise<void> {
 	const db = await openDb();
-	await committedWrite(db, store, objectStore => objectStore.clear());
+	await committedWrite(db, store, (objectStore) => objectStore.clear());
 }
 
-function committedWrite(db: IDBDatabase, store: StoreName, write: (store: IDBObjectStore) => void): Promise<void> {
- return new Promise((resolve, reject) => {
-  const transaction = db.transaction(store, 'readwrite');
-  transaction.oncomplete = () => resolve();
-  transaction.onabort = () => reject(transaction.error ?? new Error('Não foi possível salvar no aparelho.'));
-  transaction.onerror = () => reject(transaction.error);
-  write(transaction.objectStore(store));
- });
+function committedWrite(
+	db: IDBDatabase,
+	store: StoreName,
+	write: (store: IDBObjectStore) => void
+): Promise<void> {
+	return new Promise((resolve, reject) => {
+		const transaction = db.transaction(store, 'readwrite');
+		transaction.oncomplete = () => resolve();
+		transaction.onabort = () =>
+			reject(transaction.error ?? new Error('Não foi possível salvar no aparelho.'));
+		transaction.onerror = () => reject(transaction.error);
+		write(transaction.objectStore(store));
+	});
 }
