@@ -1,6 +1,6 @@
 import { CloudRain, Wind, Eye, Moon, ThermometerSnowflake, ThermometerSun } from 'lucide-svelte';
-import type { AlertType } from '$lib/services/alerts';
-import { cssVar } from '$lib/utils/color';
+import type { AlertType } from '#lib/services/alerts.js';
+import { cssVar } from '#lib/utils/color.js';
 
 export const ALERT_ICONS: Record<AlertType, typeof CloudRain> = {
 	rain: CloudRain,

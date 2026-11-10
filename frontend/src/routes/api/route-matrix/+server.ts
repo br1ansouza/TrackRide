@@ -1,6 +1,6 @@
-import { fetchWithRetry } from '$lib/utils/fetchRetry';
-import { tableUrl } from '$lib/services/external/osrm';
-import { EXTERNAL_USER_AGENT } from '$lib/services/external/userAgent';
+import { fetchWithRetry } from '#lib/utils/fetchRetry.js';
+import { tableUrl } from '#lib/services/external/osrm.js';
+import { EXTERNAL_USER_AGENT } from '#lib/services/external/userAgent.js';
 import type { RequestHandler } from './$types';
 
 const MAX_COORDINATES = 14;

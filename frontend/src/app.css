@@ -3,5 +3,5 @@
 @import '@skeletonlabs/skeleton';
 @import '@skeletonlabs/skeleton-svelte';
 @import '@skeletonlabs/skeleton/themes/cerberus';
-@import '$lib/styles/tokens.css';
-@import '$lib/styles/map-markers.css';
+@import './lib/styles/tokens.css';
+@import './lib/styles/map-markers.css';

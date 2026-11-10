@@ -1,4 +1,4 @@
-import type { LatLng } from '$lib/services/routing';
+import type { LatLng } from '#lib/services/routing.js';
 
 const EARTH_R = 6371000;
 const RAD = Math.PI / 180;
@@ -15,7 +15,12 @@ export interface SnapResult {
 
 const RESCAN_THRESHOLD_M = 200;
 
-export function snapToPath(path: LatLng[], position: LatLng, fromIndex = 0, window = 80): SnapResult {
+export function snapToPath(
+	path: LatLng[],
+	position: LatLng,
+	fromIndex = 0,
+	window = 80
+): SnapResult {
 	if (path.length < 2) return { distanceM: Infinity, index: 0, point: position };
 
 	const lat0 = position[0];
@@ -30,7 +35,8 @@ export function snapToPath(path: LatLng[], position: LatLng, fromIndex = 0, wind
 			const dx = bx - ax;
 			const dy = by - ay;
 			const lengthSq = dx * dx + dy * dy;
-			const t = lengthSq === 0 ? 0 : Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lengthSq));
+			const t =
+				lengthSq === 0 ? 0 : Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lengthSq));
 			const distance = Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
 
 			if (distance < best.distanceM) {

@@ -1,6 +1,6 @@
 import { request } from './api';
-import type { RouteStopEntry, StopType } from '$lib/types/routeStop';
-import { idbGet, idbPut } from '$lib/utils/idb';
+import type { RouteStopEntry, StopType } from '#lib/types/routeStop.js';
+import { idbGet, idbPut } from '#lib/utils/idb.js';
 
 export interface SavedRouteStop {
 	id: number;
@@ -37,7 +37,9 @@ export async function fetchSavedRoutes(limit = 20, offset = 0): Promise<RoutesRe
 	try {
 		const data = await request<RoutesResponse>(`/routes?limit=${limit}&offset=${offset}`);
 		if (offset === 0) {
-			idbPut('cache', 'saved-routes', data).catch((error) => console.error('Falha ao cachear histórico:', error));
+			idbPut('cache', 'saved-routes', data).catch((error) =>
+				console.error('Falha ao cachear histórico:', error)
+			);
 		}
 		return data;
 	} catch (error) {
@@ -91,7 +93,10 @@ export async function deleteRoute(id: number): Promise<void> {
 	await request(`/routes/${id}`, { method: 'DELETE' });
 }
 
-export async function updateRoute(id: number, params: Partial<CreateRouteParams & { public: boolean }>): Promise<void> {
+export async function updateRoute(
+	id: number,
+	params: Partial<CreateRouteParams & { public: boolean }>
+): Promise<void> {
 	await request(`/routes/${id}`, { method: 'PATCH', body: JSON.stringify(params) });
 }
 
@@ -108,7 +113,11 @@ interface ExploreResponse {
 	total: number;
 }
 
-export async function fetchNearbyRoutes(lat: number, lon: number, radius = 80): Promise<ExploreResponse> {
+export async function fetchNearbyRoutes(
+	lat: number,
+	lon: number,
+	radius = 80
+): Promise<ExploreResponse> {
 	return request<ExploreResponse>(`/routes/explore?lat=${lat}&lon=${lon}&radius=${radius}`);
 }
 

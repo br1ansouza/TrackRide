@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { Navigation, X } from 'lucide-svelte';
-	import SearchInput from '$lib/components/SearchInput.svelte';
-	import type { LatLng } from '$lib/services/routing';
-	import { safeBottomNav } from '$lib/utils/safeArea';
+	import SearchInput from '#lib/components/SearchInput.svelte';
+	import type { LatLng } from '#lib/services/routing.js';
+	import { safeBottomNav } from '#lib/utils/safeArea.js';
 	import { fly } from 'svelte/transition';
-	import { transitions } from '$lib/utils/transitions';
+	import { transitions } from '#lib/utils/transitions.js';
 
 	interface Props {
 		canSearch: boolean;
@@ -18,7 +18,11 @@
 	let { canSearch, loading, onOriginSelect, onDestSelect, onSearch, onClose }: Props = $props();
 </script>
 
-<div class="absolute z-[900] flex flex-col gap-3 rounded-xl bg-surface-900/95 p-4 shadow-xl backdrop-blur-sm" style="bottom: {safeBottomNav}; left: calc(12px + env(safe-area-inset-left)); right: calc(12px + env(safe-area-inset-right));" transition:fly={transitions.popup}>
+<div
+	class="absolute z-[900] flex flex-col gap-3 rounded-xl bg-surface-900/95 p-4 shadow-xl backdrop-blur-sm"
+	style="bottom: {safeBottomNav}; left: calc(12px + env(safe-area-inset-left)); right: calc(12px + env(safe-area-inset-right));"
+	transition:fly={transitions.popup}
+>
 	<div class="flex items-center justify-between">
 		<span class="text-sm font-semibold text-white">Planejar rota</span>
 		<button type="button" onclick={onClose} class="text-surface-400">
@@ -26,18 +30,9 @@
 		</button>
 	</div>
 
-	<SearchInput
-		placeholder="De onde você sai?"
-		showMyLocation
-		onselect={onOriginSelect}
-		large
-	/>
+	<SearchInput placeholder="De onde você sai?" showMyLocation onselect={onOriginSelect} large />
 
-	<SearchInput
-		placeholder="Para onde vai?"
-		onselect={onDestSelect}
-		large
-	/>
+	<SearchInput placeholder="Para onde vai?" onselect={onDestSelect} large />
 
 	<button
 		onclick={onSearch}
