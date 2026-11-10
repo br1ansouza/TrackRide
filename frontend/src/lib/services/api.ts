@@ -1,3 +1,4 @@
+import { apiStatus } from '$lib/stores/apiStatus.svelte';
 import { configuredApiUrl, isStandaloneBuild, standaloneApiHost } from '$lib/utils/platform';
 
 const TOKEN_KEY = 'trackride:token';
@@ -12,56 +13,100 @@ export const API_ORIGIN = configuredApiUrl
 
 export const API_URL = `${API_ORIGIN}/api/v1`;
 
-const COLD_START_RETRY_DELAYS_MS = [1500, 3000, 6000, 10000, 15000, 20000];
-const UPSTREAM_DOWN_STATUSES = new Set([502, 503]);
-const AMBIGUOUS_TIMEOUT_STATUS = 504;
-const REPLAYABLE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
-const OFFLINE_MESSAGE = 'Sem conexão com a internet. Verifique sua rede e tente de novo.';
-const WAKING_UP_MESSAGE =
-	'O servidor hiberna quando fica sem uso e pode levar até um minuto para acordar. Tente de novo em instantes.';
+export class ApiError extends Error {
+	constructor(
+		message: string,
+		public status = 0,
+		public retryable = false
+	) {
+		super(message);
+		this.name = 'ApiError';
+	}
+}
+export const isTemporaryError = (error: unknown): boolean =>
+	error instanceof TypeError || (error instanceof ApiError && error.retryable);
 
-let wakeUpInFlight: Promise<void> | null = null;
+const OFFLINE_MESSAGE =
+	'Sem conexão com a internet. Seus percursos salvos no aparelho serão enviados quando a conexão voltar.';
+let wakeUpInFlight: Promise<boolean> | null = null;
+const isOffline = () => typeof navigator !== 'undefined' && !navigator.onLine;
 
-export function wakeUpApi(): Promise<void> {
-	if (typeof fetch === 'undefined') return Promise.resolve();
+// One shared readiness check. Never replay a write whose response may have been lost.
+export function wakeUpApi(): Promise<boolean> {
 	if (wakeUpInFlight) return wakeUpInFlight;
-
-	wakeUpInFlight = fetch(`${API_ORIGIN}/up`, { method: 'GET', mode: 'no-cors', cache: 'no-store' })
-		.then(() => undefined)
-		.catch(() => undefined)
-		.finally(() => {
-			wakeUpInFlight = null;
-		});
-
+	if (isOffline()) {
+		apiStatus.state = 'offline';
+		return Promise.resolve(false);
+	}
+	apiStatus.state = 'connecting';
+	const slow = setTimeout(() => {
+		if (apiStatus.state === 'connecting') apiStatus.state = 'waking';
+	}, 2500);
+	wakeUpInFlight = (async () => {
+		const deadline = Date.now() + 60000;
+		while (Date.now() < deadline && !isOffline()) {
+			try {
+				const response = await fetch(`${API_ORIGIN}/up`, {
+					cache: 'no-store',
+					signal: AbortSignal.timeout(Math.min(10000, deadline - Date.now()))
+				});
+				if (response.ok) {
+					apiStatus.state = 'ready';
+					return true;
+				}
+			} catch {
+				/* Retry only the read-only readiness probe. */
+			}
+			const remaining = deadline - Date.now();
+			if (remaining > 0)
+				await new Promise((resolve) => setTimeout(resolve, Math.min(2000, remaining)));
+		}
+		apiStatus.state = isOffline() ? 'offline' : 'unavailable';
+		return false;
+	})().finally(() => {
+		clearTimeout(slow);
+		wakeUpInFlight = null;
+	});
 	return wakeUpInFlight;
 }
 
-function isOffline(): boolean {
-	return typeof navigator !== 'undefined' && navigator.onLine === false;
-}
-
-function isRetriableStatus(status: number, method: string): boolean {
-	if (UPSTREAM_DOWN_STATUSES.has(status)) return true;
-	return status === AMBIGUOUS_TIMEOUT_STATUS && REPLAYABLE_METHODS.has(method);
-}
-
 async function fetchWakingApi(url: string, options: RequestInit): Promise<Response> {
-	const method = (options.method ?? 'GET').toUpperCase();
-
-	for (let attempt = 0; ; attempt++) {
-		try {
-			const response = await fetch(url, options);
-			if (!isRetriableStatus(response.status, method)) return response;
-		} catch {
-			if (isOffline()) throw new Error(OFFLINE_MESSAGE);
-		}
-
-		const delay = COLD_START_RETRY_DELAYS_MS[attempt];
-		if (delay === undefined) break;
-		await new Promise((resolve) => setTimeout(resolve, delay));
+	if (isOffline()) {
+		apiStatus.state = 'offline';
+		throw new ApiError(OFFLINE_MESSAGE, 0, true);
 	}
-
-	throw new Error(isOffline() ? OFFLINE_MESSAGE : WAKING_UP_MESSAGE);
+	if (apiStatus.state !== 'ready' && !(await wakeUpApi())) {
+		throw new ApiError(
+			isOffline()
+				? OFFLINE_MESSAGE
+				: 'O servidor ainda não respondeu. Tente novamente em instantes.',
+			0,
+			true
+		);
+	}
+	const authorization = new Headers(options.headers).get('Authorization');
+	if (authorization && authorization !== `Bearer ${getToken()}`)
+		throw new ApiError('A sessão mudou. Entre novamente.', 401);
+	try {
+		const timeout = AbortSignal.timeout(15000);
+		const response = await fetch(url, {
+			...options,
+			signal: options.signal ? AbortSignal.any([options.signal, timeout]) : timeout
+		});
+		if (response.status >= 500) apiStatus.state = 'unavailable';
+		else apiStatus.state = 'ready';
+		return response;
+	} catch (error) {
+		if (options.signal?.aborted) throw error;
+		apiStatus.state = isOffline() ? 'offline' : 'unavailable';
+		throw new ApiError(
+			isOffline()
+				? OFFLINE_MESSAGE
+				: 'Não foi possível confirmar a resposta do servidor. Tente novamente em instantes.',
+			0,
+			true
+		);
+	}
 }
 
 export function getToken(): string | null {
@@ -92,12 +137,16 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
 
 	if (response.status === 401 && token) {
 		handleSessionExpired();
-		throw new Error('Sessão expirada. Faça login novamente.');
+		throw new ApiError('Sessão expirada. Faça login novamente.', 401);
 	}
 
 	const data = await response.json().catch(() => ({}));
 	if (!response.ok) {
-		throw new Error(data.error ?? data.errors?.join(', ') ?? 'Erro desconhecido');
+		throw new ApiError(
+			data.error ?? data.errors?.join(', ') ?? 'O servidor não conseguiu concluir a solicitação.',
+			response.status,
+			response.status >= 500 || response.status === 429 || response.status === 408
+		);
 	}
 	return data;
 }

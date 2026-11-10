@@ -7,7 +7,6 @@ import { fetchRouteWeather, type WeatherPoint } from '$lib/services/weather';
 import { createRoute, updateRoute, toStopEntries, type ExploreRoute, type SavedRoute } from '$lib/services/routes';
 import { findFuelStops } from '$lib/services/fuelStops';
 import { savePack, loadPack, WEATHER_TTL_MS } from '$lib/services/offlinePack';
-import { prefetchRouteTiles } from '$lib/services/offlineTiles';
 import { closestRouteIndex, haversineM } from '$lib/utils/mapHelpers';
 import { getLastPosition } from '$lib/services/geolocation';
 import { fetchRoadPois } from '$lib/services/gateway';
@@ -351,6 +350,7 @@ export function useRouteSearch() {
 		downloadingTiles = true;
 		tileProgress = 0;
 		try {
+			const { prefetchRouteTiles } = await import('$lib/services/offlineTiles');
 			const result = await prefetchRouteTiles($state.snapshot(routeCoords), (done, total) => {
 				tileProgress = Math.round((done / total) * 100);
 			});

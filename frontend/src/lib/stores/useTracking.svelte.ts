@@ -31,6 +31,7 @@ const APPROACH_ARRIVAL_M = 50;
 
 export function useTracking() {
 	let active = $state(false);
+	let gpsLost = $state(false);
 	let trackedPath = $state<LatLng[]>([]);
 	let currentPosition = $state<LatLng | null>(null);
 	let startTime = $state<number>(0);
@@ -165,6 +166,7 @@ export function useTracking() {
 		currentPosition = fix.coords;
 		lastFix = fix;
 		lastFixAt = Date.now();
+		gpsLost = false;
 		checkOffRoute(fix);
 
 		if (moved) displayPath = [...displayPath, snappedPosition ?? fix.coords];
@@ -179,6 +181,7 @@ export function useTracking() {
 
 	function start(options?: TrackingOptions) {
 		active = true;
+		gpsLost = false;
 		trackedPath = [];
 		displayPath = [];
 		snappedPosition = null;
@@ -206,10 +209,11 @@ export function useTracking() {
 
 		timerInterval = setInterval(() => {
 			elapsed = Math.floor((Date.now() - startTime) / 1000);
+			gpsLost = Date.now() - lastFixAt > 15000;
 		}, 1000);
 		speedInterval = setInterval(tickSpeed, SPEED_TICK_MS);
 
-		startBackgroundWatch({ onPosition: addPoint, onError() {} });
+		startBackgroundWatch({ onPosition: addPoint, onError() { gpsLost = true; } });
 	}
 
 	function updatePlannedRoute(route: LatLng[]) {
@@ -218,14 +222,16 @@ export function useTracking() {
 		resetOffRoute();
 	}
 
-	function stop(): { path: LatLng[]; distanceKm: number; durationMinutes: number } {
+	function stop() {
 		clearInterval(timerInterval);
 		clearInterval(speedInterval);
 		stopBackgroundWatch();
 		const result = {
 			path: [...trackedPath],
+			lastPosition: lastFix?.coords ?? null,
+			positionFresh: lastFix !== null && Date.now() - lastFixAt < 15000,
 			distanceKm: Math.round(distanceM / 100) / 10,
-			durationMinutes: Math.round(elapsed / 60)
+			durationMinutes: Math.round((Date.now() - startTime) / 60000)
 		};
 		active = false;
 		trackedPath = [];
@@ -257,6 +263,7 @@ export function useTracking() {
 
 	return {
 		get active() { return active; },
+		get gpsLost() { return gpsLost; },
 		get trackedPath() { return trackedPath; },
 		get displayPath() { return displayPath; },
 		get snappedPosition() { return snappedPosition; },

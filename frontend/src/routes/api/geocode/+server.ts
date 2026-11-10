@@ -14,6 +14,7 @@ export const GET: RequestHandler = async ({ url }) => {
 	let data: PhotonResponse;
 	try {
 		const response = await fetch(searchUrl(query, proximity), {
+			signal: AbortSignal.timeout(8000),
 			headers: { 'User-Agent': EXTERNAL_USER_AGENT }
 		});
 		if (!response.ok) throw new Error(`Photon respondeu ${response.status}`);

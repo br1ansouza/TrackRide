@@ -5,6 +5,7 @@ class Route < ApplicationRecord
   has_many :route_completions, dependent: :destroy
   accepts_nested_attributes_for :route_stops, allow_destroy: true
 
+  validates :client_id, format: { with: /\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/i }, allow_nil: true
   validates :name, presence: true
   validates :origin_name, presence: true
   validates :destination_name, presence: true

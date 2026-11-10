@@ -49,19 +49,11 @@ const forecastCache = new TtlCache<ForecastPayload>(10 * 60 * 1000, 500);
 const fuelCache = new TtlCache<FuelStation[]>(24 * 60 * 60 * 1000, 200);
 
 export async function fetchForecast(lat: number, lon: number): Promise<ForecastPayload | null> {
-	if (!isStandaloneBuild) {
-		const response = await fetchWithRetry(
-			`/api/forecast?lat=${lat}&lon=${lon}`,
-			{},
-			{ label: 'Forecast' }
-		);
-		return response ? response.json() : null;
-	}
 	const cacheKey = `${lat.toFixed(2)},${lon.toFixed(2)}`;
 	const cached = forecastCache.get(cacheKey);
 	if (cached) return cached;
 	const response = await fetchWithRetry(
-		`${proxyBaseUrl}/api/forecast?lat=${lat}&lon=${lon}`,
+		`${isStandaloneBuild ? proxyBaseUrl : ''}/api/forecast?lat=${lat}&lon=${lon}`,
 		{},
 		{ label: 'Forecast' }
 	);

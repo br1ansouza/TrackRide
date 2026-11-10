@@ -1,4 +1,4 @@
-import { request, setToken, clearToken, isAuthenticated } from './api';
+import { request, setToken, clearToken, isAuthenticated, getToken } from './api';
 
 export { clearToken, isAuthenticated };
 
@@ -56,8 +56,9 @@ export async function login(email: string, password: string): Promise<AuthUser> 
 }
 
 export async function fetchMe(): Promise<AuthUser> {
+ const token = getToken();
 	const data = await request<{ user: AuthUser }>('/auth/me');
-	cacheUser(data.user);
+	if (getToken() === token) cacheUser(data.user);
 	return data.user;
 }
 

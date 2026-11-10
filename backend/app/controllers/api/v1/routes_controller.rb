@@ -8,10 +8,10 @@ module Api
         routes = current_user.routes.includes(:route_stops).recent
         since = parse_since_date(params[:since])
         routes = routes.where("created_at >= ?", since) if since
-        routes = routes.limit(params[:limit] || 20).offset(params[:offset] || 0)
+        routes = routes.limit(page_limit(20)).offset([ params[:offset].to_i, 0 ].max)
 
         render json: {
-          routes: routes.map { |r| route_response(r) },
+          routes: routes.map { |r| route_response(r, summary: params[:summary] == "1") },
           total: current_user.routes.count
         }
       end
@@ -26,7 +26,7 @@ module Api
           .where.not(user_id: current_user.id)
           .where("ST_DWithin(origin_coords, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography, ?)", lon, lat, radius)
           .order(score: :desc)
-          .limit(params[:limit] || 10)
+          .limit(page_limit(10))
 
         render json: {
           routes: routes.map { |r| explore_response(r) },
@@ -39,6 +39,11 @@ module Api
       end
 
       def create
+        if params[:client_id].present?
+          route = RecordRide.call(user: current_user, attributes: route_params, completed_route_id: params[:completed_route_id])
+          return render json: { route: route_response(route) }, status: :created
+        end
+
         if params[:origin_coords].present? && params[:destination_coords].present?
           existing = current_user.routes.find_by(
             origin_name: params[:origin_name],
@@ -56,6 +61,8 @@ module Api
         else
           render json: { errors: route.errors.full_messages }, status: :unprocessable_entity
         end
+      rescue ActiveRecord::RecordInvalid => error
+        render json: { errors: error.record.errors.full_messages }, status: :unprocessable_entity
       end
 
       def update
@@ -114,6 +121,10 @@ module Api
 
       private
 
+      def page_limit(default)
+        params[:limit].present? ? params[:limit].to_i.clamp(1, 50) : default
+      end
+
       def parse_since_date(value)
         return nil if value.blank?
         Date.parse(value.to_s)
@@ -134,11 +145,12 @@ module Api
       def route_params
         permitted = params.permit(
           :name, :origin_name, :destination_name,
-          :distance_km, :duration_minutes, :score, :public, :completed,
+          :distance_km, :duration_minutes, :score, :public, :completed, :client_id,
           origin_coords: [], destination_coords: [], path_coords: [],
           route_stops_attributes: [ :name, :stop_type, :sort_order, position: [] ]
         )
 
+        permitted.delete(:client_id) unless action_name == "create"
         build_geo_params(permitted)
       end
 
@@ -177,15 +189,16 @@ module Api
         result
       end
 
-      def route_response(route)
+      def route_response(route, summary: false)
         {
           id: route.id,
+          client_id: route.client_id,
           name: route.name,
           origin_name: route.origin_name,
           destination_name: route.destination_name,
           origin_coords: coords_to_array(route.origin_coords),
           destination_coords: coords_to_array(route.destination_coords),
-          path_coords: linestring_to_array(route.path_coords),
+          path_coords: summary ? nil : linestring_to_array(route.path_coords),
           distance_km: route.distance_km,
           duration_minutes: route.duration_minutes,
           score: route.score,
@@ -198,7 +211,7 @@ module Api
       end
 
       def explore_response(route)
-        route_response(route).merge(
+        route_response(route, summary: true).merge(
           author_name: route.user.name,
           likes_count: route.route_likes.size,
           times_completed: route.times_completed,

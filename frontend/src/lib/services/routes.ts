@@ -1,4 +1,4 @@
-import { request } from './api';
+import { request, isTemporaryError, ApiError } from './api';
 import type { RouteStopEntry, StopType } from '$lib/types/routeStop';
 import { idbGet, idbPut } from '$lib/utils/idb';
 
@@ -11,6 +11,7 @@ export interface SavedRouteStop {
 }
 
 export interface SavedRoute {
+ client_id?: string | null;
 	id: number;
 	name: string;
 	origin_name: string;
@@ -35,13 +36,13 @@ interface RoutesResponse {
 
 export async function fetchSavedRoutes(limit = 20, offset = 0): Promise<RoutesResponse> {
 	try {
-		const data = await request<RoutesResponse>(`/routes?limit=${limit}&offset=${offset}`);
+		const data = await request<RoutesResponse>(`/routes?limit=${limit}&offset=${offset}&summary=1`);
 		if (offset === 0) {
 			idbPut('cache', 'saved-routes', data).catch((error) => console.error('Falha ao cachear histórico:', error));
 		}
 		return data;
 	} catch (error) {
-		if (error instanceof TypeError && offset === 0) {
+		if (isTemporaryError(error) && offset === 0) {
 			const cached = await idbGet<RoutesResponse>('cache', 'saved-routes').catch(() => undefined);
 			if (cached) return cached;
 		}
@@ -65,6 +66,8 @@ export interface RouteStopParams {
 }
 
 export interface CreateRouteParams {
+ client_id?: string;
+ completed_route_id?: number;
 	name: string;
 	origin_name: string;
 	destination_name: string;
@@ -84,6 +87,9 @@ export async function createRoute(params: CreateRouteParams): Promise<SavedRoute
 		method: 'POST',
 		body: JSON.stringify(params)
 	});
+ if (!data.route?.id || (params.client_id && data.route.client_id !== params.client_id)) {
+  throw new ApiError('O servidor não confirmou o registro da viagem. O percurso permanece salvo no aparelho.', 0, true);
+ }
 	return data.route;
 }
 

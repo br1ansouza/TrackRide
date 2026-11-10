@@ -5,7 +5,7 @@
 	import { transitions } from '$lib/utils/transitions';
 	import { resetPassword } from '$lib/services/auth';
 	import { toaster } from '$lib/stores/toaster';
-	import backgroundImg from '$lib/assets/background-trackride.png';
+	import backgroundImg from '$lib/assets/background-trackride.webp';
 
 	let { data }: { data: { token: string } } = $props();
 	const token = $derived(data.token);

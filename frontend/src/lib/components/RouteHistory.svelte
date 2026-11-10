@@ -2,7 +2,6 @@
 	import { onMount } from 'svelte';
 	import { Route, Clock, Trash2, ChevronRight, Globe, Lock, ArrowDown } from 'lucide-svelte';
 	import { fetchSavedRoutes, deleteRoute, updateRoute, type SavedRoute } from '$lib/services/routes';
-	import { reverseDistrict } from '$lib/services/gateway';
 	import { toaster } from '$lib/stores/toaster';
 	import { stopColor } from '$lib/utils/stopColors';
 	import { stopIcon } from '$lib/utils/stopIcons';
@@ -20,31 +19,14 @@
 	let total = $state(0);
 	let loading = $state(true);
 
-	onMount(() => loadRoutes());
+	onMount(() => { void loadRoutes(); });
 
-	async function enrichName(route: SavedRoute): Promise<void> {
-		if (!route.origin_name.startsWith('Minha localização')) return;
-		if (route.origin_name.includes('(')) return;
-		const [lon, lat] = route.origin_coords;
-		const district = await reverseDistrict(lat, lon);
-		if (district) {
-			const enriched = `Minha localização (${district})`;
-			route.origin_name = enriched;
-			routes = [...routes];
-			updateRoute(route.id, { name: `${enriched} → ${route.destination_name}`, origin_name: enriched })
-				.catch(() => toaster.warning({ title: 'Aviso', description: 'Não foi possível atualizar o nome da rota.' }));
-		}
-	}
-
-	async function loadRoutes() {
+	async function loadRoutes(append = false) {
 		loading = true;
 		try {
-			const data = await fetchSavedRoutes(limit || 100);
-			routes = data.routes;
+			const data = await fetchSavedRoutes(limit || 20, append ? routes.length : 0);
+			routes = append ? [...routes, ...data.routes] : data.routes;
 			total = data.total;
-			for (const route of routes) {
-				enrichName(route);
-			}
 		} catch {
 			toaster.error({ title: 'Erro', description: 'Não foi possível carregar as rotas.' });
 		} finally {
@@ -100,7 +82,7 @@
 <div class="flex flex-col gap-2">
 	<span class="text-xs font-medium text-surface-400">Histórico de viagens ({total})</span>
 
-	{#if loading}
+	{#if loading && routes.length === 0}
 		<p class="text-sm text-surface-400">Carregando…</p>
 	{:else if routes.length === 0}
 		<p class="text-sm text-surface-400">Nenhuma rota salva.</p>
@@ -173,7 +155,10 @@
 			</div>
 		{/each}
 
-		{#if showViewAll && total > (limit || 0)}
+		{#if !limit && routes.length < total}
+   <button type="button" disabled={loading} onclick={() => loadRoutes(true)} class="rounded-lg py-3 text-sm text-white">{loading ? 'Carregando…' : 'Carregar mais viagens'}</button>
+  {/if}
+  {#if showViewAll && total > (limit || 0)}
 			<button
 				type="button"
 				onclick={onViewAll}

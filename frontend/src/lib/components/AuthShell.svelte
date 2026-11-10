@@ -4,7 +4,7 @@
 	import { fly } from 'svelte/transition';
 	import { Route } from 'lucide-svelte';
 	import { transitions } from '$lib/utils/transitions';
-	import backgroundImg from '$lib/assets/background-trackride.png';
+	import backgroundImg from '$lib/assets/background-trackride.webp';
 	import '$lib/styles/login-layout.css';
 	import '$lib/styles/login-form.css';
 	import { wakeUpApi } from '$lib/services/api';

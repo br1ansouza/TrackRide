@@ -9,6 +9,7 @@ export const GET: RequestHandler = async ({ url }) => {
 
 	try {
 		const response = await fetch(reverseUrl(coords.lat, coords.lon), {
+			signal: AbortSignal.timeout(8000),
 			headers: { 'User-Agent': EXTERNAL_USER_AGENT }
 		});
 		if (!response.ok) {
