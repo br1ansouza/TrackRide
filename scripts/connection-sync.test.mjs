@@ -23,7 +23,7 @@ function harness(fetch = async () => new Response('{}'), mocks = {}) {
   idbDelete: async (_, id) => { entries.delete(id); },
   idbClear: async () => {}
  };
- const scope = { console, Response, Headers, AbortSignal, Error, TypeError, crypto,
+ const scope = { console, Response, Headers, AbortSignal, Error, TypeError, crypto, queueMicrotask,
   navigator: { onLine: true }, Date: { now: () => clock },
   setTimeout: (fn, ms) => { if (ms === 2500) slow = fn; else { clock += ms; queueMicrotask(fn); } return 1; },
   clearTimeout() {}, $state: value => value,
@@ -126,6 +126,7 @@ test('multiple authentication consumers share one request and cached user render
  const h = harness(async url => { if (url.endsWith('/up')) return new Response('ok'); calls++; return new Promise(r => resolve = r); });
  const auth = h.load('stores/auth.svelte'); const first = auth.useAuth(); auth.useAuth();
  h.mounts.forEach(fn => fn());
+ await Promise.resolve();
  assert.equal(first.loading, false); assert.equal(first.user.id, 7);
  await new Promise(r => setImmediate(r)); assert.equal(calls, 1);
  resolve(Response.json({ user: { id: 7, name: 'Fresh' } }));
