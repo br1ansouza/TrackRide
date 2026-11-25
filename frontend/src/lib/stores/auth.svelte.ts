@@ -51,7 +51,7 @@ async function initialize() {
 
 export function useAuth() {
 	onMount(() => {
-		void initialize();
+		queueMicrotask(() => void initialize());
 	});
 
 	return {
