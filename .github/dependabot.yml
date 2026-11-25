@@ -16,6 +16,10 @@ updates:
         update-types:
           - minor
           - patch
+      major:
+        applies-to: version-updates
+        update-types:
+          - major
   - package-ecosystem: npm
     directory: "/frontend"
     target-branch: dev
@@ -27,20 +31,15 @@ updates:
     rebase-strategy: auto
     open-pull-requests-limit: 5
     groups:
-      capacitor:
-        applies-to: version-updates
-        patterns:
-          - "@capacitor*"
-      sveltekit:
-        applies-to: version-updates
-        patterns:
-          - "@sveltejs/kit"
-          - "@sveltejs/adapter-*"
       minor-and-patch:
         applies-to: version-updates
         update-types:
           - minor
           - patch
+      major:
+        applies-to: version-updates
+        update-types:
+          - major
   - package-ecosystem: github-actions
     directory: "/"
     target-branch: dev
